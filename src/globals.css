@@ -53,11 +53,41 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+  .futuristic-card {
+    background: linear-gradient(135deg, rgba(0, 255, 136, 0.05), rgba(88, 166, 255, 0.05));
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 255, 136, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 255, 136, 0.1);
+  }
+  .cyber-border {
+    position: relative;
+    border: 2px solid transparent;
+    background: linear-gradient(#0d1117, #0d1117) padding-box,
+                linear-gradient(135deg, #00ff88, #58a6ff) border-box;
+  }
+  .neon-glow {
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.5),
+                 0 0 20px rgba(0, 255, 136, 0.3),
+                 0 0 30px rgba(0, 255, 136, 0.2);
+  }
+  .float-animation {
+    animation: float 3s ease-in-out infinite;
+  }
 }
 
 @keyframes pulseRed {
   0%, 100% { box-shadow: 0 0 5px rgba(255, 51, 51, 0.3); }
   50% { box-shadow: 0 0 25px rgba(255, 51, 51, 0.6); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
 }
 
 @keyframes shimmer {

@@ -103,26 +103,49 @@ export default function SiteManager() {
   }
 
   return (
-    <div className="max-w-[1000px] mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-[#e6edf3]">ניהול אתרים</h1>
-          <p className="text-sm text-[#8b949e] mt-1">{sites.length} אתרים רשומים</p>
-        </div>
-        <Button onClick={() => { setForm(emptyForm); setEditingId(null); setShowForm(true); }}
-          className="bg-[#00ff88] text-[#0d1117] hover:bg-[#00cc6a] text-xs font-semibold">
-          <Plus className="w-4 h-4 ml-1" /> הוסף אתר
-        </Button>
-      </div>
+    <div className="min-h-screen p-6" style={{ background: '#0d1117' }}>
+      <div className="max-w-[1400px] mx-auto space-y-6">
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between"
+        >
+          <div>
+            <h1 className="text-5xl font-bold neon-glow" style={{ color: '#00ff88' }}>ניהול אתרים</h1>
+            <p className="text-lg text-gray-400 mt-2">
+              {sites.length} מערכות סולאריות רשומות במערכת
+            </p>
+          </div>
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button 
+              onClick={() => { setForm(emptyForm); setEditingId(null); setShowForm(true); }}
+              className="text-sm font-semibold px-6 py-6"
+              style={{ 
+                background: 'linear-gradient(135deg, #00ff88 0%, #00cc6f 100%)',
+                color: '#000'
+              }}
+            >
+              <Plus className="w-5 h-5 ml-2" /> הוסף מערכת חדשה
+            </Button>
+          </motion.div>
+        </motion.div>
 
       {/* Form */}
       <AnimatePresence>
         {showForm && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-            className="glass-card rounded-xl p-6 overflow-hidden">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-sm font-semibold text-[#e6edf3]">{editingId ? "ערוך אתר" : "אתר חדש"}</h3>
-              <button onClick={closeForm} className="text-[#8b949e] hover:text-[#e6edf3]"><X className="w-4 h-4" /></button>
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }} 
+            animate={{ opacity: 1, height: "auto" }} 
+            exit={{ opacity: 0, height: 0 }}
+            className="futuristic-card rounded-xl p-8 overflow-hidden"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-white neon-glow">
+                {editingId ? "עריכת מערכת סולארית" : "מערכת סולארית חדשה"}
+              </h3>
+              <button onClick={closeForm} className="text-[#8b949e] hover:text-[#e6edf3] transition-colors">
+                <X className="w-6 h-6" />
+              </button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               <Field label="שם האתר" field="name" placeholder="שם האתר" />
@@ -172,25 +195,55 @@ export default function SiteManager() {
       </AnimatePresence>
 
       {/* Sites list */}
-      <div className="space-y-3">
-        {sites.map(site => (
-          <div key={site.id} className="glass-card rounded-xl p-4 flex items-center justify-between group">
-            <div className="flex items-center gap-4">
-              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: site.status === "online" ? "#00ff88" : site.status === "warning" ? "#ffaa00" : "#ff3333" }} />
-              <div>
-                <p className="text-sm font-semibold text-[#e6edf3]">{site.name}</p>
-                <p className="text-[11px] text-[#8b949e]">{site.dc_capacity_kwp || 0} kWp · {site.region_tag}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {sites.map((site, i) => (
+          <motion.div
+            key={site.id}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: i * 0.05 }}
+            whileHover={{ scale: 1.02, y: -5 }}
+          >
+            <div className="futuristic-card rounded-xl p-5 group cursor-pointer">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ 
+                      backgroundColor: site.status === "online" ? "#00ff88" : site.status === "warning" ? "#ffaa00" : "#ff3333",
+                      boxShadow: `0 0 10px ${site.status === "online" ? "#00ff88" : site.status === "warning" ? "#ffaa00" : "#ff3333"}`
+                    }} 
+                  />
+                  <div>
+                    <p className="text-sm font-bold text-white">{site.name}</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {site.dc_capacity_kwp || 0} kWp · {site.region_tag}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-3">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => openEdit(site)} 
+                  className="flex-1 text-[#8b949e] hover:text-[#00ff88] hover:bg-[#00ff88]/10"
+                >
+                  <Pencil className="w-4 h-4 ml-1" />
+                  ערוך
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => { if (confirm("למחוק את האתר?")) deleteMutation.mutate(site.id); }} 
+                  className="flex-1 text-[#8b949e] hover:text-[#ff3333] hover:bg-[#ff3333]/10"
+                >
+                  <Trash2 className="w-4 h-4 ml-1" />
+                  מחק
+                </Button>
               </div>
             </div>
-            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button variant="ghost" size="sm" onClick={() => openEdit(site)} className="text-[#8b949e] hover:text-[#58a6ff]">
-                <Pencil className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => { if (confirm("למחוק את האתר?")) deleteMutation.mutate(site.id); }} className="text-[#8b949e] hover:text-[#ff3333]">
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
+          </motion.div>
         ))}
       </div>
     </div>

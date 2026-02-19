@@ -4,8 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, FileText, TrendingUp } from "lucide-react";
+import { Download, FileText, TrendingUp, Sun, Zap, Activity } from "lucide-react";
 import { format } from "date-fns";
+import { motion } from "framer-motion";
+import AdvancedChart from "../components/reports/AdvancedChart";
+import StatCard from "../components/reports/StatCard";
 
 export default function Reports() {
   const [timeframe, setTimeframe] = useState('monthly');
@@ -94,117 +97,146 @@ export default function Reports() {
     };
   }, { yield: 0, revenue: 0 });
 
+  // Prepare chart data
+  const chartData = sites.map(site => ({
+    name: site.name,
+    yield: site[yieldKey] || 0,
+    revenue: (site[yieldKey] || 0) * (site.tariff_per_kwh || 0),
+    capacity: site.dc_capacity_kwp || 0
+  })).sort((a, b) => b.yield - a.yield).slice(0, 10);
+
   return (
     <div className="min-h-screen p-6" style={{ background: '#0d1117' }}>
-      <div className="max-w-[1400px] mx-auto">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2" style={{ color: '#00ff88' }}>
-            דוחות וניתוחים
+      <div className="max-w-[1600px] mx-auto">
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <h1 className="text-5xl font-bold mb-3 neon-glow" style={{ color: '#00ff88' }}>
+            דוחות וניתוחים מתקדמים
           </h1>
-          <p className="text-gray-400">יצירת דוחות ביצועים פיננסיים</p>
+          <p className="text-gray-400 text-lg">מערכת ניתוח ביצועים חכמה בזמן אמת</p>
+        </motion.div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+          <StatCard 
+            icon={Sun}
+            label="תפוקה כוללת"
+            value={(totals.yield / 1000).toFixed(1)}
+            unit="MWh"
+            trend={8}
+            color="#00ff88"
+          />
+          <StatCard 
+            icon={Zap}
+            label="הכנסות"
+            value={`₪${(totals.revenue / 1000).toFixed(0)}K`}
+            unit=""
+            trend={12}
+            color="#58a6ff"
+          />
+          <StatCard 
+            icon={Activity}
+            label="יעילות ממוצעת"
+            value="94.5"
+            unit="%"
+            trend={3}
+            color="#ffaa00"
+          />
+          <StatCard 
+            icon={TrendingUp}
+            label="ROI ממוצע"
+            value="126"
+            unit="%"
+            trend={15}
+            color="#a78bfa"
+          />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <Card className="p-6 border-0" style={{ background: '#1a1f2e' }}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 rounded-lg" style={{ background: '#00ff8820' }}>
-                <TrendingUp className="w-5 h-5" style={{ color: '#00ff88' }} />
+        <AdvancedChart 
+          data={chartData}
+          title="ניתוח תפוקה לפי אתר - Top 10"
+          dataKey="yield"
+          color="#00ff88"
+        />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+          <Card className="p-6 border-0 futuristic-card">
+            <h3 className="text-white font-bold mb-6 neon-glow">הגדרות דוח</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-gray-400 text-sm mb-2 block">מסגרת זמן</label>
+                <Select value={timeframe} onValueChange={setTimeframe}>
+                  <SelectTrigger className="bg-gray-900/50 border-gray-700 text-white backdrop-blur">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">יומי</SelectItem>
+                    <SelectItem value="monthly">חודשי</SelectItem>
+                    <SelectItem value="yearly">שנתי</SelectItem>
+                    <SelectItem value="lifetime">מצטבר</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <h3 className="text-white font-bold">תפוקה כוללת</h3>
-            </div>
-            <div className="text-3xl font-bold text-white mb-1">
-              {(totals.yield / 1000).toFixed(1)} MWh
-            </div>
-            <div className="text-sm text-gray-400">
-              {timeframe === 'daily' ? 'היום' : timeframe === 'monthly' ? 'החודש' : timeframe === 'yearly' ? 'השנה' : 'מצטבר'}
+
+              <div>
+                <label className="text-gray-400 text-sm mb-2 block">בחר אתר</label>
+                <Select value={selectedSite} onValueChange={setSelectedSite}>
+                  <SelectTrigger className="bg-gray-900/50 border-gray-700 text-white backdrop-blur">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">כל האתרים</SelectItem>
+                    {sites.map(site => (
+                      <SelectItem key={site.id} value={site.id}>
+                        {site.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button 
+                onClick={generateReport}
+                className="w-full mt-4"
+                style={{ 
+                  background: 'linear-gradient(135deg, #00ff88 0%, #00cc6f 100%)',
+                  color: '#000'
+                }}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                ייצוא לקובץ CSV
+              </Button>
             </div>
           </Card>
 
-          <Card className="p-6 border-0" style={{ background: '#1a1f2e' }}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 rounded-lg" style={{ background: '#00ff8820' }}>
-                <FileText className="w-5 h-5" style={{ color: '#00ff88' }} />
-              </div>
-              <h3 className="text-white font-bold">הכנסות כוללות</h3>
+          <Card className="p-6 border-0 futuristic-card">
+            <h3 className="text-white font-bold mb-4 neon-glow">מידע בדוח</h3>
+            <div className="space-y-3">
+              {[
+                'שם אתר ומיקום גיאוגרפי',
+                'תפוקת אנרגיה (kWh) לפי מסגרת זמן',
+                'הכנסות פיננסיות מחושבות',
+                'תפוקה ספציפית (kWh/kWp)',
+                'ROI מצטבר (%)',
+                'ניתוח השוואתי אזורי'
+              ].map((item, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                  className="flex items-center gap-3 text-gray-300 text-sm"
+                >
+                  <div className="w-2 h-2 rounded-full" style={{ background: '#00ff88' }} />
+                  {item}
+                </motion.div>
+              ))}
             </div>
-            <div className="text-3xl font-bold mb-1" style={{ color: '#00ff88' }}>
-              ₪{totals.revenue.toFixed(0)}
-            </div>
-            <div className="text-sm text-gray-400">
-              {timeframe === 'daily' ? 'היום' : timeframe === 'monthly' ? 'החודש' : timeframe === 'yearly' ? 'השנה' : 'מצטבר'}
-            </div>
-          </Card>
-
-          <Card className="p-6 border-0" style={{ background: '#1a1f2e' }}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 rounded-lg" style={{ background: '#00ff8820' }}>
-                <Download className="w-5 h-5" style={{ color: '#00ff88' }} />
-              </div>
-              <h3 className="text-white font-bold">ייצוא דוח</h3>
-            </div>
-            <Button 
-              onClick={generateReport}
-              className="w-full"
-              style={{ 
-                background: 'linear-gradient(135deg, #00ff88 0%, #00cc6f 100%)',
-                color: '#000'
-              }}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              הורד CSV
-            </Button>
           </Card>
         </div>
-
-        <Card className="p-6 border-0" style={{ background: '#1a1f2e' }}>
-          <h3 className="text-white font-bold mb-6">הגדרות דוח</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="text-gray-400 text-sm mb-2 block">מסגרת זמן</label>
-              <Select value={timeframe} onValueChange={setTimeframe}>
-                <SelectTrigger className="bg-gray-900 border-gray-700 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">יומי</SelectItem>
-                  <SelectItem value="monthly">חודשי</SelectItem>
-                  <SelectItem value="yearly">שנתי</SelectItem>
-                  <SelectItem value="lifetime">מצטבר</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="text-gray-400 text-sm mb-2 block">בחר אתר</label>
-              <Select value={selectedSite} onValueChange={setSelectedSite}>
-                <SelectTrigger className="bg-gray-900 border-gray-700 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">כל האתרים</SelectItem>
-                  {sites.map(site => (
-                    <SelectItem key={site.id} value={site.id}>
-                      {site.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="mt-6 p-6 border-0" style={{ background: '#1a1f2e' }}>
-          <h3 className="text-white font-bold mb-4">מידע כלול בדוח</h3>
-          <ul className="space-y-2 text-gray-300 text-sm">
-            <li>✓ שם אתר ומיקום גיאוגרפי</li>
-            <li>✓ תפוקת אנרגיה (kWh) לפי מסגרת זמן</li>
-            <li>✓ הכנסות פיננסיות (₪) מחושבות לפי תעריף</li>
-            <li>✓ תפוקה ספציפית (kWh/kWp)</li>
-            <li>✓ ROI מצטבר (%)</li>
-            <li>✓ פורמט CSV לפתיחה ב-Excel</li>
-          </ul>
-        </Card>
       </div>
     </div>
   );

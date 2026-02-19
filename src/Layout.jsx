@@ -1,12 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { LayoutDashboard, FileText, Zap } from 'lucide-react';
+import { LayoutDashboard, FileText, Zap, Settings } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
   const navItems = [
     { name: 'Dashboard', label: 'דאשבורד', icon: LayoutDashboard },
-    { name: 'Reports', label: 'דוחות', icon: FileText }
+    { name: 'Reports', label: 'דוחות', icon: FileText },
+    { name: 'SiteManager', label: 'ניהול אתרים', icon: Settings }
   ];
 
   return (
