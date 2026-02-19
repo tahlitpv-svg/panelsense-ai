@@ -1,127 +1,102 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { createPageUrl } from "./utils";
-import {
-  LayoutDashboard,
-  Map,
-  Bell,
-  FileText,
-  Settings,
-  Sun,
-  Menu,
-  X,
-  Zap,
-  ChevronLeft
-} from "lucide-react";
-
-const navItems = [
-  { name: "Dashboard", icon: LayoutDashboard, page: "Dashboard" },
-  { name: "מפת צי", icon: Map, page: "FleetMap" },
-  { name: "התראות", icon: Bell, page: "Alerts" },
-  { name: "דוחות", icon: FileText, page: "Reports" },
-  { name: "הגדרות", icon: Settings, page: "SiteManager" },
-];
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
+import { LayoutDashboard, FileText, Zap } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const navItems = [
+    { name: 'Dashboard', label: 'דאשבורד', icon: LayoutDashboard },
+    { name: 'Reports', label: 'דוחות', icon: FileText }
+  ];
 
   return (
-    <div className="min-h-screen flex" dir="rtl" style={{ background: '#0d1117' }}>
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+    <div className="min-h-screen" style={{ background: '#0d1117' }}>
+      <style>{`
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: .7;
+          }
+        }
+        
+        body {
+          font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+          direction: rtl;
+        }
+        
+        * {
+          scrollbar-width: thin;
+          scrollbar-color: #00ff88 #1a1f2e;
+        }
+        
+        *::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+        
+        *::-webkit-scrollbar-track {
+          background: #1a1f2e;
+        }
+        
+        *::-webkit-scrollbar-thumb {
+          background: #00ff88;
+          border-radius: 4px;
+        }
+        
+        *::-webkit-scrollbar-thumb:hover {
+          background: #00cc6f;
+        }
+      `}</style>
 
-      {/* Sidebar */}
-      <aside
-        className={`fixed lg:sticky top-0 h-screen z-50 flex flex-col transition-all duration-300 ease-in-out
-          ${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
-          ${collapsed ? "w-[72px]" : "w-64"}
-        `}
-        style={{ background: '#161b22', borderLeft: '1px solid #30363d' }}
-      >
-        {/* Logo */}
-        <div className={`flex items-center gap-3 p-5 border-b border-[#30363d] ${collapsed ? "justify-center" : ""}`}>
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-               style={{ background: 'linear-gradient(135deg, #00ff88, #00cc6a)' }}>
-            <Zap className="w-5 h-5 text-[#0d1117]" />
-          </div>
-          {!collapsed && (
-            <div>
-              <h1 className="text-sm font-bold text-[#e6edf3] tracking-wide">DELKAL</h1>
-              <p className="text-[10px] text-[#8b949e] tracking-widest">SMART MONITORING</p>
+      <nav className="border-b shadow-xl sticky top-0 z-50 backdrop-blur-lg"
+           style={{ 
+             background: 'rgba(13, 17, 23, 0.95)', 
+             borderColor: '#1a1f2e'
+           }}>
+        <div className="max-w-[1800px] mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <Link to={createPageUrl('Dashboard')} className="flex items-center gap-3">
+              <div className="p-2 rounded-lg" style={{ background: '#00ff8820' }}>
+                <Zap className="w-6 h-6" style={{ color: '#00ff88' }} />
+              </div>
+              <div>
+                <div className="text-xl font-bold" style={{ color: '#00ff88' }}>
+                  Delkal Energy
+                </div>
+                <div className="text-xs text-gray-400">Fleet Control Tower</div>
+              </div>
+            </Link>
+
+            <div className="flex items-center gap-2">
+              {navItems.map(item => {
+                const Icon = item.icon;
+                const isActive = currentPageName === item.name;
+                
+                return (
+                  <Link
+                    key={item.name}
+                    to={createPageUrl(item.name)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium"
+                    style={{
+                      background: isActive ? '#00ff8820' : 'transparent',
+                      color: isActive ? '#00ff88' : '#9ca3af',
+                      borderBottom: isActive ? '2px solid #00ff88' : 'none'
+                    }}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
             </div>
-          )}
-          <button
-            className="lg:hidden mr-auto text-[#8b949e] hover:text-[#e6edf3]"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex-1 py-4 px-3 space-y-1">
-          {navItems.map((item) => {
-            const isActive = currentPageName === item.page;
-            return (
-              <Link
-                key={item.page}
-                to={createPageUrl(item.page)}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group
-                  ${collapsed ? "justify-center" : ""}
-                  ${isActive
-                    ? "bg-[#00ff88]/10 text-[#00ff88]"
-                    : "text-[#8b949e] hover:text-[#e6edf3] hover:bg-[#242b35]"
-                  }`}
-              >
-                <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-[#00ff88]" : ""}`} />
-                {!collapsed && <span className="text-sm font-medium">{item.name}</span>}
-                {isActive && !collapsed && (
-                  <div className="mr-auto w-1.5 h-1.5 rounded-full bg-[#00ff88]" />
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Collapse toggle - desktop only */}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="hidden lg:flex items-center justify-center p-3 border-t border-[#30363d] text-[#8b949e] hover:text-[#e6edf3] transition-colors"
-        >
-          <ChevronLeft className={`w-4 h-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
-        </button>
-      </aside>
-
-      {/* Main content */}
-      <main className="flex-1 min-h-screen overflow-x-hidden">
-        {/* Mobile header */}
-        <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3"
-                style={{ background: '#161b22', borderBottom: '1px solid #30363d' }}>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                 style={{ background: 'linear-gradient(135deg, #00ff88, #00cc6a)' }}>
-              <Zap className="w-4 h-4 text-[#0d1117]" />
-            </div>
-            <span className="text-sm font-bold text-[#e6edf3]">DELKAL</span>
           </div>
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="text-[#8b949e] hover:text-[#e6edf3]"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-        </header>
-
-        <div className="p-4 md:p-6 lg:p-8">
-          {children}
         </div>
+      </nav>
+
+      <main>
+        {children}
       </main>
     </div>
   );
