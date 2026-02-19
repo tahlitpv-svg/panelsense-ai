@@ -108,9 +108,8 @@ export default function SiteDetails() {
               הגדרות
             </TabsTrigger>
           </TabsList>
-        </Tabs>
 
-        <TabsContent value="overview" className="space-y-8">
+          <TabsContent value="overview" className="space-y-8">
         <Card className="p-6 border-0 mb-8 futuristic-card">
           <h3 className="text-white font-bold mb-4">ייצור יומי</h3>
           <div className="h-64">
@@ -326,15 +325,16 @@ export default function SiteDetails() {
           )}
           )}
         </div>
-        </TabsContent>
+          </TabsContent>
 
-        <TabsContent value="analysis">
-          <ProductionAnalysis site={site} />
-        </TabsContent>
+          <TabsContent value="analysis">
+            <ProductionAnalysis site={site} />
+          </TabsContent>
 
-        <TabsContent value="config">
-          <SiteConfiguration site={site} />
-        </TabsContent>
+          <TabsContent value="config">
+            <SiteConfiguration site={site} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
