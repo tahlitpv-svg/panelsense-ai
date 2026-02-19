@@ -325,6 +325,15 @@ export default function SiteDetails() {
             ))
           )}
         </div>
+        </TabsContent>
+
+        <TabsContent value="analysis">
+          <ProductionAnalysis site={site} />
+        </TabsContent>
+
+        <TabsContent value="config">
+          <SiteConfiguration site={site} />
+        </TabsContent>
       </div>
     </div>
   );
