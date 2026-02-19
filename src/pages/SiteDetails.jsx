@@ -324,6 +324,7 @@ export default function SiteDetails() {
               </Card>
             ))
           )}
+          )}
         </div>
         </TabsContent>
 
