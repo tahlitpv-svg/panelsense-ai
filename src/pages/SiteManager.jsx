@@ -246,6 +246,7 @@ export default function SiteManager() {
           </motion.div>
         ))}
       </div>
+      </div>
     </div>
   );
 }
