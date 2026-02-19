@@ -98,12 +98,22 @@ export default function Reports() {
   }, { yield: 0, revenue: 0 });
 
   // Prepare chart data
-  const chartData = sites.map(site => ({
-    name: site.name,
-    yield: site[yieldKey] || 0,
-    revenue: (site[yieldKey] || 0) * (site.tariff_per_kwh || 0),
-    capacity: site.dc_capacity_kwp || 0
-  })).sort((a, b) => b.yield - a.yield).slice(0, 10);
+  const yieldKey = `${timeframe}_yield_kwh`;
+  const chartData = sites.map(site => {
+    let yieldValue = 0;
+    switch(timeframe) {
+      case 'daily': yieldValue = site.daily_yield_kwh || 0; break;
+      case 'monthly': yieldValue = site.monthly_yield_kwh || 0; break;
+      case 'yearly': yieldValue = site.yearly_yield_kwh || 0; break;
+      case 'lifetime': yieldValue = site.lifetime_yield_kwh || 0; break;
+    }
+    return {
+      name: site.name,
+      yield: yieldValue,
+      revenue: yieldValue * (site.tariff_per_kwh || 0),
+      capacity: site.dc_capacity_kwp || 0
+    };
+  }).sort((a, b) => b.yield - a.yield).slice(0, 10);
 
   return (
     <div className="min-h-screen p-6" style={{ background: '#0d1117' }}>

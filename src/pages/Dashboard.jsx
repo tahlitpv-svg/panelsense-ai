@@ -7,9 +7,12 @@ import { Zap, DollarSign, Activity, TrendingUp, RefreshCw } from "lucide-react";
 import KPICard from "../components/dashboard/KPICard";
 import SiteCard from "../components/dashboard/SiteCard";
 import FleetMap from "../components/dashboard/FleetMap";
+import FleetProductionChart from "../components/dashboard/FleetProductionChart";
+import FleetOverviewChart from "../components/dashboard/FleetOverviewChart";
 
 export default function Dashboard() {
   const [filter, setFilter] = useState('all');
+  const [chartTimeframe, setChartTimeframe] = useState('hourly');
 
   const { data: sites = [], isLoading, refetch } = useQuery({
     queryKey: ['sites'],
@@ -130,6 +133,33 @@ export default function Dashboard() {
             </TabsTrigger>
           </TabsList>
         </Tabs>
+
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-white">ייצור הצי</h2>
+            <Tabs value={chartTimeframe} onValueChange={setChartTimeframe}>
+              <TabsList className="bg-gray-900 border-gray-700">
+                <TabsTrigger value="hourly" className="data-[state=active]:bg-gray-700 text-xs">
+                  שעתי
+                </TabsTrigger>
+                <TabsTrigger value="daily" className="data-[state=active]:bg-gray-700 text-xs">
+                  יומי
+                </TabsTrigger>
+                <TabsTrigger value="monthly" className="data-[state=active]:bg-gray-700 text-xs">
+                  חודשי
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <FleetProductionChart sites={filteredSites} timeframe={chartTimeframe} />
+            </div>
+            <div>
+              <FleetOverviewChart sites={filteredSites} />
+            </div>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="lg:col-span-2">
