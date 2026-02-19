@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, X, Loader2, Save } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Loader2, Save, Droplets } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const emptyForm = {
@@ -39,6 +39,14 @@ export default function SiteManager() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Site.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sites"] }),
+  });
+
+  const markCleanedMutation = useMutation({
+    mutationFn: (id) => base44.entities.Site.update(id, {
+      last_cleaning_date: new Date().toISOString().split('T')[0],
+      cleaning_recommended: false
+    }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sites"] }),
   });
 
@@ -222,24 +230,35 @@ export default function SiteManager() {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-2 mt-3">
+              <div className="flex flex-col gap-2 mt-3">
+                <div className="flex gap-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => openEdit(site)} 
+                    className="flex-1 text-[#8b949e] hover:text-[#00ff88] hover:bg-[#00ff88]/10"
+                  >
+                    <Pencil className="w-4 h-4 ml-1" />
+                    ערוך
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => { if (confirm("למחוק את האתר?")) deleteMutation.mutate(site.id); }} 
+                    className="flex-1 text-[#8b949e] hover:text-[#ff3333] hover:bg-[#ff3333]/10"
+                  >
+                    <Trash2 className="w-4 h-4 ml-1" />
+                    מחק
+                  </Button>
+                </div>
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  onClick={() => openEdit(site)} 
-                  className="flex-1 text-[#8b949e] hover:text-[#00ff88] hover:bg-[#00ff88]/10"
+                  onClick={() => markCleanedMutation.mutate(site.id)} 
+                  className="w-full text-[#8b949e] hover:text-[#58a6ff] hover:bg-[#58a6ff]/10"
                 >
-                  <Pencil className="w-4 h-4 ml-1" />
-                  ערוך
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => { if (confirm("למחוק את האתר?")) deleteMutation.mutate(site.id); }} 
-                  className="flex-1 text-[#8b949e] hover:text-[#ff3333] hover:bg-[#ff3333]/10"
-                >
-                  <Trash2 className="w-4 h-4 ml-1" />
-                  מחק
+                  <Droplets className="w-4 h-4 ml-1" />
+                  סמן כשטוף
                 </Button>
               </div>
             </div>
