@@ -11,6 +11,8 @@ import { createPageUrl } from "@/utils";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import MPPTTable from "../components/inverter/MPPTTable";
 import EfficiencyGauge from "../components/inverter/EfficiencyGauge";
+import MPPTChart from "../components/inverter/MPPTChart";
+import StringVoltageChart from "../components/inverter/StringVoltageChart";
 import ProductionAnalysis from "../components/site/ProductionAnalysis";
 import SiteConfiguration from "../components/site/SiteConfiguration";
 
@@ -311,13 +313,20 @@ export default function SiteDetails() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2">
-                    <h4 className="text-white font-bold mb-3">מחרוזות MPPT</h4>
-                    <MPPTTable mpptStrings={inverter.mppt_strings} />
+                <div className="grid grid-cols-1 gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2">
+                      <h4 className="text-white font-bold mb-3">מחרוזות MPPT</h4>
+                      <MPPTTable mpptStrings={inverter.mppt_strings} />
+                    </div>
+                    <div>
+                      <EfficiencyGauge efficiency={inverter.efficiency_percent} />
+                    </div>
                   </div>
-                  <div>
-                    <EfficiencyGauge efficiency={inverter.efficiency_percent} />
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <MPPTChart mpptStrings={inverter.mppt_strings} />
+                    <StringVoltageChart mpptStrings={inverter.mppt_strings} />
                   </div>
                 </div>
               </Card>
