@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowRight, MapPin, Wrench, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import MPPTTable from "../components/inverter/MPPTTable";
 import EfficiencyGauge from "../components/inverter/EfficiencyGauge";
 
@@ -39,6 +40,21 @@ export default function SiteDetails() {
     ? ((totalRevenue / site.initial_investment) * 100).toFixed(1)
     : 0;
 
+  // Generate hourly production data for today
+  const hourlyData = Array.from({ length: 24 }, (_, i) => {
+    const hour = i;
+    let power = 0;
+    if (hour >= 6 && hour <= 18) {
+      const sunIntensity = Math.sin(((hour - 6) / 12) * Math.PI);
+      power = (site.current_power_kw || 0) * sunIntensity * (0.8 + Math.random() * 0.4);
+    }
+    return {
+      hour: `${hour.toString().padStart(2, '0')}:00`,
+      power: parseFloat(power.toFixed(1)),
+      energy: parseFloat((power * 1).toFixed(2))
+    };
+  });
+
   return (
     <div className="min-h-screen p-6" style={{ background: '#0d1117' }}>
       <div className="max-w-[1800px] mx-auto">
@@ -63,6 +79,40 @@ export default function SiteDetails() {
             </Badge>
           </div>
         </div>
+
+        <Card className="p-6 border-0 mb-8" style={{ background: '#1a1f2e' }}>
+          <h3 className="text-white font-bold mb-4">ייצור יומי</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={hourlyData}>
+                <XAxis 
+                  dataKey="hour" 
+                  tick={{ fill: '#8b949e', fontSize: 11 }}
+                  stroke="#30363d"
+                />
+                <YAxis 
+                  tick={{ fill: '#8b949e', fontSize: 11 }}
+                  stroke="#30363d"
+                  label={{ value: 'kW', angle: -90, position: 'insideLeft', fill: '#8b949e' }}
+                />
+                <Tooltip
+                  contentStyle={{ background: '#1a1f2e', border: '1px solid #30363d', borderRadius: '8px' }}
+                  labelStyle={{ color: '#e6edf3' }}
+                  itemStyle={{ color: '#00ff88' }}
+                  formatter={(value) => [`${value} kW`, 'הספק']}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="power" 
+                  stroke="#00ff88" 
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 6, fill: '#00ff88' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card className="p-6 border-0" style={{ background: '#1a1f2e' }}>
