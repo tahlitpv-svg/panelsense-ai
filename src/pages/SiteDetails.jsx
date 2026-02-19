@@ -1,17 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, MapPin, Wrench, Calendar } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ArrowRight, MapPin, Wrench, Calendar, BarChart3, Settings as SettingsIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import MPPTTable from "../components/inverter/MPPTTable";
 import EfficiencyGauge from "../components/inverter/EfficiencyGauge";
+import ProductionAnalysis from "../components/site/ProductionAnalysis";
+import SiteConfiguration from "../components/site/SiteConfiguration";
 
 export default function SiteDetails() {
+  const [activeTab, setActiveTab] = useState('overview');
   const urlParams = new URLSearchParams(window.location.search);
   const siteId = urlParams.get('id');
 
@@ -80,7 +84,34 @@ export default function SiteDetails() {
           </div>
         </div>
 
-        <Card className="p-6 border-0 mb-8" style={{ background: '#1a1f2e' }}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
+          <TabsList className="bg-[#1a1f2e] border border-[#00ff8840] p-1">
+            <TabsTrigger 
+              value="overview" 
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#00ff8820] data-[state=active]:to-[#00ccff20] data-[state=active]:text-[#00ff88] gap-2"
+            >
+              <Wrench className="w-4 h-4" />
+              סקירה כללית
+            </TabsTrigger>
+            <TabsTrigger 
+              value="analysis" 
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#00ff8820] data-[state=active]:to-[#00ccff20] data-[state=active]:text-[#00ff88] gap-2"
+            >
+              <BarChart3 className="w-4 h-4" />
+              ניתוח ייצור
+            </TabsTrigger>
+            <TabsTrigger 
+              value="config" 
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#00ff8820] data-[state=active]:to-[#00ccff20] data-[state=active]:text-[#00ff88] gap-2"
+            >
+              <SettingsIcon className="w-4 h-4" />
+              הגדרות
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <TabsContent value="overview" className="space-y-8">
+        <Card className="p-6 border-0 mb-8 futuristic-card">
           <h3 className="text-white font-bold mb-4">ייצור יומי</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">

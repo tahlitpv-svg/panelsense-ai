@@ -48,11 +48,12 @@ export default function Dashboard() {
     <div className="min-h-screen p-6" style={{ background: '#0d1117' }}>
       <div className="max-w-[1800px] mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold mb-2" style={{ color: '#00ff88' }}>
+          <div className="relative">
+            <h1 className="text-5xl font-bold mb-2 bg-gradient-to-r from-[#00ff88] via-[#00ccff] to-[#a78bfa] bg-clip-text text-transparent">
               Delkal Fleet Control Tower
             </h1>
-            <p className="text-gray-400">מערכת ניטור ובקרה לצי מערכות אנרגיה מתחדשת</p>
+            <div className="absolute -bottom-2 left-0 w-64 h-1 bg-gradient-to-r from-[#00ff88] via-[#00ccff] to-transparent rounded-full" />
+            <p className="text-gray-400 mt-3">מערכת ניטור ובקרה לצי מערכות אנרגיה מתחדשת</p>
           </div>
           <Button 
             onClick={() => refetch()}
