@@ -114,7 +114,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="bg-white p-1 rounded-xl border border-slate-200 shadow-sm inline-flex mb-6">
+      <div className="bg-gradient-to-br from-slate-50 to-slate-200 p-1 rounded-xl border border-white/50 shadow-inner inline-flex mb-6">
         <Tabs value={filter} onValueChange={setFilter} className="w-full">
           <TabsList className="bg-transparent p-0 gap-1 h-9">
             <TabsTrigger value="all" className="data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 text-slate-500 rounded-lg px-4 h-full shadow-none">
@@ -135,7 +135,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+           <div className="bg-gradient-to-br from-white via-slate-50 to-slate-100 rounded-2xl shadow-lg border border-white/60 p-6 relative overflow-hidden">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-bold text-slate-800">ייצור אנרגיה</h2>
                 <Tabs value={chartTimeframe} onValueChange={setChartTimeframe}>
@@ -149,13 +149,13 @@ export default function Dashboard() {
               <FleetProductionChart sites={filteredSites} timeframe={chartTimeframe} />
            </div>
            
-           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden h-[400px]">
+           <div className="bg-gradient-to-br from-white via-slate-50 to-slate-100 rounded-2xl shadow-lg border border-white/60 overflow-hidden h-[400px] relative">
               <FleetMap sites={filteredSites} />
            </div>
         </div>
 
         <div className="space-y-6">
-           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+           <div className="bg-gradient-to-br from-white via-slate-50 to-slate-100 rounded-2xl shadow-lg border border-white/60 p-6 relative overflow-hidden">
               <h2 className="text-lg font-bold text-slate-800 mb-4">התפלגות גיאוגרפית</h2>
               <FleetOverviewChart sites={filteredSites} />
            </div>
