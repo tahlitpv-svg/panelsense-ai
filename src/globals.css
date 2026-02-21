@@ -8,8 +8,8 @@ css
   --background: 210 20% 96%; /* slightly darker cool gray */
   --foreground: 215 25% 27%; /* Slate 700 for text - softer contrast */
 
-  --card: 0 0% 100%;
-  --card-foreground: 215 25% 27%;
+  --card: 210 20% 99%; /* Very light cool gray/white for metallic feel */
+  --card-foreground: 215 25% 30%;
 
   --popover: 0 0% 100%;
   --popover-foreground: 222.2 84% 4.9%;
