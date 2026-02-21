@@ -51,11 +51,11 @@ css
 
 @layer utilities {
   .glass-card {
-    @apply bg-gradient-to-br from-white to-slate-100 backdrop-blur-md border border-slate-300 shadow-sm rounded-xl;
+    @apply bg-gradient-to-br from-white via-[#f1f5f9] to-[#e2e8f0] backdrop-blur-md border border-white/60 shadow-lg rounded-xl;
   }
   
   .futuristic-card {
-    @apply bg-gradient-to-br from-white via-slate-50 to-slate-100 rounded-xl border border-slate-300 shadow-md hover:shadow-lg hover:border-orange-300 transition-all duration-300 relative overflow-hidden;
+    @apply bg-gradient-to-br from-[#ffffff] via-[#f8fafc] to-[#e2e8f0] rounded-xl border border-white/80 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.7)] hover:shadow-xl hover:border-white transition-all duration-300 relative overflow-hidden;
   }
 
   .futuristic-card::before {

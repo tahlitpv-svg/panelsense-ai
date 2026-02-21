@@ -18,7 +18,7 @@ export default function Layout({ children, currentPageName }) {
       {/* Sidebar */}
       <aside 
         className={cn(
-          "bg-gradient-to-b from-white to-slate-50 border-l border-slate-200 h-screen sticky top-0 transition-all duration-300 z-50 flex flex-col shadow-xl",
+          "bg-gradient-to-b from-white via-[#f1f5f9] to-[#cbd5e1] border-l border-white/50 h-screen sticky top-0 transition-all duration-300 z-50 flex flex-col shadow-2xl",
           sidebarOpen ? "w-64" : "w-20"
         )}
       >

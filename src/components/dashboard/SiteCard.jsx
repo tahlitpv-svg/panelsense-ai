@@ -45,7 +45,7 @@ export default function SiteCard({ site, regionalAverage }) {
       transition={{ duration: 0.2 }}
     >
       <Link to={createPageUrl(`SiteDetails?id=${site.id}`)}>
-        <Card className="bg-gradient-to-br from-white to-slate-50 border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300 overflow-hidden group h-full flex flex-col relative">
+        <Card className="bg-gradient-to-br from-white via-slate-50 to-slate-200 border border-white/60 shadow-lg hover:shadow-xl hover:border-white transition-all duration-300 overflow-hidden group h-full flex flex-col relative">
           {/* Header Image / Gradient Placeholder - Like the App Screenshot */}
           <div className="h-24 bg-slate-200 relative overflow-hidden">
              <div className="absolute inset-0 bg-gradient-to-r from-slate-300 to-slate-200 opacity-50" />
