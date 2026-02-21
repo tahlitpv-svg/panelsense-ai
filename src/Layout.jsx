@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { LayoutDashboard, FileText, Zap, Settings } from 'lucide-react';
+import { LayoutDashboard, FileText, Zap, Settings, Menu, X, ChevronLeft, Sun } from 'lucide-react';
+import { cn } from "@/lib/utils";
 
 export default function Layout({ children, currentPageName }) {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
   const navItems = [
     { name: 'Dashboard', label: 'דאשבורד', icon: LayoutDashboard },
     { name: 'Reports', label: 'דוחות', icon: FileText },
@@ -11,93 +14,90 @@ export default function Layout({ children, currentPageName }) {
   ];
 
   return (
-    <div className="min-h-screen" style={{ background: '#0d1117' }}>
-      <style>{`
-        @keyframes pulse {
-          0%, 100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: .7;
-          }
-        }
-        
-        body {
-          font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-          direction: rtl;
-        }
-        
-        * {
-          scrollbar-width: thin;
-          scrollbar-color: #00ff88 #1a1f2e;
-        }
-        
-        *::-webkit-scrollbar {
-          width: 8px;
-          height: 8px;
-        }
-        
-        *::-webkit-scrollbar-track {
-          background: #1a1f2e;
-        }
-        
-        *::-webkit-scrollbar-thumb {
-          background: #00ff88;
-          border-radius: 4px;
-        }
-        
-        *::-webkit-scrollbar-thumb:hover {
-          background: #00cc6f;
-        }
-      `}</style>
-
-      <nav className="border-b shadow-xl sticky top-0 z-50 backdrop-blur-lg"
-           style={{ 
-             background: 'rgba(13, 17, 23, 0.95)', 
-             borderColor: '#1a1f2e'
-           }}>
-        <div className="max-w-[1800px] mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <Link to={createPageUrl('Dashboard')} className="flex items-center gap-3">
-              <div className="p-2 rounded-lg" style={{ background: '#00ff8820' }}>
-                <Zap className="w-6 h-6" style={{ color: '#00ff88' }} />
-              </div>
-              <div>
-                <div className="text-xl font-bold" style={{ color: '#00ff88' }}>
-                  Delkal Energy
-                </div>
-                <div className="text-xs text-gray-400">Fleet Control Tower</div>
-              </div>
-            </Link>
-
-            <div className="flex items-center gap-2">
-              {navItems.map(item => {
-                const Icon = item.icon;
-                const isActive = currentPageName === item.name;
-                
-                return (
-                  <Link
-                    key={item.name}
-                    to={createPageUrl(item.name)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium"
-                    style={{
-                      background: isActive ? '#00ff8820' : 'transparent',
-                      color: isActive ? '#00ff88' : '#9ca3af',
-                      borderBottom: isActive ? '2px solid #00ff88' : 'none'
-                    }}
-                  >
-                    <Icon className="w-4 h-4" />
-                    {item.label}
-                  </Link>
-                );
-              })}
+    <div className="min-h-screen bg-slate-50 flex flex-row-reverse overflow-hidden" dir="rtl">
+      {/* Sidebar */}
+      <aside 
+        className={cn(
+          "bg-white border-l border-gray-200 h-screen sticky top-0 transition-all duration-300 z-50 flex flex-col shadow-lg",
+          sidebarOpen ? "w-64" : "w-20"
+        )}
+      >
+        <div className="p-4 flex items-center justify-between border-b border-gray-100 h-16">
+          <div className={cn("flex items-center gap-3 overflow-hidden", !sidebarOpen && "justify-center w-full")}>
+            <div className="bg-orange-500 p-2 rounded-lg shrink-0">
+              <Zap className="w-5 h-5 text-white" />
             </div>
+            {sidebarOpen && (
+              <div className="font-bold text-lg text-slate-800 whitespace-nowrap">
+                Delkal <span className="text-orange-500">Energy</span>
+              </div>
+            )}
           </div>
         </div>
-      </nav>
 
-      <main>
-        {children}
+        <nav className="flex-1 py-6 px-3 space-y-2">
+          {navItems.map(item => {
+            const Icon = item.icon;
+            const isActive = currentPageName === item.name;
+            
+            return (
+              <Link
+                key={item.name}
+                to={createPageUrl(item.name)}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-3 rounded-xl transition-all font-medium group relative overflow-hidden",
+                  isActive 
+                    ? "bg-orange-50 text-orange-600 shadow-sm ring-1 ring-orange-200" 
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                )}
+              >
+                {isActive && (
+                  <div className="absolute right-0 top-0 bottom-0 w-1 bg-orange-500 rounded-l-full" />
+                )}
+                <Icon className={cn("w-5 h-5 shrink-0 transition-colors", isActive ? "text-orange-500" : "text-slate-400 group-hover:text-slate-600")} />
+                {sidebarOpen && <span>{item.label}</span>}
+                
+                {!sidebarOpen && (
+                  <div className="absolute left-10 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
+                    {item.label}
+                  </div>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-gray-100">
+          <button 
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="w-full flex items-center justify-center p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            {sidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto bg-[#F8FAFC]">
+        <header className="h-16 bg-white/80 backdrop-blur-sm sticky top-0 z-40 border-b border-gray-200 px-8 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-slate-500 text-sm">
+             <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-semibold">BETA</span>
+             <span>מערכת ניהול ובקרה</span>
+          </div>
+          <div className="flex items-center gap-4">
+             <div className="flex items-center gap-2 pr-4 border-r border-gray-200">
+                <Sun className="w-4 h-4 text-orange-400" />
+                <span className="text-sm font-medium text-slate-600">יום שמשי</span>
+             </div>
+             <div className="h-8 w-8 rounded-full bg-slate-200 border-2 border-white shadow-sm overflow-hidden">
+                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=Delkal`} alt="User" />
+             </div>
+          </div>
+        </header>
+
+        <div className="p-8 max-w-[1600px] mx-auto">
+          {children}
+        </div>
       </main>
     </div>
   );

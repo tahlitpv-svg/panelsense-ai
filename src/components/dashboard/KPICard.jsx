@@ -1,63 +1,44 @@
 import React from 'react';
-import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
-export default function KPICard({ title, value, unit, icon: Icon, trend, color = "#00ff88" }) {
+export default function KPICard({ title, value, unit, icon: Icon, trend, color = "#f97316" }) {
+  // Map old neon colors to new theme if needed, or stick to passed props
+  // We'll enforce a clean look regardless of prop color
+  const accentColor = color === '#00ff88' ? '#10b981' : color; 
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      whileHover={{ scale: 1.03, y: -5 }}
-      className="futuristic-card rounded-2xl p-6 holographic"
-      style={{
-        boxShadow: `0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px ${color}40`
-      }}
+      transition={{ duration: 0.3 }}
+      className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-shadow relative overflow-hidden group"
     >
-      <div className="relative z-10">
-        <div className="flex items-start justify-between mb-4">
-          <motion.div 
-            className="p-3 rounded-xl relative"
-            style={{ 
-              background: `linear-gradient(135deg, ${color}30, ${color}10)`,
-              boxShadow: `0 4px 12px ${color}40`
-            }}
-            animate={{ rotate: [0, 5, 0, -5, 0] }}
-            transition={{ duration: 4, repeat: Infinity }}
-          >
-            <Icon className="w-6 h-6" style={{ color }} />
-          </motion.div>
-          {trend && (
-            <motion.div 
-              className="text-sm font-bold px-3 py-1 rounded-full"
-              style={{ 
-                background: trend > 0 ? '#00ff8820' : '#ff333320',
-                color: trend > 0 ? '#00ff88' : '#ff3333',
-                border: `1px solid ${trend > 0 ? '#00ff88' : '#ff3333'}40`
-              }}
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.3 }}
-            >
-              {trend > 0 ? '↑' : '↓'} {Math.abs(trend)}%
-            </motion.div>
-          )}
+      <div className="flex justify-between items-start mb-4">
+        <div className="p-3 rounded-xl bg-slate-50 group-hover:bg-orange-50 transition-colors">
+          <Icon className="w-6 h-6 text-slate-500 group-hover:text-orange-500 transition-colors" />
         </div>
-        <div className="text-gray-400 text-xs font-medium mb-2 tracking-wider uppercase">{title}</div>
-        <div className="flex items-baseline gap-2">
-          <motion.div 
-            className="text-4xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            {value}
-          </motion.div>
-          <div className="text-lg text-gray-500">{unit}</div>
+        
+        {trend && (
+          <div className={`flex items-center text-xs font-bold px-2 py-1 rounded-lg ${
+            trend > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+          }`}>
+            {trend > 0 ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}
+            {Math.abs(trend)}%
+          </div>
+        )}
+      </div>
+
+      <div>
+        <h3 className="text-slate-500 text-sm font-medium mb-1">{title}</h3>
+        <div className="flex items-baseline gap-1">
+          <span className="text-3xl font-bold text-slate-800">{value}</span>
+          <span className="text-sm text-slate-400 font-medium">{unit}</span>
         </div>
       </div>
-      <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-20"
-           style={{ background: `radial-gradient(circle, ${color}, transparent)` }} />
+      
+      {/* Subtle decorative background blob */}
+      <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-gradient-to-br from-slate-50 to-orange-50 rounded-full opacity-50 blur-2xl pointer-events-none" />
     </motion.div>
   );
 }
