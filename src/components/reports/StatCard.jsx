@@ -1,44 +1,43 @@
 import React from 'react';
 import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
-export default function StatCard({ icon: Icon, label, value, unit, trend, color = "#00ff88" }) {
+export default function StatCard({ icon: Icon, label, value, unit, trend, color = "#f97316" }) {
+  // Map neon green to orange if passed from old code, or keep as is if intentional
+  const displayColor = color === '#00ff88' ? '#f97316' : color;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: 1.05, y: -5 }}
-      transition={{ duration: 0.3 }}
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.2 }}
     >
-      <Card className="border-0 overflow-hidden futuristic-card relative group">
-        <div className="absolute inset-0 bg-gradient-to-br from-transparent to-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <Card className="border border-slate-200 shadow-sm bg-white overflow-hidden relative group hover:shadow-md transition-all">
         <div className="p-6 relative z-10">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-3 rounded-xl" style={{ background: `${color}20` }}>
-              <Icon className="w-6 h-6" style={{ color }} />
+            <div className="p-2.5 rounded-lg bg-slate-50 group-hover:bg-orange-50 transition-colors">
+              <Icon className="w-5 h-5 text-slate-500 group-hover:text-orange-500 transition-colors" />
             </div>
             {trend && (
-              <div className="px-3 py-1 rounded-full text-xs font-bold" 
-                   style={{ 
-                     background: trend > 0 ? '#00ff8820' : '#ff333320',
-                     color: trend > 0 ? '#00ff88' : '#ff3333'
-                   }}>
-                {trend > 0 ? '↑' : '↓'} {Math.abs(trend)}%
+              <div className={`px-2 py-1 rounded-md text-xs font-bold flex items-center ${
+                trend > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+              }`}>
+                {trend > 0 ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}
+                {Math.abs(trend)}%
               </div>
             )}
           </div>
-          <div className="text-gray-400 text-sm mb-2">{label}</div>
-          <div className="flex items-baseline gap-2">
-            <div className="text-3xl font-bold text-white neon-glow">
+          
+          <div className="text-slate-500 text-xs font-medium mb-1 uppercase tracking-wider">{label}</div>
+          <div className="flex items-baseline gap-1">
+            <div className="text-2xl font-bold text-slate-800">
               {value}
             </div>
-            <div className="text-sm text-gray-400">{unit}</div>
+            <div className="text-xs font-medium text-slate-400">{unit}</div>
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r" 
-             style={{ 
-               backgroundImage: `linear-gradient(90deg, ${color}, transparent)` 
-             }} />
       </Card>
     </motion.div>
   );

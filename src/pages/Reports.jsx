@@ -98,7 +98,6 @@ export default function Reports() {
   }, { yield: 0, revenue: 0 });
 
   // Prepare chart data
-  const yieldKey = `${timeframe}_yield_kwh`;
   const chartData = sites.map(site => {
     let yieldValue = 0;
     switch(timeframe) {
@@ -116,137 +115,131 @@ export default function Reports() {
   }).sort((a, b) => b.yield - a.yield).slice(0, 10);
 
   return (
-    <div className="min-h-screen p-6" style={{ background: '#0d1117' }}>
-      <div className="max-w-[1600px] mx-auto">
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <h1 className="text-5xl font-bold mb-3 neon-glow" style={{ color: '#00ff88' }}>
-            דוחות וניתוחים מתקדמים
-          </h1>
-          <p className="text-gray-400 text-lg">מערכת ניתוח ביצועים חכמה בזמן אמת</p>
-        </motion.div>
+    <div className="space-y-6">
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-8"
+      >
+        <h1 className="text-3xl font-bold mb-2 text-slate-800">
+          דוחות וניתוחים מתקדמים
+        </h1>
+        <p className="text-slate-500 text-lg">מערכת ניתוח ביצועים חכמה בזמן אמת</p>
+      </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard 
-            icon={Sun}
-            label="תפוקה כוללת"
-            value={(totals.yield / 1000).toFixed(1)}
-            unit="MWh"
-            trend={8}
-            color="#00ff88"
-          />
-          <StatCard 
-            icon={Zap}
-            label="הכנסות"
-            value={`₪${(totals.revenue / 1000).toFixed(0)}K`}
-            unit=""
-            trend={12}
-            color="#58a6ff"
-          />
-          <StatCard 
-            icon={Activity}
-            label="יעילות ממוצעת"
-            value="94.5"
-            unit="%"
-            trend={3}
-            color="#ffaa00"
-          />
-          <StatCard 
-            icon={TrendingUp}
-            label="ROI ממוצע"
-            value="126"
-            unit="%"
-            trend={15}
-            color="#a78bfa"
-          />
-        </div>
-
-        <AdvancedChart 
-          data={chartData}
-          title="ניתוח תפוקה לפי אתר - Top 10"
-          dataKey="yield"
-          color="#00ff88"
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+        <StatCard 
+          icon={Sun}
+          label="תפוקה כוללת"
+          value={(totals.yield / 1000).toFixed(1)}
+          unit="MWh"
+          trend={8}
+          color="#f97316"
         />
+        <StatCard 
+          icon={Zap}
+          label="הכנסות"
+          value={`₪${(totals.revenue / 1000).toFixed(0)}K`}
+          unit=""
+          trend={12}
+          color="#3b82f6"
+        />
+        <StatCard 
+          icon={Activity}
+          label="יעילות ממוצעת"
+          value="94.5"
+          unit="%"
+          trend={3}
+          color="#10b981"
+        />
+        <StatCard 
+          icon={TrendingUp}
+          label="ROI ממוצע"
+          value="126"
+          unit="%"
+          trend={15}
+          color="#8b5cf6"
+        />
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-          <Card className="p-6 border-0 futuristic-card">
-            <h3 className="text-white font-bold mb-6 neon-glow">הגדרות דוח</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="text-gray-400 text-sm mb-2 block">מסגרת זמן</label>
-                <Select value={timeframe} onValueChange={setTimeframe}>
-                  <SelectTrigger className="bg-gray-900/50 border-gray-700 text-white backdrop-blur">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="daily">יומי</SelectItem>
-                    <SelectItem value="monthly">חודשי</SelectItem>
-                    <SelectItem value="yearly">שנתי</SelectItem>
-                    <SelectItem value="lifetime">מצטבר</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+      <AdvancedChart 
+        data={chartData}
+        title="ניתוח תפוקה לפי אתר - Top 10"
+        dataKey="yield"
+        color="#f97316"
+      />
 
-              <div>
-                <label className="text-gray-400 text-sm mb-2 block">בחר אתר</label>
-                <Select value={selectedSite} onValueChange={setSelectedSite}>
-                  <SelectTrigger className="bg-gray-900/50 border-gray-700 text-white backdrop-blur">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">כל האתרים</SelectItem>
-                    {sites.map(site => (
-                      <SelectItem key={site.id} value={site.id}>
-                        {site.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+        <Card className="p-6 border border-slate-200 shadow-sm bg-white">
+          <h3 className="text-slate-800 font-bold mb-6 text-lg">הגדרות דוח</h3>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="text-slate-500 text-sm mb-2 block font-medium">מסגרת זמן</label>
+              <Select value={timeframe} onValueChange={setTimeframe}>
+                <SelectTrigger className="bg-white border-slate-200 text-slate-800 h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">יומי</SelectItem>
+                  <SelectItem value="monthly">חודשי</SelectItem>
+                  <SelectItem value="yearly">שנתי</SelectItem>
+                  <SelectItem value="lifetime">מצטבר</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-              <Button 
-                onClick={generateReport}
-                className="w-full mt-4"
-                style={{ 
-                  background: 'linear-gradient(135deg, #00ff88 0%, #00cc6f 100%)',
-                  color: '#000'
-                }}
+            <div>
+              <label className="text-slate-500 text-sm mb-2 block font-medium">בחר אתר</label>
+              <Select value={selectedSite} onValueChange={setSelectedSite}>
+                <SelectTrigger className="bg-white border-slate-200 text-slate-800 h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">כל האתרים</SelectItem>
+                  {sites.map(site => (
+                    <SelectItem key={site.id} value={site.id}>
+                      {site.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button 
+              onClick={generateReport}
+              className="w-full mt-4 bg-orange-500 hover:bg-orange-600 text-white font-medium h-10"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              ייצוא לקובץ CSV
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="p-6 border border-slate-200 shadow-sm bg-white">
+          <h3 className="text-slate-800 font-bold mb-4 text-lg">מידע בדוח</h3>
+          <div className="space-y-3">
+            {[
+              'שם אתר ומיקום גיאוגרפי',
+              'תפוקת אנרגיה (kWh) לפי מסגרת זמן',
+              'הכנסות פיננסיות מחושבות',
+              'תפוקה ספציפית (kWh/kWp)',
+              'ROI מצטבר (%)',
+              'ניתוח השוואתי אזורי'
+            ].map((item, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.1 }}
+                className="flex items-center gap-3 text-slate-600 text-sm p-2 rounded-lg hover:bg-slate-50 transition-colors"
               >
-                <Download className="w-4 h-4 mr-2" />
-                ייצוא לקובץ CSV
-              </Button>
-            </div>
-          </Card>
-
-          <Card className="p-6 border-0 futuristic-card">
-            <h3 className="text-white font-bold mb-4 neon-glow">מידע בדוח</h3>
-            <div className="space-y-3">
-              {[
-                'שם אתר ומיקום גיאוגרפי',
-                'תפוקת אנרגיה (kWh) לפי מסגרת זמן',
-                'הכנסות פיננסיות מחושבות',
-                'תפוקה ספציפית (kWh/kWp)',
-                'ROI מצטבר (%)',
-                'ניתוח השוואתי אזורי'
-              ].map((item, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  className="flex items-center gap-3 text-gray-300 text-sm"
-                >
-                  <div className="w-2 h-2 rounded-full" style={{ background: '#00ff88' }} />
-                  {item}
-                </motion.div>
-              ))}
-            </div>
-          </Card>
-        </div>
+                <div className="w-2 h-2 rounded-full bg-orange-500" />
+                {item}
+              </motion.div>
+            ))}
+          </div>
+        </Card>
       </div>
     </div>
   );
