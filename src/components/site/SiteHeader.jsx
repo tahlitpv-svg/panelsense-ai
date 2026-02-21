@@ -22,7 +22,7 @@ export default function SiteHeader({ site }) {
   const config = statusConfig[site.status] || statusConfig.online;
 
   return (
-    <div className="bg-white border-b border-slate-200 px-8 py-4 mb-6 -mx-8 -mt-8 sticky top-0 z-30 shadow-sm">
+    <div className="bg-gradient-to-r from-white via-slate-50 to-slate-100 border-b border-slate-200 px-8 py-4 mb-6 -mx-8 -mt-8 sticky top-0 z-30 shadow-sm backdrop-blur-md bg-opacity-90">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
         <Link to={createPageUrl("Dashboard")} className="hover:text-slate-800 transition-colors">מגדל הבקרה</Link>
