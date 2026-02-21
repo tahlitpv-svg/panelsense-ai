@@ -4,11 +4,12 @@ css
 @tailwind utilities;
 
 :root {
-  --background: 210 40% 98%; /* #f8fafc */
-  --foreground: 222.2 84% 4.9%;
+  /* Metallic / Silver Theme */
+  --background: 210 20% 96%; /* slightly darker cool gray */
+  --foreground: 215 25% 27%; /* Slate 700 for text - softer contrast */
 
   --card: 0 0% 100%;
-  --card-foreground: 222.2 84% 4.9%;
+  --card-foreground: 215 25% 27%;
 
   --popover: 0 0% 100%;
   --popover-foreground: 222.2 84% 4.9%;
@@ -28,8 +29,8 @@ css
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
 
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
+  --border: 210 20% 85%; /* Darker border for metallic definition */
+  --input: 210 20% 90%;
   --ring: 24.6 95% 53.1%;
 
   --radius: 0.5rem;
@@ -37,22 +38,28 @@ css
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900;
+    @apply bg-slate-100 text-slate-700;
+    background-image: linear-gradient(to bottom right, #f1f5f9, #e2e8f0);
+    min-height: 100vh;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
   
   * {
-    @apply border-gray-200;
+    @apply border-slate-200;
   }
 }
 
 @layer utilities {
   .glass-card {
-    @apply bg-white border border-gray-100 shadow-sm;
+    @apply bg-white/90 backdrop-blur-sm border border-slate-200 shadow-sm;
   }
   
   .futuristic-card {
-    @apply bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200;
+    @apply bg-gradient-to-br from-white to-slate-50 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-orange-200 transition-all duration-300;
+  }
+  
+  .metallic-text {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-slate-600 to-slate-400;
   }
   
   .neon-glow {

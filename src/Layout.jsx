@@ -14,11 +14,11 @@ export default function Layout({ children, currentPageName }) {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-row-reverse overflow-hidden" dir="rtl">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-200 flex flex-row-reverse overflow-hidden" dir="rtl">
       {/* Sidebar */}
       <aside 
         className={cn(
-          "bg-white border-l border-gray-200 h-screen sticky top-0 transition-all duration-300 z-50 flex flex-col shadow-lg",
+          "bg-gradient-to-b from-white to-slate-50 border-l border-slate-200 h-screen sticky top-0 transition-all duration-300 z-50 flex flex-col shadow-xl",
           sidebarOpen ? "w-64" : "w-20"
         )}
       >
@@ -78,7 +78,7 @@ export default function Layout({ children, currentPageName }) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto bg-[#F8FAFC]">
+      <main className="flex-1 overflow-auto bg-transparent">
         <header className="h-16 bg-white/80 backdrop-blur-sm sticky top-0 z-40 border-b border-gray-200 px-8 flex items-center justify-between">
           <div className="flex items-center gap-2 text-slate-500 text-sm">
              <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-semibold">BETA</span>
