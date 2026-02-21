@@ -3,19 +3,19 @@ import { Card } from "@/components/ui/card";
 
 export default function EfficiencyGauge({ efficiency }) {
   const percentage = Math.min(100, Math.max(0, efficiency || 0));
-  const color = percentage >= 95 ? '#00ff88' : percentage >= 90 ? '#ffaa00' : '#ff3333';
+  const color = percentage >= 95 ? '#10b981' : percentage >= 90 ? '#f59e0b' : '#ef4444';
   const rotation = (percentage / 100) * 180 - 90;
 
   return (
-    <Card className="p-6 border-0" style={{ background: '#1a1f2e' }}>
+    <Card className="p-6 border-0 shadow-none bg-transparent">
       <div className="text-center">
-        <h3 className="text-gray-300 font-bold mb-6">יעילות המרה AC/DC</h3>
+        <h3 className="text-slate-500 font-medium mb-6 text-sm">יעילות המרה AC/DC</h3>
         <div className="relative w-48 h-24 mx-auto mb-4">
           <svg viewBox="0 0 200 100" className="w-full h-full">
             <path
               d="M 20 90 A 80 80 0 0 1 180 90"
               fill="none"
-              stroke="#2d3748"
+              stroke="#e2e8f0"
               strokeWidth="20"
               strokeLinecap="round"
             />
@@ -42,10 +42,10 @@ export default function EfficiencyGauge({ efficiency }) {
             />
           </svg>
         </div>
-        <div className="text-5xl font-bold mb-2" style={{ color }}>
+        <div className="text-4xl font-bold mb-2 text-slate-800">
           {percentage.toFixed(1)}%
         </div>
-        <div className="text-sm text-gray-400">
+        <div className="text-sm font-medium" style={{ color }}>
           {percentage >= 95 ? 'מצוין' : percentage >= 90 ? 'תקין' : 'דורש בדיקה'}
         </div>
       </div>
