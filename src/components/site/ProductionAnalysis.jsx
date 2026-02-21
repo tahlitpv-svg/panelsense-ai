@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart } from "recharts";
 import { TrendingUp, Calendar, Zap, AlertCircle } from "lucide-react";
