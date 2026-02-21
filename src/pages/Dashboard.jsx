@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Zap, DollarSign, Activity, TrendingUp, RefreshCw } from "lucide-react";
+import { Zap, DollarSign, Activity, TrendingUp, RefreshCw, AlertTriangle } from "lucide-react";
 import KPICard from "../components/dashboard/KPICard";
 import SiteCard from "../components/dashboard/SiteCard";
 import FleetMap from "../components/dashboard/FleetMap";
