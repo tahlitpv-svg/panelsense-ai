@@ -6,16 +6,16 @@ import 'leaflet/dist/leaflet.css';
 
 const createCustomIcon = (status) => {
   const colors = {
-    online: '#00ff88',
-    warning: '#ffaa00',
-    offline: '#ff3333'
+    online: '#10b981', // Emerald 500
+    warning: '#f59e0b', // Amber 500
+    offline: '#ef4444'  // Red 500
   };
   
   return L.divIcon({
-    html: `<div style="background-color: ${colors[status] || colors.online}; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"></div>`,
+    html: `<div style="background-color: ${colors[status] || colors.online}; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>`,
     className: '',
-    iconSize: [24, 24],
-    iconAnchor: [12, 12]
+    iconSize: [16, 16],
+    iconAnchor: [8, 8]
   });
 };
 
@@ -30,9 +30,8 @@ export default function FleetMap({ sites }) {
     : [31.5, 34.9];
 
   return (
-    <Card className="border-0 shadow-2xl overflow-hidden" 
-          style={{ background: '#0d1117' }}>
-      <div className="h-[500px] w-full">
+    <Card className="border border-slate-200 shadow-sm bg-white overflow-hidden h-full rounded-2xl">
+      <div className="h-full w-full min-h-[400px]">
         <MapContainer 
           center={center} 
           zoom={8} 
@@ -40,8 +39,8 @@ export default function FleetMap({ sites }) {
           attributionControl={false}
         >
           <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           />
           {validSites.map((site) => (
             <Marker
@@ -49,14 +48,16 @@ export default function FleetMap({ sites }) {
               position={[site.latitude, site.longitude]}
               icon={createCustomIcon(site.status)}
             >
-              <Popup>
-                <div className="text-sm">
-                  <div className="font-bold mb-1">{site.name}</div>
-                  <div className="text-xs text-gray-600">
-                    הספק: {site.current_power_kw?.toFixed(1)} kW
+              <Popup className="custom-popup">
+                <div className="p-1 min-w-[150px]">
+                  <div className="font-bold text-slate-800 mb-1">{site.name}</div>
+                  <div className="flex justify-between text-xs text-slate-500 border-t border-slate-100 pt-1 mt-1">
+                    <span>הספק:</span>
+                    <span className="font-medium text-slate-700">{site.current_power_kw?.toFixed(1)} kW</span>
                   </div>
-                  <div className="text-xs text-gray-600">
-                    יומי: {site.daily_yield_kwh?.toFixed(0)} kWh
+                  <div className="flex justify-between text-xs text-slate-500">
+                    <span>יומי:</span>
+                    <span className="font-medium text-slate-700">{site.daily_yield_kwh?.toFixed(0)} kWh</span>
                   </div>
                 </div>
               </Popup>
@@ -64,6 +65,16 @@ export default function FleetMap({ sites }) {
           ))}
         </MapContainer>
       </div>
+      <style>{`
+        .leaflet-popup-content-wrapper {
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+          padding: 0;
+        }
+        .leaflet-popup-content {
+          margin: 10px;
+        }
+      `}</style>
     </Card>
   );
 }
