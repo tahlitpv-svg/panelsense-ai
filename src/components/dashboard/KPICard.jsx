@@ -12,7 +12,7 @@ export default function KPICard({ title, value, unit, icon: Icon, trend, color =
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-shadow relative overflow-hidden group"
+      className="bg-gradient-to-br from-white to-slate-50 rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md hover:border-slate-300 transition-all duration-300 relative overflow-hidden group"
     >
       <div className="flex justify-between items-start mb-4">
         <div className="p-3 rounded-xl bg-slate-50 group-hover:bg-orange-50 transition-colors">
