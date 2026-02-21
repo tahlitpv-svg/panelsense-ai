@@ -51,10 +51,10 @@ export default function Dashboard() {
   <div className="space-y-6 text-slate-600">
   <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">
+          <h1 className="text-2xl font-bold text-slate-700 metallic-text">
             סקירה כללית
           </h1>
-          <p className="text-slate-500">תמונת מצב יומית של צי האנרגיה</p>
+          <p className="text-slate-500 font-medium">תמונת מצב יומית של צי האנרגיה</p>
         </div>
         <Button 
           onClick={() => refetch()}
