@@ -78,27 +78,23 @@ export default function FleetProductionChart({ sites, timeframe = 'daily' }) {
     if (!active || !payload?.length) return null;
     
     return (
-      <div className="rounded-lg p-3 backdrop-blur-md border" 
-           style={{ 
-             background: 'rgba(26, 31, 46, 0.95)', 
-             borderColor: '#00ff88' 
-           }}>
-        <p className="text-white font-bold mb-2">{label}</p>
+      <div className="rounded-lg p-3 bg-white border border-slate-200 shadow-lg">
+        <p className="text-slate-700 font-bold mb-2">{label}</p>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ background: '#00ff88' }} />
-            <span className="text-gray-300 text-sm">
+            <div className="w-3 h-3 rounded-full" style={{ background: '#f97316' }} />
+            <span className="text-slate-500 text-sm">
               {timeframe === 'hourly' ? 'הספק' : 'תפוקה'}: 
             </span>
-            <span className="text-[#00ff88] font-bold text-sm">
+            <span className="text-orange-500 font-bold text-sm">
               {payload[0].value.toFixed(1)} {yAxisLabel}
             </span>
           </div>
           {timeframe !== 'hourly' && payload[1] && (
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{ background: '#58a6ff' }} />
-              <span className="text-gray-300 text-sm">הכנסות:</span>
-              <span className="text-[#58a6ff] font-bold text-sm">
+              <div className="w-3 h-3 rounded-full" style={{ background: '#3b82f6' }} />
+              <span className="text-slate-500 text-sm">הכנסות:</span>
+              <span className="text-blue-500 font-bold text-sm">
                 ₪{payload[1].value.toFixed(0)}K
               </span>
             </div>
@@ -113,42 +109,36 @@ export default function FleetProductionChart({ sites, timeframe = 'daily' }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2 }}
+      className="h-full"
     >
-      <Card className="p-6 border-0 futuristic-card">
-        <h3 className="text-white font-bold mb-4 flex items-center gap-2">
-          <div className="w-1 h-6 rounded-full" style={{ background: '#00ff88' }} />
-          {timeframe === 'hourly' ? 'ייצור בזמן אמת - היום' : 
-           timeframe === 'daily' ? 'ייצור יומי - החודש' : 
-           'ייצור חודשי - השנה'}
-        </h3>
-        <div className="h-80">
+        <div className="h-80 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorYield" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#00ff88" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#00ff88" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#f97316" stopOpacity={0.2}/>
+                  <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
                 </linearGradient>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#58a6ff" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#58a6ff" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <XAxis 
                 dataKey={xAxisKey}
-                tick={{ fill: '#8b949e', fontSize: 11 }}
-                stroke="#30363d"
-                axisLine={{ stroke: '#30363d' }}
+                tick={{ fill: '#64748b', fontSize: 11 }}
+                stroke="#e2e8f0"
+                axisLine={{ stroke: '#e2e8f0' }}
               />
               <YAxis 
-                tick={{ fill: '#8b949e', fontSize: 11 }}
-                stroke="#30363d"
-                axisLine={{ stroke: '#30363d' }}
+                tick={{ fill: '#64748b', fontSize: 11 }}
+                stroke="#e2e8f0"
+                axisLine={{ stroke: '#e2e8f0' }}
                 label={{ 
                   value: yAxisLabel, 
                   angle: -90, 
                   position: 'insideLeft', 
-                  fill: '#8b949e',
+                  fill: '#94a3b8',
                   fontSize: 12
                 }}
               />
@@ -158,7 +148,7 @@ export default function FleetProductionChart({ sites, timeframe = 'daily' }) {
                   wrapperStyle={{ paddingTop: '20px' }}
                   iconType="circle"
                   formatter={(value) => (
-                    <span style={{ color: '#8b949e', fontSize: '12px' }}>
+                    <span style={{ color: '#64748b', fontSize: '12px' }}>
                       {value === 'yield' ? 'תפוקה' : 'הכנסות'}
                     </span>
                   )}
@@ -167,27 +157,26 @@ export default function FleetProductionChart({ sites, timeframe = 'daily' }) {
               <Area 
                 type="monotone" 
                 dataKey={dataKey}
-                stroke="#00ff88" 
+                stroke="#f97316" 
                 strokeWidth={2}
                 fill="url(#colorYield)"
                 dot={false}
-                activeDot={{ r: 6, fill: '#00ff88', stroke: '#000', strokeWidth: 2 }}
+                activeDot={{ r: 6, fill: '#f97316', stroke: '#fff', strokeWidth: 2 }}
               />
               {timeframe !== 'hourly' && (
                 <Area 
                   type="monotone" 
                   dataKey="revenue"
-                  stroke="#58a6ff" 
+                  stroke="#3b82f6" 
                   strokeWidth={2}
                   fill="url(#colorRevenue)"
                   dot={false}
-                  activeDot={{ r: 6, fill: '#58a6ff', stroke: '#000', strokeWidth: 2 }}
+                  activeDot={{ r: 6, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }}
                 />
               )}
             </AreaChart>
           </ResponsiveContainer>
         </div>
-      </Card>
     </motion.div>
   );
 }

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, X, Loader2, Save, Droplets } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Loader2, Save, Droplets, MapPin, Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const emptyForm = {
@@ -20,6 +20,7 @@ export default function SiteManager() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [searchTerm, setSearchTerm] = useState("");
   const queryClient = useQueryClient();
 
   const { data: sites = [], isLoading } = useQuery({
@@ -95,48 +96,56 @@ export default function SiteManager() {
 
   const Field = ({ label, field, type = "text", placeholder }) => (
     <div className="space-y-1">
-      <Label className="text-[11px] text-[#8b949e]">{label}</Label>
+      <Label className="text-xs font-medium text-slate-500">{label}</Label>
       <Input
         type={type}
         value={form[field]}
         onChange={e => setForm({ ...form, [field]: e.target.value })}
         placeholder={placeholder}
-        className="bg-[#0d1117] border-[#30363d] text-[#e6edf3] text-sm h-9"
+        className="bg-white border-slate-200 focus:border-orange-500 focus:ring-orange-500/20 text-slate-800 text-sm h-9 transition-all"
       />
     </div>
   );
 
+  const filteredSites = sites.filter(site => 
+    site.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   if (isLoading) {
-    return <div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 text-[#00ff88] animate-spin" /></div>;
+    return <div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 text-orange-500 animate-spin" /></div>;
   }
 
   return (
-    <div className="min-h-screen p-6" style={{ background: '#0d1117' }}>
-      <div className="max-w-[1400px] mx-auto space-y-6">
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between"
-        >
-          <div>
-            <h1 className="text-5xl font-bold neon-glow" style={{ color: '#00ff88' }}>ניהול אתרים</h1>
-            <p className="text-lg text-gray-400 mt-2">
-              {sites.length} מערכות סולאריות רשומות במערכת
-            </p>
+    <div className="space-y-6">
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col md:flex-row items-center justify-between gap-4"
+      >
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">ניהול אתרים</h1>
+          <p className="text-slate-500 mt-1">
+            {sites.length} מערכות סולאריות רשומות במערכת
+          </p>
+        </div>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="relative flex-1 md:w-64">
+             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+             <Input 
+                placeholder="חיפוש אתר..." 
+                className="bg-white pl-3 pr-9 border-slate-200 focus:border-orange-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+             />
           </div>
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button 
-              onClick={() => { setForm(emptyForm); setEditingId(null); setShowForm(true); }}
-              className="text-sm font-semibold px-6 py-6"
-              style={{ 
-                background: 'linear-gradient(135deg, #00ff88 0%, #00cc6f 100%)',
-                color: '#000'
-              }}
-            >
-              <Plus className="w-5 h-5 ml-2" /> הוסף מערכת חדשה
-            </Button>
-          </motion.div>
-        </motion.div>
+          <Button 
+            onClick={() => { setForm(emptyForm); setEditingId(null); setShowForm(true); }}
+            className="bg-orange-500 hover:bg-orange-600 text-white font-medium"
+          >
+            <Plus className="w-4 h-4 ml-2" /> הוסף מערכת
+          </Button>
+        </div>
+      </motion.div>
 
       {/* Form */}
       <AnimatePresence>
@@ -145,29 +154,29 @@ export default function SiteManager() {
             initial={{ opacity: 0, height: 0 }} 
             animate={{ opacity: 1, height: "auto" }} 
             exit={{ opacity: 0, height: 0 }}
-            className="futuristic-card rounded-xl p-8 overflow-hidden"
+            className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 overflow-hidden"
           >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-white neon-glow">
+            <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+              <h3 className="text-xl font-bold text-slate-800">
                 {editingId ? "עריכת מערכת סולארית" : "מערכת סולארית חדשה"}
               </h3>
-              <button onClick={closeForm} className="text-[#8b949e] hover:text-[#e6edf3] transition-colors">
-                <X className="w-6 h-6" />
+              <button onClick={closeForm} className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-100 rounded-full">
+                <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
               <Field label="שם האתר" field="name" placeholder="שם האתר" />
               <div className="space-y-1">
-                <Label className="text-[11px] text-[#8b949e]">בעלות</Label>
+                <Label className="text-xs font-medium text-slate-500">בעלות</Label>
                 <Select value={form.owner} onValueChange={v => setForm({ ...form, owner: v })}>
-                  <SelectTrigger className="bg-[#0d1117] border-[#30363d] text-[#e6edf3] text-sm h-9"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-white border-slate-200 text-slate-800 h-9"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value="delkal_energy">דלקל אנרגיה</SelectItem><SelectItem value="external_client">לקוח חיצוני</SelectItem></SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px] text-[#8b949e]">אזור</Label>
+                <Label className="text-xs font-medium text-slate-500">אזור</Label>
                 <Select value={form.region_tag} onValueChange={v => setForm({ ...form, region_tag: v })}>
-                  <SelectTrigger className="bg-[#0d1117] border-[#30363d] text-[#e6edf3] text-sm h-9"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-white border-slate-200 text-slate-800 h-9"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value="north">צפון</SelectItem><SelectItem value="center">מרכז</SelectItem><SelectItem value="south">דרום</SelectItem><SelectItem value="arava">ערבה</SelectItem></SelectContent>
                 </Select>
               </div>
@@ -178,9 +187,9 @@ export default function SiteManager() {
               <Field label="אזימוט (°)" field="azimuth_deg" type="number" />
               <Field label="שיפוע (°)" field="tilt_deg" type="number" />
               <div className="space-y-1">
-                <Label className="text-[11px] text-[#8b949e]">סוג הרכבה</Label>
+                <Label className="text-xs font-medium text-slate-500">סוג הרכבה</Label>
                 <Select value={form.mounting_type} onValueChange={v => setForm({ ...form, mounting_type: v })}>
-                  <SelectTrigger className="bg-[#0d1117] border-[#30363d] text-[#e6edf3] text-sm h-9"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-white border-slate-200 text-slate-800 h-9"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value="roof">גג</SelectItem><SelectItem value="ground">קרקע</SelectItem><SelectItem value="tracker">עוקב שמש</SelectItem></SelectContent>
                 </Select>
               </div>
@@ -192,10 +201,10 @@ export default function SiteManager() {
               <Field label="מרווח ניקוי (ימים)" field="cleaning_interval_days" type="number" />
               <Field label="מספר ממירים" field="num_inverters" type="number" />
             </div>
-            <div className="flex justify-end gap-3 mt-5">
-              <Button variant="ghost" onClick={closeForm} className="text-[#8b949e] text-xs">ביטול</Button>
-              <Button onClick={handleSave} className="bg-[#00ff88] text-[#0d1117] hover:bg-[#00cc6a] text-xs font-semibold">
-                <Save className="w-4 h-4 ml-1" /> {editingId ? "עדכן" : "צור אתר"}
+            <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
+              <Button variant="outline" onClick={closeForm} className="text-slate-600 border-slate-200 hover:bg-slate-50">ביטול</Button>
+              <Button onClick={handleSave} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold">
+                <Save className="w-4 h-4 ml-2" /> {editingId ? "שמור שינויים" : "צור אתר"}
               </Button>
             </div>
           </motion.div>
@@ -203,51 +212,49 @@ export default function SiteManager() {
       </AnimatePresence>
 
       {/* Sites list */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {sites.map((site, i) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {filteredSites.map((site, i) => (
           <motion.div
             key={site.id}
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: i * 0.05 }}
-            whileHover={{ scale: 1.02, y: -5 }}
+            whileHover={{ y: -4 }}
           >
-            <div className="futuristic-card rounded-xl p-5 group cursor-pointer">
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 hover:shadow-md transition-all group">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ 
-                      backgroundColor: site.status === "online" ? "#00ff88" : site.status === "warning" ? "#ffaa00" : "#ff3333",
-                      boxShadow: `0 0 10px ${site.status === "online" ? "#00ff88" : site.status === "warning" ? "#ffaa00" : "#ff3333"}`
-                    }} 
+                    className={`w-3 h-3 rounded-full ${site.status === "online" ? "bg-emerald-500" : site.status === "warning" ? "bg-amber-500" : "bg-red-500"}`}
                   />
                   <div>
-                    <p className="text-sm font-bold text-white">{site.name}</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {site.dc_capacity_kwp || 0} kWp · {site.region_tag}
-                    </p>
+                    <p className="font-bold text-slate-800 text-lg group-hover:text-orange-600 transition-colors">{site.name}</p>
+                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                       <MapPin className="w-3 h-3" />
+                       {site.region_tag} · {site.dc_capacity_kwp || 0} kWp
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="flex flex-col gap-2 mt-3">
+              
+              <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-slate-50">
                 <div className="flex gap-2">
                   <Button 
-                    variant="ghost" 
+                    variant="outline" 
                     size="sm" 
                     onClick={() => openEdit(site)} 
-                    className="flex-1 text-[#8b949e] hover:text-[#00ff88] hover:bg-[#00ff88]/10"
+                    className="flex-1 border-slate-200 text-slate-600 hover:text-orange-600 hover:border-orange-200 hover:bg-orange-50"
                   >
-                    <Pencil className="w-4 h-4 ml-1" />
+                    <Pencil className="w-3 h-3 ml-2" />
                     ערוך
                   </Button>
                   <Button 
-                    variant="ghost" 
+                    variant="outline" 
                     size="sm" 
                     onClick={() => { if (confirm("למחוק את האתר?")) deleteMutation.mutate(site.id); }} 
-                    className="flex-1 text-[#8b949e] hover:text-[#ff3333] hover:bg-[#ff3333]/10"
+                    className="flex-1 border-slate-200 text-slate-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
                   >
-                    <Trash2 className="w-4 h-4 ml-1" />
+                    <Trash2 className="w-3 h-3 ml-2" />
                     מחק
                   </Button>
                 </div>
@@ -255,16 +262,15 @@ export default function SiteManager() {
                   variant="ghost" 
                   size="sm" 
                   onClick={() => markCleanedMutation.mutate(site.id)} 
-                  className="w-full text-[#8b949e] hover:text-[#58a6ff] hover:bg-[#58a6ff]/10"
+                  className="w-full text-blue-600 bg-blue-50 hover:bg-blue-100"
                 >
-                  <Droplets className="w-4 h-4 ml-1" />
+                  <Droplets className="w-3 h-3 ml-2" />
                   סמן כשטוף
                 </Button>
               </div>
             </div>
           </motion.div>
         ))}
-      </div>
       </div>
     </div>
   );
