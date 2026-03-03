@@ -27,7 +27,7 @@ export default function SiteProductionChart({ stationId }) {
         
         mapData = (item) => ({
           label: item.timeStr,
-          value: parseFloat(((parseFloat(item.power) || 0) * (parseFloat(item.powerPec) || 0.001))),
+          value: parseFloat(((parseFloat(item.power) || 0) / 1000).toFixed(2)),
           valueLabel: 'kW'
         });
       } else if (timeframe === 'month') {
