@@ -5,20 +5,17 @@ const SOLIS_KEY_ID = Deno.env.get("SOLIS_API_KEY_ID");
 const SOLIS_KEY_SECRET = Deno.env.get("SOLIS_API_KEY_SECRET");
 const SOLIS_BASE_URL = (Deno.env.get("SOLIS_API_URL") || "https://www.soliscloud.com:13333").replace(/\/$/, '');
 
-const PAGE_SIZE = 10; // process 10 stations per run to stay within CPU limits
+const PAGE_SIZE = 10;
 
 function getGMTDate() {
   return new Date().toUTCString().replace('UTC', 'GMT');
 }
-
 function md5Base64(str) {
   return createHash('md5').update(str, 'utf8').digest('base64');
 }
-
 function hmacSHA1Base64(secret, str) {
   return createHmac('sha1', secret).update(str, 'utf8').digest('base64');
 }
-
 function buildHeaders(endpoint, bodyStr) {
   const date = getGMTDate();
   const contentType = 'application/json';
@@ -41,6 +38,22 @@ async function solisPost(endpoint, body) {
   }
 }
 
+// Geocode address → lat/lng using Nominatim (free, no key needed)
+async function geocodeAddress(addr) {
+  if (!addr) return { lat: null, lng: null };
+  try {
+    const q = encodeURIComponent(addr + ', Israel');
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`, {
+      headers: { 'User-Agent': 'DelkalEnergyApp/1.0' }
+    });
+    const data = await res.json();
+    if (data && data.length > 0) {
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    }
+  } catch (_) {}
+  return { lat: null, lng: null };
+}
+
 function guessRegion(s) {
   const text = ((s.cityStr || '') + ' ' + (s.regionStr || '') + ' ' + (s.addrOrigin || '')).toLowerCase();
   if (/eilat|arava|negev|beersheba|beer sheva|dimona/.test(text)) return 'arava';
@@ -50,8 +63,25 @@ function guessRegion(s) {
   return 'center';
 }
 
-function mapStationToSite(s) {
+async function mapStationToSite(s, existingLat, existingLng) {
   const stateMap = { 1: 'online', 2: 'offline', 3: 'warning', 4: 'offline' };
+
+  // Try coordinates from Solis first, then fallback to geocoding if missing
+  let lat = parseFloat(s.locationLat) || null;
+  let lng = parseFloat(s.locationLng) || null;
+
+  if ((!lat || !lng) && !(existingLat && existingLng)) {
+    const addr = s.addrOrigin || s.cityStr;
+    if (addr) {
+      const geo = await geocodeAddress(addr);
+      lat = geo.lat;
+      lng = geo.lng;
+    }
+  } else if (!lat && existingLat) {
+    lat = existingLat;
+    lng = existingLng;
+  }
+
   return {
     name: s.stationName,
     status: stateMap[s.state] || 'offline',
@@ -61,27 +91,55 @@ function mapStationToSite(s) {
     monthly_yield_kwh: parseFloat(s.monthEnergy) || 0,
     yearly_yield_kwh: parseFloat(s.yearEnergy) || 0,
     lifetime_yield_kwh: parseFloat(s.allEnergy) || 0,
-    latitude: parseFloat(s.locationLat) || null,
-    longitude: parseFloat(s.locationLng) || null,
+    latitude: lat,
+    longitude: lng,
     tariff_per_kwh: parseFloat(s.price) || 0,
     last_heartbeat: new Date().toISOString(),
     solis_station_id: s.id,
     solis_sno: s.sno,
     owner: 'delkal_energy',
-    region_tag: guessRegion(s)
+    region_tag: guessRegion(s),
+    azimuth_deg: parseFloat(s.azimuth) || null,
+    tilt_deg: parseFloat(s.dip) || null,
+    installation_date: s.installDate || null
   };
 }
 
-function mapInverterToEntity(inv, siteId) {
+// Extract MPPT strings from inverter detail
+function extractMpptStrings(detail) {
+  const strings = [];
+  if (!detail) return strings;
+  // Solis returns pv1Volt, pv1Curr, pv2Volt, pv2Curr, etc.
+  for (let i = 1; i <= 16; i++) {
+    const v = parseFloat(detail[`pv${i}Volt`]);
+    const a = parseFloat(detail[`pv${i}Curr`]);
+    if (!isNaN(v) && v > 0) {
+      strings.push({
+        string_id: `PV${i}`,
+        voltage_v: v,
+        current_a: isNaN(a) ? 0 : a,
+        power_kw: parseFloat(((v * (isNaN(a) ? 0 : a)) / 1000).toFixed(3))
+      });
+    }
+  }
+  return strings;
+}
+
+function mapInverterToEntity(inv, siteId, detail) {
   const stateMap = { 1: 'online', 2: 'offline', 3: 'warning' };
+  const mpptStrings = extractMpptStrings(detail);
   return {
     site_id: siteId,
     name: inv.inverterId || inv.sn || 'Inverter',
     model: inv.model || '',
     rated_power_kw: parseFloat(inv.power) || 0,
     current_ac_power_kw: parseFloat(inv.pac) || 0,
+    current_dc_power_kw: parseFloat(detail?.pSum || inv.psum) || 0,
+    efficiency_percent: detail?.efficiency ? parseFloat(detail.efficiency) : 0,
+    temperature_c: detail?.inverterTemperature ? parseFloat(detail.inverterTemperature) : null,
     status: stateMap[inv.state] || 'offline',
     daily_yield_kwh: parseFloat(inv.eday) || 0,
+    mppt_strings: mpptStrings,
     solis_inverter_id: inv.id,
     solis_sn: inv.sn
   };
@@ -92,16 +150,14 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const db = base44.asServiceRole;
 
-    // Read pageNo from payload (automation passes {} so we default to 1)
     let pageNo = 1;
     try {
       const body = await req.json();
       if (body.pageNo) pageNo = body.pageNo;
-    } catch (_) { /* empty body is fine */ }
+    } catch (_) {}
 
     console.log(`[syncSolisData] Syncing page ${pageNo} (size ${PAGE_SIZE})...`);
 
-    // Fetch one page of stations
     const res = await solisPost('/v1/api/userStationList', { pageNo, pageSize: PAGE_SIZE });
     if (!res.success || !res.data?.page?.records) {
       return Response.json({ error: 'Failed to fetch stations', raw: res }, { status: 500 });
@@ -113,7 +169,6 @@ Deno.serve(async (req) => {
 
     console.log(`[syncSolisData] Got ${stations.length} stations (total ${total}, page ${pageNo}/${totalPages})`);
 
-    // Load existing sites keyed by solis_station_id
     const existingSites = await db.entities.Site.list();
     const sitesBySolisId = {};
     for (const site of existingSites) {
@@ -123,12 +178,13 @@ Deno.serve(async (req) => {
     let created = 0, updated = 0, invertersSync = 0;
 
     for (const station of stations) {
-      const siteData = mapStationToSite(station);
+      const existing = sitesBySolisId[station.id];
+      const siteData = await mapStationToSite(station, existing?.latitude, existing?.longitude);
       let siteId;
 
-      if (sitesBySolisId[station.id]) {
-        await db.entities.Site.update(sitesBySolisId[station.id].id, siteData);
-        siteId = sitesBySolisId[station.id].id;
+      if (existing) {
+        await db.entities.Site.update(existing.id, siteData);
+        siteId = existing.id;
         updated++;
       } else {
         const newSite = await db.entities.Site.create(siteData);
@@ -136,9 +192,12 @@ Deno.serve(async (req) => {
         created++;
       }
 
-      // Fetch inverters for this station
+      // Fetch inverter list for this station
       const invRes = await solisPost('/v1/api/inverterList', { pageNo: 1, pageSize: 50, stationId: station.id });
       const inverters = invRes?.data?.page?.records || [];
+
+      // Update num_inverters on site
+      await db.entities.Site.update(siteId, { num_inverters: inverters.length });
 
       const existingInverters = await db.entities.Inverter.filter({ site_id: siteId });
       const invBySolisId = {};
@@ -147,7 +206,15 @@ Deno.serve(async (req) => {
       }
 
       for (const inv of inverters) {
-        const invData = mapInverterToEntity(inv, siteId);
+        // Fetch inverter detail for MPPT/temperature data
+        let detail = null;
+        try {
+          const detailRes = await solisPost('/v1/api/inverterDetail', { id: inv.id, sn: inv.sn });
+          if (detailRes?.success) detail = detailRes.data;
+        } catch (_) {}
+
+        const invData = mapInverterToEntity(inv, siteId, detail);
+
         if (invBySolisId[inv.id]) {
           await db.entities.Inverter.update(invBySolisId[inv.id].id, invData);
         } else {
@@ -157,9 +224,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // If there are more pages, trigger next page automatically
+    // Trigger next page if needed
     if (pageNo < totalPages) {
-      // Fire-and-forget next page (no await - just trigger)
       base44.asServiceRole.functions.invoke('syncSolisData', { pageNo: pageNo + 1 }).catch(() => {});
       console.log(`[syncSolisData] Triggered next page: ${pageNo + 1}/${totalPages}`);
     }
