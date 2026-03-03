@@ -52,7 +52,7 @@ export default function FleetOverviewChart({ sites }) {
           <BarChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
             <XAxis dataKey="region" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
-            <Tooltip content={<CustomTooltip />} cursor={{fill: '#f1f5f9'}} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
             <Bar dataKey="yield" radius={[4, 4, 0, 0]} maxBarSize={50}>
               {data.map((_, i) => (
                 <Cell key={i} fill={colors[i % colors.length]} />
