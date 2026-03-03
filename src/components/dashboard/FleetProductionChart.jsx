@@ -78,7 +78,7 @@ export default function FleetProductionChart({ sites, timeframe = 'daily' }) {
     if (!active || !payload?.length) return null;
     
     return (
-      <div className="rounded-lg p-3 bg-white border border-slate-200 shadow-lg">
+      <div className="rounded-lg p-3 shadow-xl" style={{ background: '#1a2235', border: '1px solid rgba(74,222,128,0.2)' }}>
         <p className="text-slate-700 font-bold mb-2">{label}</p>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
