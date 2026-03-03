@@ -184,16 +184,11 @@ Deno.serve(async (req) => {
 
     console.log(`[syncSolisData] Got ${stations.length} stations (total ${total}, page ${pageNo}/${totalPages})`);
 
-    const existingSites = await db.entities.Site.list();
-    const sitesBySolisId = {};
-    for (const site of existingSites) {
-      if (site.solis_station_id) sitesBySolisId[site.solis_station_id] = site;
-    }
-
     let created = 0, updated = 0, invertersSync = 0;
 
     for (const station of stations) {
-      const existing = sitesBySolisId[station.id];
+      const sitesQuery = await db.entities.Site.filter({ solis_station_id: station.id });
+      const existing = sitesQuery.length > 0 ? sitesQuery[0] : null;
       const siteData = await mapStationToSite(station, existing?.latitude, existing?.longitude);
       let siteId;
 
@@ -214,12 +209,6 @@ Deno.serve(async (req) => {
       // Update num_inverters on site
       await db.entities.Site.update(siteId, { num_inverters: inverters.length });
 
-      const existingInverters = await db.entities.Inverter.filter({ site_id: siteId });
-      const invBySolisId = {};
-      for (const inv of existingInverters) {
-        if (inv.solis_inverter_id) invBySolisId[inv.solis_inverter_id] = inv;
-      }
-
       for (const inv of inverters) {
         // Fetch inverter detail for MPPT/temperature data
         let detail = null;
@@ -230,8 +219,11 @@ Deno.serve(async (req) => {
 
         const invData = mapInverterToEntity(inv, siteId, detail);
 
-        if (invBySolisId[inv.id]) {
-          await db.entities.Inverter.update(invBySolisId[inv.id].id, invData);
+        const invQuery = await db.entities.Inverter.filter({ solis_inverter_id: inv.id });
+        const existingInv = invQuery.length > 0 ? invQuery[0] : null;
+
+        if (existingInv) {
+          await db.entities.Inverter.update(existingInv.id, invData);
         } else {
           await db.entities.Inverter.create(invData);
         }
