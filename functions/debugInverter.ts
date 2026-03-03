@@ -19,8 +19,12 @@ function buildHeaders(endpoint, bodyStr) {
 async function solisPost(endpoint, body) {
   const bodyStr = JSON.stringify(body);
   const headers = buildHeaders(endpoint, bodyStr);
-  const res = await fetch(`${SOLIS_BASE_URL}${endpoint}`, { method: 'POST', headers, body: bodyStr });
-  return await res.json();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  try {
+    const res = await fetch(`${SOLIS_BASE_URL}${endpoint}`, { method: 'POST', headers, body: bodyStr, signal: controller.signal });
+    return await res.json();
+  } finally { clearTimeout(timeout); }
 }
 
 Deno.serve(async (req) => {
@@ -29,24 +33,18 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Get first inverter from list
-    const listRes = await solisPost('/v1/api/inverterList', { pageNo: 1, pageSize: 1 });
-    const inv = listRes?.data?.page?.records?.[0];
-    if (!inv) return Response.json({ error: 'No inverters found' });
-
-    // Get detail
-    const detailRes = await solisPost('/v1/api/inverterDetail', { id: inv.id, sn: inv.sn });
+    const { inverterId, sn } = await req.json();
+    const detailRes = await solisPost('/v1/api/inverterDetail', { id: inverterId, sn });
     const detail = detailRes?.data || {};
 
-    // Extract only PV-related keys
+    // Return all keys matching pv pattern
     const pvKeys = {};
     for (const k of Object.keys(detail)) {
-      if (/^(u_pv|i_pv|pow|mppt_upv|mppt_ipv|mppt_pow|pSum|e_today|e_total|pac|inverterTemp)/i.test(k)) {
+      if (/pv|pow|pac|mppt|temp|eday|eToday|e_today/i.test(k)) {
         pvKeys[k] = detail[k];
       }
     }
-
-    return Response.json({ inverter_sn: inv.sn, pv_fields: pvKeys });
+    return Response.json({ success: detailRes.success, pv_keys: pvKeys, all_keys: Object.keys(detail) });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
