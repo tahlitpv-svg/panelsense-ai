@@ -121,12 +121,18 @@ function extractMpptStrings(detail) {
     if (!detail.hasOwnProperty(keyV)) break;
     const v = parseFloat(detail[keyV]) || 0;
     const a = parseFloat(detail[keyA]) || 0;
+    // Skip strings with zero voltage that are beyond the last active string
+    // We detect this by checking if all remaining are also 0
     strings.push({
       string_id: `PV${i}`,
       voltage_v: v,
       current_a: a,
       power_kw: parseFloat(((v * a) / 1000).toFixed(3))
     });
+  }
+  // Trim trailing strings with 0 voltage (unused inputs)
+  while (strings.length > 0 && strings[strings.length - 1].voltage_v === 0) {
+    strings.pop();
   }
   return strings;
 }
