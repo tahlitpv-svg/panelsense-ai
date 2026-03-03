@@ -34,15 +34,7 @@ export default function SiteProductionChart({ stationId }) {
         endpoint = '/v1/api/stationMonth';
         body.month = format(now, 'yyyy-MM');
         
-        mapData = (item) => {
-          const dayMatch = item.dateStr.split('-');
-          const day = dayMatch.length > 2 ? dayMatch[2] : item.dateStr;
-          return {
-            label: day,
-            value: parseFloat(item.energy) || 0,
-            valueLabel: 'kWh'
-          };
-        };
+        mapData = null; // handled below with full-month fill
       } else if (timeframe === 'year') {
         endpoint = '/v1/api/stationYear';
         body.year = format(now, 'yyyy');
