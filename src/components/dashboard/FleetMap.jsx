@@ -49,15 +49,15 @@ export default function FleetMap({ sites }) {
               icon={createCustomIcon(site.status)}
             >
               <Popup className="custom-popup">
-                <div className="p-1 min-w-[150px]">
-                  <div className="font-bold text-slate-800 mb-1">{site.name}</div>
-                  <div className="flex justify-between text-xs text-slate-500 border-t border-slate-100 pt-1 mt-1">
+                <div style={{ background: '#1a2235', color: '#e2e8f0', borderRadius: 8, minWidth: 150, padding: '8px 10px', border: '1px solid rgba(74,222,128,0.2)' }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: 6, color: '#fff', fontSize: 13 }}>{site.name}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 5, marginTop: 5 }}>
                     <span>הספק:</span>
-                    <span className="font-medium text-slate-700">{site.current_power_kw?.toFixed(1)} kW</span>
+                    <span style={{ color: '#4ade80', fontWeight: 600 }}>{site.current_power_kw?.toFixed(1)} kW</span>
                   </div>
-                  <div className="flex justify-between text-xs text-slate-500">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginTop: 3 }}>
                     <span>יומי:</span>
-                    <span className="font-medium text-slate-700">{site.daily_yield_kwh?.toFixed(0)} kWh</span>
+                    <span style={{ color: '#60a5fa', fontWeight: 600 }}>{site.daily_yield_kwh?.toFixed(0)} kWh</span>
                   </div>
                 </div>
               </Popup>
