@@ -1,117 +1,88 @@
 import React from 'react';
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import { MapPin, Zap, AlertTriangle, WifiOff, Sun, Activity, Droplets } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
+const regionLabels = { north: 'צפון', center: 'מרכז', south: 'דרום', arava: 'ערבה' };
+
 const statusConfig = {
-  online: { 
-    color: '#10b981', // Emerald 500
-    bg: '#ecfdf5',    // Emerald 50
-    icon: Zap, 
-    label: 'מקוון',
-    borderColor: '#d1fae5'
-  },
-  warning: { 
-    color: '#f59e0b', // Amber 500
-    bg: '#fffbeb',    // Amber 50
-    icon: AlertTriangle, 
-    label: 'אזהרה',
-    borderColor: '#fef3c7'
-  },
-  offline: { 
-    color: '#ef4444', // Red 500
-    bg: '#fef2f2',    // Red 50
-    icon: WifiOff, 
-    label: 'לא מקוון',
-    borderColor: '#fee2e2'
-  }
+  online: { color: '#4ade80', bg: 'rgba(74,222,128,0.1)', border: 'rgba(74,222,128,0.2)', label: 'מקוון', dot: '#4ade80' },
+  warning: { color: '#fbbf24', bg: 'rgba(251,191,36,0.1)', border: 'rgba(251,191,36,0.2)', label: 'אזהרה', dot: '#fbbf24' },
+  offline: { color: '#f87171', bg: 'rgba(248,113,113,0.1)', border: 'rgba(248,113,113,0.2)', label: 'לא מקוון', dot: '#f87171' }
 };
 
 export default function SiteCard({ site, regionalAverage }) {
-  const config = statusConfig[site.status] || statusConfig.online;
-  const StatusIcon = config.icon;
-  const performance = site.dc_capacity_kwp > 0 
-    ? ((site.specific_yield_kwh_kwp / regionalAverage) * 100).toFixed(0) 
-    : 100;
+  const config = statusConfig[site.status] || statusConfig.offline;
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      whileHover={{ y: -4 }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -3, scale: 1.01 }}
       transition={{ duration: 0.2 }}
     >
       <Link to={createPageUrl(`SiteDetails?id=${site.id}`)}>
-        <Card className="bg-gradient-to-br from-white via-slate-50 to-slate-200 border border-white/60 shadow-lg hover:shadow-xl hover:border-white transition-all duration-300 overflow-hidden group h-full flex flex-col relative">
-          {/* Header Image / Gradient Placeholder - Like the App Screenshot */}
-          <div className="h-24 bg-slate-200 relative overflow-hidden">
-             <div className="absolute inset-0 bg-gradient-to-r from-slate-300 to-slate-200 opacity-50" />
-             <div className="absolute top-2 right-2">
-                <Badge className="bg-white/90 text-slate-700 shadow-sm hover:bg-white backdrop-blur-sm border-0 font-normal gap-1">
-                   <Sun className="w-3 h-3 text-orange-400" /> {site.region_tag}
-                </Badge>
-             </div>
-             
-             {/* Status Dot */}
-             <div className="absolute top-2 left-2 flex gap-2">
-                {site.cleaning_recommended && (
-                   <div className="bg-blue-100 p-1.5 rounded-full shadow-sm" title="דורש ניקוי">
-                      <Droplets className="w-3 h-3 text-blue-500" />
-                   </div>
-                )}
-                <div className="flex items-center gap-1.5 bg-white/90 px-2 py-1 rounded-full shadow-sm">
-                   <div className={`w-2 h-2 rounded-full ${site.status === 'online' ? 'bg-emerald-500' : site.status === 'warning' ? 'bg-amber-500' : 'bg-red-500'}`} />
-                   <span className="text-[10px] font-medium text-slate-600">{config.label}</span>
+        <div
+          className="rounded-xl overflow-hidden transition-all duration-300"
+          style={{
+            background: 'linear-gradient(135deg, #161c26 0%, #1a2235 100%)',
+            border: `1px solid ${config.border}`,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+          }}
+        >
+          {/* Top status bar */}
+          <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, transparent, ${config.color}, transparent)` }} />
+
+          <div className="p-4">
+            {/* Header row */}
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1 min-w-0 ml-2">
+                <h3 className="text-white font-bold text-sm truncate leading-tight mb-1">{site.name}</h3>
+                <div className="flex items-center gap-1 text-slate-500 text-xs">
+                  <MapPin className="w-3 h-3 shrink-0" />
+                  <span>{regionLabels[site.region_tag] || site.region_tag}</span>
+                  {site.num_inverters > 0 && (
+                    <span className="mr-2 text-slate-600">• {site.num_inverters} אינוורטרים</span>
+                  )}
                 </div>
-             </div>
-             
-             {/* Solar Pattern Overlay */}
-             <div className="absolute bottom-0 left-0 right-0 h-full opacity-10" 
-                  style={{ backgroundImage: 'radial-gradient(circle at 50% 120%, #000 0%, transparent 50%)' }} />
-          </div>
-
-          <div className="p-5 flex-1 flex flex-col">
-            <div className="flex justify-between items-start mb-4">
-               <div>
-                  <h3 className="text-lg font-bold text-slate-800 group-hover:text-orange-600 transition-colors">
-                    {site.name}
-                  </h3>
-                  <div className="flex items-center gap-1 text-slate-400 text-xs mt-1">
-                    <MapPin className="w-3 h-3" />
-                    <span>{site.region_tag === 'north' ? 'צפון' : site.region_tag === 'center' ? 'מרכז' : site.region_tag === 'south' ? 'דרום' : 'ערבה'}</span>
-                  </div>
-               </div>
+              </div>
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-full shrink-0"
+                style={{ background: config.bg, border: `1px solid ${config.border}` }}>
+                <div className="w-1.5 h-1.5 rounded-full" style={{ background: config.dot, boxShadow: `0 0 6px ${config.dot}` }} />
+                <span className="text-xs font-medium" style={{ color: config.color }}>{config.label}</span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 py-4 border-t border-slate-50 mt-auto">
-               <div className="text-center">
-                  <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">תפוקה יומית</div>
-                  <div className="font-bold text-slate-700">{site.daily_yield_kwh?.toFixed(0) || 0}</div>
-                  <div className="text-[10px] text-slate-400">kWh</div>
-               </div>
-               <div className="text-center border-r border-l border-slate-50">
-                  <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">הספק רגעי</div>
-                  <div className="font-bold text-slate-700">{site.current_power_kw?.toFixed(1) || 0}</div>
-                  <div className="text-[10px] text-slate-400">kW</div>
-               </div>
-               <div className="text-center">
-                  <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">קיבולת</div>
-                  <div className="font-bold text-slate-700">{site.dc_capacity_kwp}</div>
-                  <div className="text-[10px] text-slate-400">kWp</div>
-               </div>
+            {/* Metrics grid */}
+            <div className="grid grid-cols-3 gap-2 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              <div>
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">תפוקה יומית</div>
+                <div className="text-base font-bold text-white">{site.daily_yield_kwh?.toFixed(0) || 0}</div>
+                <div className="text-[10px] text-green-400/70">kWh</div>
+              </div>
+              <div style={{ borderRight: '1px solid rgba(255,255,255,0.05)', borderLeft: '1px solid rgba(255,255,255,0.05)' }}
+                className="px-2">
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">הספק</div>
+                <div className="text-base font-bold text-white">{site.current_power_kw?.toFixed(1) || 0}</div>
+                <div className="text-[10px] text-green-400/70">kW</div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">קיבולת</div>
+                <div className="text-base font-bold text-white">{site.dc_capacity_kwp}</div>
+                <div className="text-[10px] text-green-400/70">kWp</div>
+              </div>
             </div>
 
-            {site.status === 'warning' && (
-              <div className="mt-3 text-xs bg-amber-50 text-amber-700 px-3 py-2 rounded-lg flex items-center gap-2">
-                 <Activity className="w-3 h-3" />
-                 <span>ביצועים נמוכים מהצפוי</span>
+            {site.cleaning_recommended && (
+              <div className="mt-2 flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-lg"
+                style={{ background: 'rgba(59,130,246,0.1)', color: '#60a5fa' }}>
+                <Droplets className="w-3 h-3" />
+                <span>מומלץ ניקוי</span>
               </div>
             )}
           </div>
-        </Card>
+        </div>
       </Link>
     </motion.div>
   );
