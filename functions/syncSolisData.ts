@@ -106,24 +106,24 @@ async function mapStationToSite(s, existingLat, existingLng) {
 }
 
 // Extract MPPT strings from inverter detail
-// Solis API returns: u_pv1, i_pv1, pow1 ... OR mppt_upv1, mppt_ipv1, mppt_pow1
+// Solis API returns camelCase: uPv1, iPv1, uPv2, iPv2, etc.
 function extractMpptStrings(detail) {
   const strings = [];
   if (!detail) return strings;
 
-  // Try standard string fields first (u_pv1..u_pv16)
-  for (let i = 1; i <= 16; i++) {
-    const v = parseFloat(detail[`u_pv${i}`] ?? detail[`mppt_upv${i}`]);
-    const a = parseFloat(detail[`i_pv${i}`] ?? detail[`mppt_ipv${i}`]);
-    const pRaw = parseFloat(detail[`pow${i}`] ?? detail[`mppt_pow${i}`]);
-    // Include string even if voltage is 0 (offline state) as long as the key exists
-    const keyExists = detail.hasOwnProperty(`u_pv${i}`) || detail.hasOwnProperty(`mppt_upv${i}`);
-    if (!keyExists) break; // no more strings
+  for (let i = 1; i <= 20; i++) {
+    const keyV = `uPv${i}`;
+    const keyA = `iPv${i}`;
+    if (!detail.hasOwnProperty(keyV)) break; // no more strings
+    const v = parseFloat(detail[keyV]) || 0;
+    const a = parseFloat(detail[keyA]) || 0;
+    // Only include strings that exist in the inverter (skip trailing zeros after last real string)
+    // but we include all declared strings (even 0V = night/offline)
     strings.push({
       string_id: `PV${i}`,
-      voltage_v: isNaN(v) ? 0 : v,
-      current_a: isNaN(a) ? 0 : a,
-      power_kw: !isNaN(pRaw) ? parseFloat((pRaw / 1000).toFixed(3)) : parseFloat((((isNaN(v)?0:v) * (isNaN(a)?0:a)) / 1000).toFixed(3))
+      voltage_v: v,
+      current_a: a,
+      power_kw: parseFloat(((v * a) / 1000).toFixed(3))
     });
   }
   return strings;
