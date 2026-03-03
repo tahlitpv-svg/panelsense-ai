@@ -111,11 +111,14 @@ function extractMpptStrings(detail) {
   const strings = [];
   if (!detail) return strings;
 
-  // Scan up to 32 possible strings dynamically
+  // Solis API uses either camelCase (uPv1/iPv1) or snake_case (u_pv1/i_pv1)
+  // Detect which format this inverter uses by checking the first key
+  const useSnake = detail.hasOwnProperty('u_pv1');
+
   for (let i = 1; i <= 32; i++) {
-    const keyV = `uPv${i}`;
-    const keyA = `iPv${i}`;
-    if (!detail.hasOwnProperty(keyV)) break; // no more keys
+    const keyV = useSnake ? `u_pv${i}` : `uPv${i}`;
+    const keyA = useSnake ? `i_pv${i}` : `iPv${i}`;
+    if (!detail.hasOwnProperty(keyV)) break;
     const v = parseFloat(detail[keyV]) || 0;
     const a = parseFloat(detail[keyA]) || 0;
     strings.push({
