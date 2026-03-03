@@ -14,6 +14,7 @@ import EfficiencyGauge from "../components/inverter/EfficiencyGauge";
 import HistoricalInverterChart from "../components/inverter/HistoricalInverterChart";
 import ProductionAnalysis from "../components/site/ProductionAnalysis";
 import SiteConfiguration from "../components/site/SiteConfiguration";
+import SiteProductionChart from "../components/site/SiteProductionChart";
 
 export default function SiteDetails() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -45,20 +46,7 @@ export default function SiteDetails() {
     ? ((totalRevenue / site.initial_investment) * 100).toFixed(1)
     : 0;
 
-  // Generate hourly production data for today
-  const hourlyData = Array.from({ length: 24 }, (_, i) => {
-    const hour = i;
-    let power = 0;
-    if (hour >= 6 && hour <= 18) {
-      const sunIntensity = Math.sin(((hour - 6) / 12) * Math.PI);
-      power = (site.current_power_kw || 0) * sunIntensity * (0.8 + Math.random() * 0.4);
-    }
-    return {
-      hour: `${hour.toString().padStart(2, '0')}:00`,
-      power: parseFloat(power.toFixed(1)),
-      energy: parseFloat((power * 1).toFixed(2))
-    };
-  });
+  // Data will be fetched dynamically in SiteProductionChart
 
   return (
     <div className="space-y-6">
@@ -125,48 +113,7 @@ export default function SiteDetails() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
                {/* Main Chart Card */}
-               <Card className="p-6 border border-slate-200 shadow-sm bg-white">
-                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-bold text-slate-800">ייצור יומי</h3>
-                    <div className="text-sm text-slate-500">
-                       סך הכל: <span className="font-bold text-slate-800">{site.daily_yield_kwh?.toFixed(0)} kWh</span>
-                    </div>
-                 </div>
-                 <div className="h-72">
-                   <ResponsiveContainer width="100%" height="100%">
-                     <LineChart data={hourlyData}>
-                       <XAxis 
-                         dataKey="hour" 
-                         tick={{ fill: '#64748b', fontSize: 11 }}
-                         stroke="#e2e8f0"
-                         axisLine={false}
-                         tickLine={false}
-                       />
-                       <YAxis 
-                         tick={{ fill: '#64748b', fontSize: 11 }}
-                         stroke="#e2e8f0"
-                         axisLine={false}
-                         tickLine={false}
-                         label={{ value: 'kW', angle: -90, position: 'insideLeft', fill: '#94a3b8' }}
-                       />
-                       <Tooltip
-                         contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                         labelStyle={{ color: '#1e293b', fontWeight: 'bold' }}
-                         itemStyle={{ color: '#f97316' }}
-                         formatter={(value) => [`${value} kW`, 'הספק']}
-                       />
-                       <Line 
-                         type="monotone" 
-                         dataKey="power" 
-                         stroke="#f97316" 
-                         strokeWidth={2}
-                         dot={false}
-                         activeDot={{ r: 6, fill: '#f97316', stroke: '#fff', strokeWidth: 2 }}
-                       />
-                     </LineChart>
-                   </ResponsiveContainer>
-                 </div>
-               </Card>
+               <SiteProductionChart stationId={site.solis_station_id} />
                
                {/* Tech Specs */}
                <Card className="p-6 border border-slate-200 shadow-sm bg-white">
