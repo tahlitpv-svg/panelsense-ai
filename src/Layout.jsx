@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { LayoutDashboard, FileText, Zap, Settings, Menu, X, ChevronLeft, Sun } from 'lucide-react';
+import { LayoutDashboard, FileText, Settings, ChevronLeft, Menu, Zap } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
 export default function Layout({ children, currentPageName }) {
@@ -14,51 +14,57 @@ export default function Layout({ children, currentPageName }) {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-200 flex flex-row-reverse overflow-hidden" dir="rtl">
+    <div className="min-h-screen flex flex-row-reverse overflow-hidden" dir="rtl" style={{ background: '#0d1117' }}>
       {/* Sidebar */}
-      <aside 
+      <aside
         className={cn(
-          "bg-gradient-to-b from-white via-[#f1f5f9] to-[#cbd5e1] border-l border-white/50 h-screen sticky top-0 transition-all duration-300 z-50 flex flex-col shadow-2xl",
+          "h-screen sticky top-0 z-50 flex flex-col transition-all duration-300 border-l",
           sidebarOpen ? "w-64" : "w-20"
         )}
+        style={{
+          background: 'linear-gradient(180deg, #111827 0%, #0d1117 100%)',
+          borderColor: 'rgba(74,222,128,0.1)'
+        }}
       >
-        <div className="p-4 flex items-center justify-between border-b border-gray-100 h-16">
+        {/* Logo */}
+        <div className="p-4 h-16 flex items-center border-b" style={{ borderColor: 'rgba(74,222,128,0.1)' }}>
           <div className={cn("flex items-center gap-3 overflow-hidden", !sidebarOpen && "justify-center w-full")}>
-            <div className="bg-orange-500 p-2 rounded-lg shrink-0">
-              <Zap className="w-5 h-5 text-white" />
+            <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-lg"
+              style={{ background: 'linear-gradient(135deg, #4ade80, #16a34a)', boxShadow: '0 0 16px rgba(74,222,128,0.3)' }}>
+              <span className="text-white font-black text-lg leading-none">D</span>
             </div>
             {sidebarOpen && (
-              <div className="font-bold text-lg text-slate-800 whitespace-nowrap">
-                Delkal <span className="text-orange-500">Energy</span>
+              <div>
+                <div className="font-bold text-white text-sm leading-tight">Delkal</div>
+                <div className="text-[10px] font-medium" style={{ color: '#4ade80' }}>Energy Control</div>
               </div>
             )}
           </div>
         </div>
 
-        <nav className="flex-1 py-6 px-3 space-y-2">
+        {/* Nav */}
+        <nav className="flex-1 py-6 px-3 space-y-1">
           {navItems.map(item => {
             const Icon = item.icon;
             const isActive = currentPageName === item.name;
-            
             return (
               <Link
                 key={item.name}
                 to={createPageUrl(item.name)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-3 rounded-xl transition-all font-medium group relative overflow-hidden",
-                  isActive 
-                    ? "bg-orange-50 text-orange-600 shadow-sm ring-1 ring-orange-200" 
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                  "flex items-center gap-3 px-3 py-3 rounded-xl transition-all font-medium group relative",
+                  isActive ? "text-white" : "text-slate-400 hover:text-slate-200"
                 )}
+                style={isActive ? {
+                  background: 'linear-gradient(135deg, rgba(74,222,128,0.15), rgba(22,163,74,0.08))',
+                  borderRight: '2px solid #4ade80',
+                  boxShadow: 'inset 0 0 20px rgba(74,222,128,0.05)'
+                } : {}}
               >
-                {isActive && (
-                  <div className="absolute right-0 top-0 bottom-0 w-1 bg-orange-500 rounded-l-full" />
-                )}
-                <Icon className={cn("w-5 h-5 shrink-0 transition-colors", isActive ? "text-orange-500" : "text-slate-400 group-hover:text-slate-600")} />
-                {sidebarOpen && <span>{item.label}</span>}
-                
+                <Icon className={cn("w-5 h-5 shrink-0", isActive ? "text-green-400" : "text-slate-500 group-hover:text-slate-300")} />
+                {sidebarOpen && <span className="text-sm">{item.label}</span>}
                 {!sidebarOpen && (
-                  <div className="absolute left-10 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
+                  <div className="absolute left-10 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity border border-slate-700">
                     {item.label}
                   </div>
                 )}
@@ -67,31 +73,40 @@ export default function Layout({ children, currentPageName }) {
           })}
         </nav>
 
-        <div className="p-4 border-t border-gray-100">
-          <button 
+        {/* Footer */}
+        <div className="p-4 border-t" style={{ borderColor: 'rgba(74,222,128,0.1)' }}>
+          <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="w-full flex items-center justify-center p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+            className="w-full flex items-center justify-center p-2 rounded-lg text-slate-500 hover:text-slate-300 transition-colors hover:bg-white/5"
           >
             {sidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto bg-transparent">
-        <header className="h-16 bg-white/80 backdrop-blur-sm sticky top-0 z-40 border-b border-gray-200 px-8 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-slate-500 text-sm">
-             <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-semibold">BETA</span>
-             <span>מערכת ניהול ובקרה</span>
+      {/* Main */}
+      <main className="flex-1 overflow-auto">
+        {/* Header */}
+        <header className="h-16 sticky top-0 z-40 border-b px-8 flex items-center justify-between"
+          style={{
+            background: 'rgba(13,17,23,0.95)',
+            backdropFilter: 'blur(12px)',
+            borderColor: 'rgba(74,222,128,0.1)'
+          }}>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold px-2 py-1 rounded-full" style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80' }}>
+              LIVE
+            </span>
+            <span className="text-slate-400 text-sm">מערכת ניהול ובקרה</span>
           </div>
-          <div className="flex items-center gap-4">
-             <div className="flex items-center gap-2 pr-4 border-r border-gray-200">
-                <Sun className="w-4 h-4 text-orange-400" />
-                <span className="text-sm font-medium text-slate-600">יום שמשי</span>
-             </div>
-             <div className="h-8 w-8 rounded-full bg-slate-200 border-2 border-white shadow-sm overflow-hidden">
-                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=Delkal`} alt="User" />
-             </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <Zap className="w-4 h-4 text-green-400" />
+              <span>Fleet Control Tower</span>
+            </div>
+            <div className="h-8 w-8 rounded-full overflow-hidden ring-2" style={{ ringColor: '#4ade80', border: '2px solid rgba(74,222,128,0.4)' }}>
+              <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=Delkal`} alt="User" />
+            </div>
           </div>
         </header>
 
