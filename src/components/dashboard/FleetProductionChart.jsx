@@ -157,21 +157,21 @@ export default function FleetProductionChart({ sites, timeframe = 'daily' }) {
               <Area 
                 type="monotone" 
                 dataKey={dataKey}
-                stroke="#f97316" 
+                stroke="#4ade80" 
                 strokeWidth={2}
                 fill="url(#colorYield)"
                 dot={false}
-                activeDot={{ r: 6, fill: '#f97316', stroke: '#fff', strokeWidth: 2 }}
+                activeDot={{ r: 6, fill: '#4ade80', stroke: '#0d1117', strokeWidth: 2 }}
               />
               {timeframe !== 'hourly' && (
                 <Area 
                   type="monotone" 
                   dataKey="revenue"
-                  stroke="#3b82f6" 
+                  stroke="#60a5fa" 
                   strokeWidth={2}
                   fill="url(#colorRevenue)"
                   dot={false}
-                  activeDot={{ r: 6, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }}
+                  activeDot={{ r: 6, fill: '#60a5fa', stroke: '#0d1117', strokeWidth: 2 }}
                 />
               )}
             </AreaChart>
