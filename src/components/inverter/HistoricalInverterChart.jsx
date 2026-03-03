@@ -1,74 +1,168 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
-const COLORS = {
-  power: "#f59e0b", // Orange
-  v1: "#64748b",    // Slate
-  v2: "#f87171",    // Red
-  c1: "#4ade80",    // Green
-  c2: "#fca5a5"     // Light red
-};
+// Generate a color palette for up to 16 strings
+const STRING_COLORS = [
+  "#f59e0b", "#3b82f6", "#10b981", "#ef4444",
+  "#8b5cf6", "#f97316", "#06b6d4", "#ec4899",
+  "#84cc16", "#14b8a6", "#a855f7", "#f43f5e",
+  "#0ea5e9", "#d97706", "#22c55e", "#6366f1"
+];
+
+// Derive how many PV strings exist from the first data point
+function detectStrings(firstPoint) {
+  if (!firstPoint) return [];
+  const strings = [];
+  for (let i = 1; i <= 32; i++) {
+    if (!Object.prototype.hasOwnProperty.call(firstPoint, `uPv${i}`)) break;
+    // Include string if it has any non-zero voltage ever (we check at first point here)
+    strings.push(i);
+  }
+  return strings;
+}
+
+// Map raw data point → chart row
+function mapPoint(item, stringNums, pacPec) {
+  let timeLabel = item.time || '';
+  if (item.timeStr) {
+    const parts = item.timeStr.split(' ');
+    if (parts.length > 1) {
+      const tp = parts[1].split(':');
+      timeLabel = `${tp[0]}:${tp[1]}`;
+    }
+  }
+  const row = { time: timeLabel, power: parseFloat(((parseFloat(item.pac) || 0) * (pacPec || 0.001)).toFixed(2)) };
+  for (const i of stringNums) {
+    row[`v${i}`] = parseFloat(item[`uPv${i}`]) || 0;
+    row[`a${i}`] = parseFloat(item[`iPv${i}`]) || 0;
+  }
+  return row;
+}
 
 export default function HistoricalInverterChart({ inverterId, inverterSn }) {
-  const [activeLines, setActiveLines] = useState({
-    power: true,
-    v1: true,
-    v2: true,
-    c1: true,
-    c2: true
-  });
+  // metric = 'voltage' | 'current' | 'power'
+  const [metric, setMetric] = useState('voltage');
+  const [selected, setSelected] = useState({}); // key = string index or 'power'
+  const [allChecked, setAllChecked] = useState(true);
 
-  const toggleLine = (key) => {
-    setActiveLines(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const { data: chartData, isLoading, error } = useQuery({
+  const { data: rawData, isLoading, error } = useQuery({
     queryKey: ['inverterDay', inverterId, inverterSn],
     queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = format(new Date(), 'yyyy-MM-dd');
       const res = await base44.functions.invoke('getSolisGraphData', {
         endpoint: '/v1/api/inverterDay',
         body: { id: inverterId, sn: inverterSn, time: today, timezone: 2 }
       });
-      if (res.data?.success && res.data?.data) {
-        // Map the array
-        return res.data.data.map(item => {
-          // extract HH:mm from timeStr like "2026-03-03 05:59:19"
-          let timeLabel = item.time;
-          if (item.timeStr) {
-             const parts = item.timeStr.split(' ');
-             if (parts.length > 1) {
-                const timeParts = parts[1].split(':');
-                timeLabel = `${timeParts[0]}:${timeParts[1]}`;
-             }
-          }
-          return {
-            time: timeLabel,
-            power: parseFloat(item.pac) || 0,
-            v1: parseFloat(item.uPv1) || 0,
-            v2: parseFloat(item.uPv2) || 0,
-            c1: parseFloat(item.iPv1) || 0,
-            c2: parseFloat(item.iPv2) || 0
-          };
-        }).sort((a, b) => a.time.localeCompare(b.time));
-      }
+      if (res.data?.success && res.data?.data) return res.data.data;
       return [];
     },
-    refetchInterval: 5 * 60 * 1000 // refresh every 5 minutes
+    refetchInterval: 5 * 60 * 1000
   });
+
+  // Detect strings from first data point
+  const stringNums = useMemo(() => {
+    if (!rawData || rawData.length === 0) return [];
+    const nums = detectStrings(rawData[0]);
+    // Filter: only include strings that have non-zero voltage at some point
+    return nums.filter(i => rawData.some(p => (parseFloat(p[`uPv${i}`]) || 0) > 0));
+  }, [rawData]);
+
+  // Group strings into MPPT pairs: MPPT1 = PV1+PV2, MPPT2 = PV3+PV4, etc.
+  const mppts = useMemo(() => {
+    const groups = [];
+    for (let i = 0; i < stringNums.length; i += 2) {
+      const members = [stringNums[i]];
+      if (stringNums[i + 1] !== undefined) members.push(stringNums[i + 1]);
+      groups.push({ mppt: Math.floor(i / 2) + 1, strings: members });
+    }
+    return groups;
+  }, [stringNums]);
+
+  // Build chart data
+  const chartData = useMemo(() => {
+    if (!rawData || rawData.length === 0 || stringNums.length === 0) return [];
+    const pacPec = parseFloat(rawData[0]?.pacPec) || 0.001;
+    return rawData
+      .map(item => mapPoint(item, stringNums, pacPec))
+      .sort((a, b) => a.time.localeCompare(b.time));
+  }, [rawData, stringNums]);
+
+  // Initialize selection when strings are detected
+  const initSelection = useMemo(() => {
+    const s = { power: true };
+    for (const i of stringNums) s[i] = true;
+    return s;
+  }, [stringNums]);
+
+  // Use initSelection if selected is empty
+  const activeSelection = Object.keys(selected).length > 0 ? selected : initSelection;
+
+  const toggleItem = (key) => {
+    const next = { ...activeSelection, [key]: !activeSelection[key] };
+    setSelected(next);
+    const allOn = Object.values(next).every(Boolean);
+    setAllChecked(allOn);
+  };
+
+  const toggleAll = () => {
+    const newVal = !allChecked;
+    const next = {};
+    next.power = newVal;
+    for (const i of stringNums) next[i] = newVal;
+    setSelected(next);
+    setAllChecked(newVal);
+  };
+
+  // Lines to render based on metric
+  const lines = useMemo(() => {
+    const result = [];
+    if (metric === 'power' && activeSelection.power) {
+      result.push({ key: 'power', name: 'Total Power (kW)', color: '#f59e0b', yAxis: 'left', unit: 'kW' });
+    }
+    if (metric === 'voltage') {
+      stringNums.forEach((i, idx) => {
+        if (activeSelection[i]) {
+          const mpptIdx = Math.floor(idx / 2);
+          const stringInMppt = idx % 2;
+          result.push({
+            key: `v${i}`,
+            name: `PV${i} (MPPT${mpptIdx + 1} Str${stringInMppt + 1})`,
+            color: STRING_COLORS[idx % STRING_COLORS.length],
+            yAxis: 'left',
+            unit: 'V'
+          });
+        }
+      });
+    }
+    if (metric === 'current') {
+      stringNums.forEach((i, idx) => {
+        if (activeSelection[i]) {
+          result.push({
+            key: `a${i}`,
+            name: `PV${i} (MPPT${Math.floor(idx / 2) + 1} Str${idx % 2 + 1})`,
+            color: STRING_COLORS[idx % STRING_COLORS.length],
+            yAxis: 'left',
+            unit: 'A'
+          });
+        }
+      });
+    }
+    return result;
+  }, [metric, activeSelection, stringNums]);
+
+  const yLabel = metric === 'voltage' ? 'V' : metric === 'current' ? 'A' : 'kW';
 
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-[400px] text-slate-500 gap-3">
         <Loader2 className="w-8 h-8 animate-spin text-green-500" />
-        <div>מושך נתונים היסטוריים...</div>
+        <div>מושך נתונים...</div>
       </div>
     );
   }
@@ -76,96 +170,111 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
   if (error || !chartData || chartData.length === 0) {
     return (
       <div className="flex items-center justify-center h-[400px] text-slate-500 border border-dashed rounded-xl">
-        אין נתונים היסטוריים להיום
+        אין נתונים להיום
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-      {/* Sidebar Controls */}
-      <div className="lg:col-span-1 border-l border-slate-100 pl-4">
-        <h4 className="font-bold text-slate-800 mb-4 text-sm">פרמטרים לבחירה</h4>
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Checkbox id="chk-power" checked={activeLines.power} onCheckedChange={() => toggleLine('power')} />
-            <Label htmlFor="chk-power" className="text-sm cursor-pointer" style={{ color: COLORS.power }}>Total Power (kW)</Label>
-          </div>
-          <div className="border-t border-slate-100 my-2 pt-2"></div>
-          <div className="flex items-center gap-2">
-            <Checkbox id="chk-v1" checked={activeLines.v1} onCheckedChange={() => toggleLine('v1')} />
-            <Label htmlFor="chk-v1" className="text-sm cursor-pointer" style={{ color: COLORS.v1 }}>DC Voltage MPPT1 (V)</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox id="chk-v2" checked={activeLines.v2} onCheckedChange={() => toggleLine('v2')} />
-            <Label htmlFor="chk-v2" className="text-sm cursor-pointer" style={{ color: COLORS.v2 }}>DC Voltage MPPT2 (V)</Label>
-          </div>
-          <div className="border-t border-slate-100 my-2 pt-2"></div>
-          <div className="flex items-center gap-2">
-            <Checkbox id="chk-c1" checked={activeLines.c1} onCheckedChange={() => toggleLine('c1')} />
-            <Label htmlFor="chk-c1" className="text-sm cursor-pointer" style={{ color: COLORS.c1 }}>DC Current MPPT1 (A)</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox id="chk-c2" checked={activeLines.c2} onCheckedChange={() => toggleLine('c2')} />
-            <Label htmlFor="chk-c2" className="text-sm cursor-pointer" style={{ color: COLORS.c2 }}>DC Current MPPT2 (A)</Label>
+    <div className="flex gap-4">
+      {/* Sidebar */}
+      <div className="w-52 shrink-0 border-l border-slate-100 pl-4 space-y-4">
+        {/* Metric selector */}
+        <div>
+          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">פרמטר</div>
+          <div className="space-y-1">
+            {[
+              { value: 'voltage', label: 'מתח (V)' },
+              { value: 'current', label: 'זרם (A)' },
+              { value: 'power', label: 'הספק (kW)' },
+            ].map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setMetric(opt.value)}
+                className={`w-full text-right text-sm px-3 py-1.5 rounded-lg transition-colors ${metric === opt.value ? 'bg-slate-800 text-white font-bold' : 'text-slate-600 hover:bg-slate-100'}`}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
         </div>
+
+        {/* Select All */}
+        {metric !== 'power' && (
+          <div>
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">סטרינגים</div>
+            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
+              <Checkbox id="chk-all" checked={allChecked} onCheckedChange={toggleAll} />
+              <Label htmlFor="chk-all" className="text-sm font-bold cursor-pointer text-slate-700">סמן הכל</Label>
+            </div>
+            {/* Group by MPPT */}
+            <div className="space-y-3">
+              {mppts.map((group) => (
+                <div key={group.mppt}>
+                  <div className="text-xs font-bold text-slate-400 mb-1">MPPT {group.mppt}</div>
+                  <div className="space-y-1.5 pr-2">
+                    {group.strings.map((i, sIdx) => {
+                      const colorIdx = (group.mppt - 1) * 2 + sIdx;
+                      return (
+                        <div key={i} className="flex items-center gap-2">
+                          <Checkbox
+                            id={`chk-${i}`}
+                            checked={!!activeSelection[i]}
+                            onCheckedChange={() => toggleItem(i)}
+                          />
+                          <Label
+                            htmlFor={`chk-${i}`}
+                            className="text-xs cursor-pointer font-medium"
+                            style={{ color: STRING_COLORS[colorIdx % STRING_COLORS.length] }}
+                          >
+                            PV{i} (Str {sIdx + 1})
+                          </Label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Chart */}
-      <div className="lg:col-span-4 h-[400px]">
+      <div className="flex-1 h-[400px]">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
+          <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-            
-            <XAxis 
-              dataKey="time" 
-              tick={{ fontSize: 11, fill: '#64748b' }} 
+            <XAxis
+              dataKey="time"
+              tick={{ fontSize: 11, fill: '#64748b' }}
               axisLine={{ stroke: '#cbd5e1' }}
               tickLine={false}
-              minTickGap={30}
+              minTickGap={40}
             />
-
-            {/* Left Y-Axis for Voltage and Power */}
-            <YAxis 
-              yAxisId="left" 
-              orientation="left" 
+            <YAxis
               tick={{ fontSize: 11, fill: '#64748b' }}
               axisLine={false}
               tickLine={false}
-              label={{ value: 'V / kW', angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 12 }}
+              label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 12 }}
             />
-
-            {/* Right Y-Axis for Current */}
-            <YAxis 
-              yAxisId="right" 
-              orientation="right" 
-              tick={{ fontSize: 11, fill: '#64748b' }}
-              axisLine={false}
-              tickLine={false}
-              label={{ value: 'A', angle: 90, position: 'insideRight', fill: '#64748b', fontSize: 12 }}
+            <Tooltip
+              contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: '12px' }}
+              labelStyle={{ fontWeight: 'bold', color: '#1e293b', marginBottom: '4px' }}
+              formatter={(value, name) => [`${value} ${yLabel}`, name]}
             />
-
-            <Tooltip 
-              contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-              labelStyle={{ fontWeight: 'bold', color: '#1e293b', marginBottom: '8px' }}
-            />
-
-            {activeLines.power && (
-              <Line yAxisId="left" type="monotone" dataKey="power" name="Total Power" stroke={COLORS.power} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-            )}
-            {activeLines.v1 && (
-              <Line yAxisId="left" type="monotone" dataKey="v1" name="DC Voltage MPPT1" stroke={COLORS.v1} strokeWidth={1.5} dot={false} activeDot={{ r: 4 }} />
-            )}
-            {activeLines.v2 && (
-              <Line yAxisId="left" type="monotone" dataKey="v2" name="DC Voltage MPPT2" stroke={COLORS.v2} strokeWidth={1.5} dot={false} activeDot={{ r: 4 }} />
-            )}
-            {activeLines.c1 && (
-              <Line yAxisId="right" type="monotone" dataKey="c1" name="DC Current MPPT1" stroke={COLORS.c1} strokeWidth={1.5} dot={false} activeDot={{ r: 4 }} />
-            )}
-            {activeLines.c2 && (
-              <Line yAxisId="right" type="monotone" dataKey="c2" name="DC Current MPPT2" stroke={COLORS.c2} strokeWidth={1.5} dot={false} activeDot={{ r: 4 }} />
-            )}
+            {lines.map(l => (
+              <Line
+                key={l.key}
+                type="monotone"
+                dataKey={l.key}
+                name={l.name}
+                stroke={l.color}
+                strokeWidth={1.5}
+                dot={false}
+                activeDot={{ r: 4 }}
+              />
+            ))}
           </LineChart>
         </ResponsiveContainer>
       </div>
