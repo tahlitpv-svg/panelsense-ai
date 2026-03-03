@@ -59,6 +59,21 @@ export default function SiteProductionChart({ stationId }) {
       });
 
       if (res.data?.success && res.data?.data) {
+        if (timeframe === 'month') {
+          // Build a full-month array with all days, fill in real data
+          const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+          const byDay = {};
+          res.data.data.forEach(item => {
+            const parts = (item.dateStr || '').split('-');
+            const day = parts.length > 2 ? parseInt(parts[2], 10) : null;
+            if (day) byDay[day] = parseFloat(item.energy) || 0;
+          });
+          return Array.from({ length: daysInMonth }, (_, i) => ({
+            label: String(i + 1).padStart(2, '0'),
+            value: byDay[i + 1] || 0,
+            valueLabel: 'kWh'
+          }));
+        }
         return res.data.data.map(mapData);
       }
       return [];
