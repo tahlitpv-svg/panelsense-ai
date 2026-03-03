@@ -30,8 +30,8 @@ export default function FleetMap({ sites }) {
     : [31.5, 34.9];
 
   return (
-    <Card className="border border-slate-200 shadow-sm bg-white overflow-hidden h-full rounded-2xl">
-      <div className="h-full w-full min-h-[400px]">
+    <div style={{ background: '#161c26', border: '1px solid rgba(255,255,255,0.05)' }} className="overflow-hidden h-full rounded-2xl">
+      <div className="h-full w-full min-h-[380px]">
         <MapContainer 
           center={center} 
           zoom={8} 
@@ -39,7 +39,7 @@ export default function FleetMap({ sites }) {
           attributionControl={false}
         >
           <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           />
           {validSites.map((site) => (
