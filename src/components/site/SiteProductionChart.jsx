@@ -4,97 +4,134 @@ import { base44 } from "@/api/base44Client";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { Loader2 } from "lucide-react";
-import { format, subDays } from "date-fns";
+import { Loader2, ChevronRight, ChevronLeft } from "lucide-react";
+import { format, subDays, subMonths, subYears, getDaysInMonth } from "date-fns";
 
 export default function SiteProductionChart({ stationId }) {
   const [timeframe, setTimeframe] = useState('today');
+  // offset: 0 = current, -1 = one back, etc.
+  const [offset, setOffset] = useState(0);
 
-  const { data: chartData, isLoading, error } = useQuery({
-    queryKey: ['stationGraph', stationId, timeframe],
+  // Reset offset when timeframe changes
+  const handleTimeframeChange = (tf) => {
+    setTimeframe(tf);
+    setOffset(0);
+  };
+
+  // Compute the reference date based on timeframe + offset
+  const getRefDate = () => {
+    const now = new Date();
+    if (timeframe === 'today' || timeframe === 'yesterday') {
+      // For day mode, offset shifts days (yesterday is offset -1 from today)
+      const base = timeframe === 'yesterday' ? subDays(now, 1) : now;
+      return subDays(base, -offset); // offset is 0 or negative
+    }
+    if (timeframe === 'month') return subMonths(now, -offset);
+    if (timeframe === 'year') return subYears(now, -offset);
+    return now;
+  };
+
+  const refDate = getRefDate();
+
+  // Label for the navigation
+  const getPeriodLabel = () => {
+    if (timeframe === 'today' || timeframe === 'yesterday') {
+      return format(refDate, 'dd/MM/yyyy');
+    }
+    if (timeframe === 'month') return format(refDate, 'MM/yyyy');
+    if (timeframe === 'year') return format(refDate, 'yyyy');
+    return '';
+  };
+
+  const isDay = timeframe === 'today' || timeframe === 'yesterday';
+  const color = isDay ? "#f97316" : "#3b82f6";
+  const canGoForward = offset < 0;
+
+  const queryKey = ['stationGraph', stationId, timeframe, offset];
+
+  const { data: chartData, isLoading } = useQuery({
+    queryKey,
     queryFn: async () => {
       if (!stationId) return [];
 
-      const now = new Date();
       let endpoint = '';
       let body = { id: stationId, timezone: 2 };
-      let mapData = (item) => item;
 
-      if (timeframe === 'today' || timeframe === 'yesterday') {
+      if (isDay) {
         endpoint = '/v1/api/stationDay';
-        const targetDate = timeframe === 'today' ? now : subDays(now, 1);
-        body.time = format(targetDate, 'yyyy-MM-dd');
-        
-        mapData = (item) => ({
-          label: item.timeStr,
-          value: parseFloat(((parseFloat(item.power) || 0) / 1000).toFixed(2)),
-          valueLabel: 'kW'
-        });
+        body.time = format(refDate, 'yyyy-MM-dd');
       } else if (timeframe === 'month') {
         endpoint = '/v1/api/stationMonth';
-        body.month = format(now, 'yyyy-MM');
-        
-        mapData = null; // handled below with full-month fill
+        body.month = format(refDate, 'yyyy-MM');
       } else if (timeframe === 'year') {
         endpoint = '/v1/api/stationYear';
-        body.year = format(now, 'yyyy');
-        
-        mapData = (item) => {
-          const monthMatch = item.dateStr.split('-');
-          const month = monthMatch.length > 1 ? monthMatch[1] : item.dateStr;
-          // energy returned from stationYear is in MWh, but let's check energyStr
-          let energy = parseFloat(item.energy) || 0;
-          if (item.energyStr === 'MWh') energy = energy * 1000;
-          return {
-            label: month,
-            value: energy,
-            valueLabel: 'kWh'
-          };
-        };
+        body.year = format(refDate, 'yyyy');
       }
 
-      const res = await base44.functions.invoke('getSolisGraphData', {
-        endpoint,
-        body
-      });
+      const res = await base44.functions.invoke('getSolisGraphData', { endpoint, body });
 
-      if (res.data?.success && res.data?.data) {
-        if (timeframe === 'month') {
-          // Build a full-month array with all days, fill in real data
-          const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-          const byDay = {};
-          res.data.data.forEach(item => {
-            const parts = (item.dateStr || '').split('-');
-            const day = parts.length > 2 ? parseInt(parts[2], 10) : null;
-            if (day) byDay[day] = parseFloat(item.energy) || 0;
-          });
-          return Array.from({ length: daysInMonth }, (_, i) => ({
-            label: String(i + 1).padStart(2, '0'),
-            value: byDay[i + 1] || 0,
-            valueLabel: 'kWh'
-          }));
-        }
-        return res.data.data.map(mapData);
+      if (!res.data?.success || !res.data?.data) return [];
+      const raw = res.data.data;
+
+      if (isDay) {
+        return raw.map(item => ({
+          label: item.timeStr ? item.timeStr.split(' ')[1]?.slice(0, 5) : item.time,
+          value: parseFloat(((parseFloat(item.power) || 0) / 1000).toFixed(2))
+        }));
       }
+
+      if (timeframe === 'month') {
+        const year = refDate.getFullYear();
+        const month = refDate.getMonth();
+        const daysInMonth = getDaysInMonth(refDate);
+        const byDay = {};
+        raw.forEach(item => {
+          const parts = (item.dateStr || '').split('-');
+          const day = parts.length > 2 ? parseInt(parts[2], 10) : null;
+          if (day) byDay[day] = parseFloat(item.energy) || 0;
+        });
+        return Array.from({ length: daysInMonth }, (_, i) => ({
+          label: String(i + 1).padStart(2, '0'),
+          value: byDay[i + 1] || 0
+        }));
+      }
+
+      if (timeframe === 'year') {
+        const months = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+        const byMonth = {};
+        raw.forEach(item => {
+          const parts = (item.dateStr || '').split('-');
+          const m = parts.length > 1 ? parts[1] : null;
+          if (m) {
+            let energy = parseFloat(item.energy) || 0;
+            if (item.energyStr === 'MWh') energy = energy * 1000;
+            byMonth[m] = energy;
+          }
+        });
+        return months.map(m => ({
+          label: m,
+          value: byMonth[m] || 0
+        }));
+      }
+
       return [];
     },
     enabled: !!stationId
   });
 
-  const isDay = timeframe === 'today' || timeframe === 'yesterday';
-  const color = isDay ? "#f97316" : "#3b82f6";
+  const yUnit = isDay ? 'kW' : 'kWh';
+  const chartTitle = isDay
+    ? `ייצור יומי (הספק kW) - ${getPeriodLabel()}`
+    : timeframe === 'month'
+      ? `ייצור חודשי (kWh) - ${getPeriodLabel()}`
+      : `ייצור שנתי (kWh) - ${getPeriodLabel()}`;
 
   return (
     <Card className="p-6 border border-slate-200 shadow-sm bg-white">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <h3 className="text-lg font-bold text-slate-800">
-          {timeframe === 'today' && 'ייצור יומי (הספק kW)'}
-          {timeframe === 'yesterday' && 'ייצור אתמול (הספק kW)'}
-          {timeframe === 'month' && 'ייצור חודשי (תפוקה kWh)'}
-          {timeframe === 'year' && 'ייצור שנתי (תפוקה kWh)'}
-        </h3>
-        
-        <Tabs value={timeframe} onValueChange={setTimeframe}>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+        <h3 className="text-lg font-bold text-slate-800">{chartTitle}</h3>
+
+        <Tabs value={timeframe} onValueChange={handleTimeframeChange}>
           <TabsList className="bg-slate-100 p-1">
             <TabsTrigger value="today" className="text-sm px-4">היום</TabsTrigger>
             <TabsTrigger value="yesterday" className="text-sm px-4">אתמול</TabsTrigger>
@@ -103,6 +140,26 @@ export default function SiteProductionChart({ stationId }) {
           </TabsList>
         </Tabs>
       </div>
+
+      {/* Period navigation — only for month and year (day handled via today/yesterday tabs + back) */}
+      {(timeframe === 'month' || timeframe === 'year' || isDay) && (
+        <div className="flex items-center gap-2 mb-4">
+          <button
+            onClick={() => setOffset(o => o - 1)}
+            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+          <span className="text-sm font-medium text-slate-700 min-w-[100px] text-center">{getPeriodLabel()}</span>
+          <button
+            onClick={() => setOffset(o => o + 1)}
+            disabled={!canGoForward}
+            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       <div className="h-72">
         {isLoading ? (
@@ -119,66 +176,31 @@ export default function SiteProductionChart({ stationId }) {
             {isDay ? (
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="label" 
-                  tick={{ fill: '#64748b', fontSize: 11 }}
-                  stroke="#e2e8f0"
-                  axisLine={false}
-                  tickLine={false}
-                  minTickGap={30}
-                />
-                <YAxis 
-                  tick={{ fill: '#64748b', fontSize: 11 }}
-                  stroke="#e2e8f0"
-                  axisLine={false}
-                  tickLine={false}
-                  label={{ value: 'kW', angle: -90, position: 'insideLeft', fill: '#94a3b8' }}
-                />
+                <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={30} />
+                <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
+                  label={{ value: 'kW', angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
                 <Tooltip
-                  contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                  contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
                   labelStyle={{ color: '#1e293b', fontWeight: 'bold' }}
-                  itemStyle={{ color }}
                   formatter={(value) => [`${value} kW`, 'הספק']}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke={color} 
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={{ r: 6, fill: color, stroke: '#fff', strokeWidth: 2 }}
-                />
+                <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false}
+                  activeDot={{ r: 6, fill: color, stroke: '#fff', strokeWidth: 2 }} />
               </LineChart>
             ) : (
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="label" 
-                  tick={{ fill: '#64748b', fontSize: 11 }}
-                  stroke="#e2e8f0"
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis 
-                  tick={{ fill: '#64748b', fontSize: 11 }}
-                  stroke="#e2e8f0"
-                  axisLine={false}
-                  tickLine={false}
-                  label={{ value: 'kWh', angle: -90, position: 'insideLeft', fill: '#94a3b8' }}
-                />
+                <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
+                  label={{ value: yUnit, angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
                 <Tooltip
-                  contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                  contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
                   labelStyle={{ color: '#1e293b', fontWeight: 'bold' }}
-                  cursor={{ fill: 'rgba(59, 130, 246, 0.05)' }}
-                  itemStyle={{ color }}
-                  formatter={(value) => [`${value?.toLocaleString(undefined, {maximumFractionDigits: 1})} kWh`, 'תפוקה']}
+                  cursor={{ fill: 'rgba(59,130,246,0.05)' }}
+                  formatter={(value) => [`${value?.toLocaleString(undefined, { maximumFractionDigits: 1 })} ${yUnit}`, 'תפוקה']}
                 />
-                <Bar 
-                  dataKey="value" 
-                  fill={color} 
-                  radius={[4, 4, 0, 0]}
-                  barSize={timeframe === 'month' ? 12 : 32}
-                />
+                <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]}
+                  barSize={timeframe === 'month' ? 12 : 32} />
               </BarChart>
             )}
           </ResponsiveContainer>
