@@ -71,6 +71,16 @@ async function fetchInvertersForStation(stationId) {
   return res.data.page.records;
 }
 
+// Guess region_tag from city/region string
+function guessRegion(s) {
+  const text = ((s.cityStr || '') + ' ' + (s.regionStr || '') + ' ' + (s.addrOrigin || '')).toLowerCase();
+  if (/eilat|arava|negev|beersheba|beer sheva|dimona/.test(text)) return 'arava';
+  if (/haifa|nazareth|tiberias|afula|akko|nahariya|galilee|north/.test(text)) return 'north';
+  if (/tel aviv|ramat|holon|bat yam|petah|rishon|rehovot|lod|ramla|herzliya|netanya|kfar saba|ra'anana|center/.test(text)) return 'center';
+  if (/ashkelon|ashdod|kiryat gat|south/.test(text)) return 'south';
+  return 'center'; // default
+}
+
 // Map solis station → Site entity fields
 function mapStationToSite(s) {
   const stateMap = { 1: 'online', 2: 'offline', 3: 'warning', 4: 'offline' };
@@ -89,7 +99,8 @@ function mapStationToSite(s) {
     last_heartbeat: new Date().toISOString(),
     solis_station_id: s.id,
     solis_sno: s.sno,
-    owner: 'delkal_energy'
+    owner: 'delkal_energy',
+    region_tag: guessRegion(s)
   };
 }
 
