@@ -107,22 +107,17 @@ async function mapStationToSite(s, existingLat, existingLng) {
 
 // Extract MPPT strings from inverter detail
 // Solis API returns camelCase: uPv1, iPv1, uPv2, iPv2, etc.
-// dcInputType tells us how many strings the inverter has
 function extractMpptStrings(detail) {
   const strings = [];
   if (!detail) return strings;
 
-  // dcInputType = number of DC string inputs on this inverter
-  const numStrings = parseInt(detail.dcInputType) || 20;
-
-  for (let i = 1; i <= numStrings; i++) {
+  // Scan up to 32 possible strings dynamically
+  for (let i = 1; i <= 32; i++) {
     const keyV = `uPv${i}`;
     const keyA = `iPv${i}`;
-    if (!detail.hasOwnProperty(keyV)) break;
+    if (!detail.hasOwnProperty(keyV)) break; // no more keys
     const v = parseFloat(detail[keyV]) || 0;
     const a = parseFloat(detail[keyA]) || 0;
-    // Skip strings with zero voltage that are beyond the last active string
-    // We detect this by checking if all remaining are also 0
     strings.push({
       string_id: `PV${i}`,
       voltage_v: v,
