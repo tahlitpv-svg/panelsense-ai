@@ -116,12 +116,12 @@ export default function FleetProductionChart({ sites, timeframe = 'daily' }) {
             <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorYield" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f97316" stopOpacity={0.2}/>
-                  <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#4ade80" stopOpacity={0.25}/>
+                  <stop offset="95%" stopColor="#4ade80" stopOpacity={0}/>
                 </linearGradient>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.2}/>
+                  <stop offset="95%" stopColor="#60a5fa" stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <XAxis 
