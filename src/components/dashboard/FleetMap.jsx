@@ -67,14 +67,18 @@ export default function FleetMap({ sites }) {
       </div>
       <style>{`
         .leaflet-popup-content-wrapper {
-          border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-          padding: 0;
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          padding: 0 !important;
         }
         .leaflet-popup-content {
-          margin: 10px;
+          margin: 0 !important;
+        }
+        .leaflet-popup-tip {
+          background: #1a2235 !important;
         }
       `}</style>
-    </Card>
+    </div>
   );
 }
