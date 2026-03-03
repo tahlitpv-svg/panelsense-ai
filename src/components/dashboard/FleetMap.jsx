@@ -6,9 +6,9 @@ import 'leaflet/dist/leaflet.css';
 
 const createCustomIcon = (status) => {
   const colors = {
-    online: '#10b981', // Emerald 500
-    warning: '#f59e0b', // Amber 500
-    offline: '#ef4444'  // Red 500
+    online: '#4ade80',
+    warning: '#fbbf24',
+    offline: '#f87171'
   };
   
   return L.divIcon({
