@@ -79,11 +79,11 @@ export default function FleetProductionChart({ sites, timeframe = 'daily' }) {
     
     return (
       <div className="rounded-lg p-3 shadow-xl" style={{ background: '#1a2235', border: '1px solid rgba(74,222,128,0.2)' }}>
-        <p className="text-slate-700 font-bold mb-2">{label}</p>
+        <p className="text-slate-300 font-bold mb-2">{label}</p>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ background: '#f97316' }} />
-            <span className="text-slate-500 text-sm">
+            <div className="w-3 h-3 rounded-full" style={{ background: '#4ade80' }} />
+            <span className="text-slate-400 text-sm">
               {timeframe === 'hourly' ? 'הספק' : 'תפוקה'}: 
             </span>
             <span className="text-orange-500 font-bold text-sm">
