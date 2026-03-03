@@ -129,17 +129,21 @@ function extractMpptStrings(detail) {
 function mapInverterToEntity(inv, siteId, detail) {
   const stateMap = { 1: 'online', 2: 'offline', 3: 'warning' };
   const mpptStrings = extractMpptStrings(detail);
+  // Calculate efficiency: pac / (sum of all DC string powers)
+  const totalDcW = mpptStrings.reduce((s, x) => s + (x.power_kw * 1000), 0);
+  const pacW = parseFloat(detail?.pac || inv.pac || 0) * 1000;
+  const efficiency = totalDcW > 0 ? parseFloat(((pacW / totalDcW) * 100).toFixed(1)) : 0;
   return {
     site_id: siteId,
-    name: inv.inverterId || inv.sn || 'Inverter',
-    model: inv.model || '',
+    name: inv.sn || inv.inverterId || 'Inverter',
+    model: inv.model || detail?.model || '',
     rated_power_kw: parseFloat(inv.power) || 0,
-    current_ac_power_kw: parseFloat(inv.pac) || 0,
-    current_dc_power_kw: parseFloat(detail?.pSum || inv.psum) || 0,
-    efficiency_percent: detail?.efficiency ? parseFloat(detail.efficiency) : 0,
+    current_ac_power_kw: parseFloat(inv.pac || detail?.pac) || 0,
+    current_dc_power_kw: parseFloat(totalDcW / 1000) || 0,
+    efficiency_percent: efficiency,
     temperature_c: detail?.inverterTemperature ? parseFloat(detail.inverterTemperature) : null,
     status: stateMap[inv.state] || 'offline',
-    daily_yield_kwh: parseFloat(inv.eday) || 0,
+    daily_yield_kwh: parseFloat(inv.eday || detail?.eToday) || 0,
     mppt_strings: mpptStrings,
     solis_inverter_id: inv.id,
     solis_sn: inv.sn
