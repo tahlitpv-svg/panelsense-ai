@@ -5,6 +5,8 @@ const SOLIS_KEY_ID = Deno.env.get("SOLIS_API_KEY_ID");
 const SOLIS_KEY_SECRET = Deno.env.get("SOLIS_API_KEY_SECRET");
 const SOLIS_BASE_URL = (Deno.env.get("SOLIS_API_URL") || "https://www.soliscloud.com:13333").replace(/\/$/, '');
 
+const PAGE_SIZE = 10; // process 10 stations per run to stay within CPU limits
+
 function getGMTDate() {
   return new Date().toUTCString().replace('UTC', 'GMT');
 }
@@ -23,65 +25,31 @@ function buildHeaders(endpoint, bodyStr) {
   const contentMD5 = md5Base64(bodyStr);
   const signStr = `POST\n${contentMD5}\n${contentType}\n${date}\n${endpoint}`;
   const sign = hmacSHA1Base64(SOLIS_KEY_SECRET, signStr);
-  return {
-    'Content-Type': contentType,
-    'Content-MD5': contentMD5,
-    'Date': date,
-    'Authorization': `API ${SOLIS_KEY_ID}:${sign}`
-  };
+  return { 'Content-Type': contentType, 'Content-MD5': contentMD5, 'Date': date, 'Authorization': `API ${SOLIS_KEY_ID}:${sign}` };
 }
 
 async function solisPost(endpoint, body) {
   const bodyStr = JSON.stringify(body);
   const headers = buildHeaders(endpoint, bodyStr);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12000);
+  const timeout = setTimeout(() => controller.abort(), 10000);
   try {
-    const res = await fetch(`${SOLIS_BASE_URL}${endpoint}`, {
-      method: 'POST', headers, body: bodyStr, signal: controller.signal
-    });
+    const res = await fetch(`${SOLIS_BASE_URL}${endpoint}`, { method: 'POST', headers, body: bodyStr, signal: controller.signal });
     return await res.json();
   } finally {
     clearTimeout(timeout);
   }
 }
 
-// Fetch all stations (paginated)
-async function fetchAllStations() {
-  const stations = [];
-  let pageNo = 1;
-  const pageSize = 100;
-  while (true) {
-    const res = await solisPost('/v1/api/userStationList', { pageNo, pageSize });
-    if (!res.success || !res.data?.page?.records) break;
-    const records = res.data.page.records;
-    stations.push(...records);
-    if (stations.length >= res.data.page.total) break;
-    pageNo++;
-  }
-  return stations;
-}
-
-// Fetch all inverters for a station
-async function fetchInvertersForStation(stationId) {
-  const res = await solisPost('/v1/api/inverterList', {
-    pageNo: 1, pageSize: 100, stationId
-  });
-  if (!res.success || !res.data?.page?.records) return [];
-  return res.data.page.records;
-}
-
-// Guess region_tag from city/region string
 function guessRegion(s) {
   const text = ((s.cityStr || '') + ' ' + (s.regionStr || '') + ' ' + (s.addrOrigin || '')).toLowerCase();
   if (/eilat|arava|negev|beersheba|beer sheva|dimona/.test(text)) return 'arava';
   if (/haifa|nazareth|tiberias|afula|akko|nahariya|galilee|north/.test(text)) return 'north';
   if (/tel aviv|ramat|holon|bat yam|petah|rishon|rehovot|lod|ramla|herzliya|netanya|kfar saba|ra'anana|center/.test(text)) return 'center';
   if (/ashkelon|ashdod|kiryat gat|south/.test(text)) return 'south';
-  return 'center'; // default
+  return 'center';
 }
 
-// Map solis station → Site entity fields
 function mapStationToSite(s) {
   const stateMap = { 1: 'online', 2: 'offline', 3: 'warning', 4: 'offline' };
   return {
@@ -104,12 +72,11 @@ function mapStationToSite(s) {
   };
 }
 
-// Map solis inverter → Inverter entity fields
 function mapInverterToEntity(inv, siteId) {
   const stateMap = { 1: 'online', 2: 'offline', 3: 'warning' };
   return {
     site_id: siteId,
-    name: inv.inverterId || inv.sn,
+    name: inv.inverterId || inv.sn || 'Inverter',
     model: inv.model || '',
     rated_power_kw: parseFloat(inv.power) || 0,
     current_ac_power_kw: parseFloat(inv.pac) || 0,
@@ -123,17 +90,30 @@ function mapInverterToEntity(inv, siteId) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-
-    // This function runs as service role (scheduled / webhook) - no user auth needed
     const db = base44.asServiceRole;
 
-    console.log('[syncSolisData] Starting sync...');
+    // Read pageNo from payload (automation passes {} so we default to 1)
+    let pageNo = 1;
+    try {
+      const body = await req.json();
+      if (body.pageNo) pageNo = body.pageNo;
+    } catch (_) { /* empty body is fine */ }
 
-    // 1. Fetch all stations from Solis
-    const stations = await fetchAllStations();
-    console.log(`[syncSolisData] Found ${stations.length} stations`);
+    console.log(`[syncSolisData] Syncing page ${pageNo} (size ${PAGE_SIZE})...`);
 
-    // 2. Load existing sites from DB (to match by solis_station_id)
+    // Fetch one page of stations
+    const res = await solisPost('/v1/api/userStationList', { pageNo, pageSize: PAGE_SIZE });
+    if (!res.success || !res.data?.page?.records) {
+      return Response.json({ error: 'Failed to fetch stations', raw: res }, { status: 500 });
+    }
+
+    const stations = res.data.page.records;
+    const total = res.data.page.total;
+    const totalPages = Math.ceil(total / PAGE_SIZE);
+
+    console.log(`[syncSolisData] Got ${stations.length} stations (total ${total}, page ${pageNo}/${totalPages})`);
+
+    // Load existing sites keyed by solis_station_id
     const existingSites = await db.entities.Site.list();
     const sitesBySolisId = {};
     for (const site of existingSites) {
@@ -147,22 +127,19 @@ Deno.serve(async (req) => {
       let siteId;
 
       if (sitesBySolisId[station.id]) {
-        // Update existing site
-        const existing = sitesBySolisId[station.id];
-        await db.entities.Site.update(existing.id, siteData);
-        siteId = existing.id;
+        await db.entities.Site.update(sitesBySolisId[station.id].id, siteData);
+        siteId = sitesBySolisId[station.id].id;
         updated++;
       } else {
-        // Create new site
         const newSite = await db.entities.Site.create(siteData);
         siteId = newSite.id;
         created++;
       }
 
-      // 3. Fetch inverters for this station
-      const inverters = await fetchInvertersForStation(station.id);
+      // Fetch inverters for this station
+      const invRes = await solisPost('/v1/api/inverterList', { pageNo: 1, pageSize: 50, stationId: station.id });
+      const inverters = invRes?.data?.page?.records || [];
 
-      // Load existing inverters for this site
       const existingInverters = await db.entities.Inverter.filter({ site_id: siteId });
       const invBySolisId = {};
       for (const inv of existingInverters) {
@@ -180,16 +157,26 @@ Deno.serve(async (req) => {
       }
     }
 
+    // If there are more pages, trigger next page automatically
+    if (pageNo < totalPages) {
+      // Fire-and-forget next page (no await - just trigger)
+      base44.asServiceRole.functions.invoke('syncSolisData', { pageNo: pageNo + 1 }).catch(() => {});
+      console.log(`[syncSolisData] Triggered next page: ${pageNo + 1}/${totalPages}`);
+    }
+
     const summary = {
       success: true,
-      stations_total: stations.length,
+      page: pageNo,
+      total_pages: totalPages,
+      stations_on_page: stations.length,
       sites_created: created,
       sites_updated: updated,
       inverters_synced: invertersSync,
+      more_pages: pageNo < totalPages,
       synced_at: new Date().toISOString()
     };
 
-    console.log('[syncSolisData] Done:', JSON.stringify(summary));
+    console.log('[syncSolisData] Page done:', JSON.stringify(summary));
     return Response.json(summary);
 
   } catch (error) {
