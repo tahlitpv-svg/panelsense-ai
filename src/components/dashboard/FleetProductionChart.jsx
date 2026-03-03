@@ -86,15 +86,15 @@ export default function FleetProductionChart({ sites, timeframe = 'daily' }) {
             <span className="text-slate-400 text-sm">
               {timeframe === 'hourly' ? 'הספק' : 'תפוקה'}: 
             </span>
-            <span className="text-orange-500 font-bold text-sm">
+            <span className="text-green-400 font-bold text-sm">
               {payload[0].value.toFixed(1)} {yAxisLabel}
             </span>
           </div>
           {timeframe !== 'hourly' && payload[1] && (
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{ background: '#3b82f6' }} />
-              <span className="text-slate-500 text-sm">הכנסות:</span>
-              <span className="text-blue-500 font-bold text-sm">
+              <div className="w-3 h-3 rounded-full" style={{ background: '#60a5fa' }} />
+              <span className="text-slate-400 text-sm">הכנסות:</span>
+              <span className="text-blue-400 font-bold text-sm">
                 ₪{payload[1].value.toFixed(0)}K
               </span>
             </div>
