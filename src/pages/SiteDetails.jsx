@@ -11,8 +11,7 @@ import { createPageUrl } from "@/utils";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import MPPTTable from "../components/inverter/MPPTTable";
 import EfficiencyGauge from "../components/inverter/EfficiencyGauge";
-import MPPTChart from "../components/inverter/MPPTChart";
-import StringVoltageChart from "../components/inverter/StringVoltageChart";
+import HistoricalInverterChart from "../components/inverter/HistoricalInverterChart";
 import ProductionAnalysis from "../components/site/ProductionAnalysis";
 import SiteConfiguration from "../components/site/SiteConfiguration";
 
@@ -293,9 +292,15 @@ export default function SiteDetails() {
                                <EfficiencyGauge efficiency={inverter.efficiency_percent} />
                             </div>
                          </div>
-                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-                             <MPPTChart mpptStrings={inverter.mppt_strings} />
-                             <StringVoltageChart mpptStrings={inverter.mppt_strings} />
+                         <div className="mt-8 border-t border-slate-100 pt-6">
+                             <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                               <BarChart3 className="w-4 h-4 text-green-600" />
+                               Inverter Chart
+                             </h4>
+                             <HistoricalInverterChart 
+                               inverterId={inverter.solis_inverter_id} 
+                               inverterSn={inverter.solis_sn} 
+                             />
                          </div>
                       </Card>
                    ))}
