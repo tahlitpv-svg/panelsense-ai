@@ -106,19 +106,20 @@ async function mapStationToSite(s, existingLat, existingLng) {
 }
 
 // Extract MPPT strings from inverter detail
+// Solis API returns: u_pv1, i_pv1, pow1, u_pv2, i_pv2, pow2, etc.
 function extractMpptStrings(detail) {
   const strings = [];
   if (!detail) return strings;
-  // Solis returns pv1Volt, pv1Curr, pv2Volt, pv2Curr, etc.
   for (let i = 1; i <= 16; i++) {
-    const v = parseFloat(detail[`pv${i}Volt`]);
-    const a = parseFloat(detail[`pv${i}Curr`]);
+    const v = parseFloat(detail[`u_pv${i}`]);
+    const a = parseFloat(detail[`i_pv${i}`]);
+    const p = parseFloat(detail[`pow${i}`]);
     if (!isNaN(v) && v > 0) {
       strings.push({
         string_id: `PV${i}`,
         voltage_v: v,
         current_a: isNaN(a) ? 0 : a,
-        power_kw: parseFloat(((v * (isNaN(a) ? 0 : a)) / 1000).toFixed(3))
+        power_kw: !isNaN(p) ? parseFloat((p / 1000).toFixed(3)) : parseFloat(((v * (isNaN(a) ? 0 : a)) / 1000).toFixed(3))
       });
     }
   }
