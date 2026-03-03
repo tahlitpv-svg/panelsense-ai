@@ -6,9 +6,9 @@ import 'leaflet/dist/leaflet.css';
 
 const createCustomIcon = (status) => {
   const colors = {
-    online: '#4ade80',
-    warning: '#fbbf24',
-    offline: '#f87171'
+    online: '#22c55e',
+    warning: '#f59e0b',
+    offline: '#ef4444'
   };
   
   return L.divIcon({
@@ -30,7 +30,7 @@ export default function FleetMap({ sites }) {
     : [31.5, 34.9];
 
   return (
-    <div style={{ background: '#161c26', border: '1px solid rgba(255,255,255,0.05)' }} className="overflow-hidden h-full rounded-2xl">
+    <div className="overflow-hidden h-full rounded-2xl bg-slate-50">
       <div className="h-full w-full min-h-[380px]">
         <MapContainer 
           center={center} 
@@ -39,7 +39,7 @@ export default function FleetMap({ sites }) {
           attributionControl={false}
         >
           <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           />
           {validSites.map((site) => (
@@ -49,15 +49,15 @@ export default function FleetMap({ sites }) {
               icon={createCustomIcon(site.status)}
             >
               <Popup className="custom-popup">
-                <div style={{ background: '#1a2235', color: '#e2e8f0', borderRadius: 8, minWidth: 150, padding: '8px 10px', border: '1px solid rgba(74,222,128,0.2)' }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: 6, color: '#fff', fontSize: 13 }}>{site.name}</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 5, marginTop: 5 }}>
+                <div className="bg-white rounded-lg min-w-[150px] p-2 border border-slate-100 shadow-sm">
+                  <div className="font-bold mb-1.5 text-slate-900 text-[13px]">{site.name}</div>
+                  <div className="flex justify-between text-[11px] text-slate-500 border-t border-slate-100 pt-1.5 mt-1.5">
                     <span>הספק:</span>
-                    <span style={{ color: '#4ade80', fontWeight: 600 }}>{site.current_power_kw?.toFixed(1)} kW</span>
+                    <span className="text-green-600 font-semibold">{site.current_power_kw?.toFixed(1)} kW</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginTop: 3 }}>
+                  <div className="flex justify-between text-[11px] text-slate-500 mt-1">
                     <span>יומי:</span>
-                    <span style={{ color: '#60a5fa', fontWeight: 600 }}>{site.daily_yield_kwh?.toFixed(0)} kWh</span>
+                    <span className="text-blue-600 font-semibold">{site.daily_yield_kwh?.toFixed(0)} kWh</span>
                   </div>
                 </div>
               </Popup>
@@ -69,14 +69,15 @@ export default function FleetMap({ sites }) {
         .leaflet-popup-content-wrapper {
           background: transparent !important;
           border: none !important;
-          box-shadow: none !important;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
           padding: 0 !important;
+          border-radius: 8px !important;
         }
         .leaflet-popup-content {
           margin: 0 !important;
         }
         .leaflet-popup-tip {
-          background: #1a2235 !important;
+          background: white !important;
         }
       `}</style>
     </div>

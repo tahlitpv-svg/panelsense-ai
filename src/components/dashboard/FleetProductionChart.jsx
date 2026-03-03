@@ -78,23 +78,23 @@ export default function FleetProductionChart({ sites, timeframe = 'daily' }) {
     if (!active || !payload?.length) return null;
     
     return (
-      <div className="rounded-lg p-3 shadow-xl" style={{ background: '#1a2235', border: '1px solid rgba(74,222,128,0.2)' }}>
-        <p className="text-slate-300 font-bold mb-2">{label}</p>
+      <div className="rounded-lg p-3 shadow-lg bg-white border border-slate-200">
+        <p className="text-slate-900 font-bold mb-2">{label}</p>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ background: '#4ade80' }} />
-            <span className="text-slate-400 text-sm">
+            <div className="w-3 h-3 rounded-full bg-green-500" />
+            <span className="text-slate-500 text-sm">
               {timeframe === 'hourly' ? 'הספק' : 'תפוקה'}: 
             </span>
-            <span className="text-green-400 font-bold text-sm">
+            <span className="text-slate-900 font-bold text-sm">
               {payload[0].value.toFixed(1)} {yAxisLabel}
             </span>
           </div>
           {timeframe !== 'hourly' && payload[1] && (
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{ background: '#60a5fa' }} />
-              <span className="text-slate-400 text-sm">הכנסות:</span>
-              <span className="text-blue-400 font-bold text-sm">
+              <div className="w-3 h-3 rounded-full bg-blue-500" />
+              <span className="text-slate-500 text-sm">הכנסות:</span>
+              <span className="text-slate-900 font-bold text-sm">
                 ₪{payload[1].value.toFixed(0)}K
               </span>
             </div>
@@ -116,29 +116,29 @@ export default function FleetProductionChart({ sites, timeframe = 'daily' }) {
             <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorYield" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#4ade80" stopOpacity={0.25}/>
-                  <stop offset="95%" stopColor="#4ade80" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#16a34a" stopOpacity={0.15}/>
+                  <stop offset="95%" stopColor="#16a34a" stopOpacity={0}/>
                 </linearGradient>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.2}/>
-                  <stop offset="95%" stopColor="#60a5fa" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <XAxis 
                 dataKey={xAxisKey}
                 tick={{ fill: '#64748b', fontSize: 11 }}
-                stroke="#e2e8f0"
-                axisLine={{ stroke: '#e2e8f0' }}
+                stroke="#f1f5f9"
+                axisLine={{ stroke: '#f1f5f9' }}
               />
               <YAxis 
                 tick={{ fill: '#64748b', fontSize: 11 }}
-                stroke="#e2e8f0"
-                axisLine={{ stroke: '#e2e8f0' }}
+                stroke="#f1f5f9"
+                axisLine={{ stroke: '#f1f5f9' }}
                 label={{ 
                   value: yAxisLabel, 
                   angle: -90, 
                   position: 'insideLeft', 
-                  fill: '#94a3b8',
+                  fill: '#64748b',
                   fontSize: 12
                 }}
               />
@@ -157,21 +157,21 @@ export default function FleetProductionChart({ sites, timeframe = 'daily' }) {
               <Area 
                 type="monotone" 
                 dataKey={dataKey}
-                stroke="#4ade80" 
+                stroke="#16a34a" 
                 strokeWidth={2}
                 fill="url(#colorYield)"
                 dot={false}
-                activeDot={{ r: 6, fill: '#4ade80', stroke: '#0d1117', strokeWidth: 2 }}
+                activeDot={{ r: 6, fill: '#16a34a', stroke: '#ffffff', strokeWidth: 2 }}
               />
               {timeframe !== 'hourly' && (
                 <Area 
                   type="monotone" 
                   dataKey="revenue"
-                  stroke="#60a5fa" 
+                  stroke="#3b82f6" 
                   strokeWidth={2}
                   fill="url(#colorRevenue)"
                   dot={false}
-                  activeDot={{ r: 6, fill: '#60a5fa', stroke: '#0d1117', strokeWidth: 2 }}
+                  activeDot={{ r: 6, fill: '#3b82f6', stroke: '#ffffff', strokeWidth: 2 }}
                 />
               )}
             </AreaChart>

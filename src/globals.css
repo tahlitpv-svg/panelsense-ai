@@ -4,58 +4,57 @@
 @tailwind utilities;
 
 :root {
-  /* Delkal Dark Theme */
-  --background: 220 20% 10%;
-  --foreground: 210 40% 92%;
+  /* Delkal Light Theme */
+  --background: 210 40% 98%;
+  --foreground: 222.2 84% 4.9%;
 
-  --card: 220 18% 13%;
-  --card-foreground: 210 40% 92%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
 
-  --popover: 220 18% 13%;
-  --popover-foreground: 210 40% 92%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
 
-  --primary: 142 70% 55%; /* Delkal Green */
-  --primary-foreground: 220 20% 8%;
+  --primary: 142 76% 36%; /* Delkal Green */
+  --primary-foreground: 210 40% 98%;
 
-  --secondary: 220 15% 18%;
-  --secondary-foreground: 210 30% 80%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
 
-  --muted: 220 15% 18%;
-  --muted-foreground: 215 15% 55%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
 
-  --accent: 142 70% 55%;
-  --accent-foreground: 220 20% 8%;
+  --accent: 142 76% 36%;
+  --accent-foreground: 210 40% 98%;
 
-  --destructive: 0 72% 55%;
+  --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
 
-  --border: 220 15% 20%;
-  --input: 220 15% 20%;
-  --ring: 142 70% 55%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 142 76% 36%;
 
-  --radius: 0.5rem;
+  --radius: 0.75rem;
 }
 
 @layer base {
   body {
-    @apply text-slate-200;
-    background: #0d1117;
+    @apply text-slate-900 bg-slate-50;
     min-height: 100vh;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 
   * {
-    @apply border-slate-700/50;
+    @apply border-slate-200;
   }
 }
 
 @layer utilities {
   .glass-card {
-    @apply bg-[#161c26]/80 backdrop-blur-md border border-white/5 shadow-xl rounded-xl;
+    @apply bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-xl;
   }
 
-  .futuristic-card { /* Kept for compatibility, updated with dark theme values */
-    @apply bg-gradient-to-br from-[#161c26] via-[#1a2235] to-[#161c26] rounded-xl border border-white/5 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.05)] hover:shadow-xl hover:border-white/10 transition-all duration-300 relative overflow-hidden;
+  .futuristic-card {
+    @apply bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden;
   }
 
   .futuristic-card::before {
@@ -65,41 +64,38 @@
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+    background: linear-gradient(90deg, transparent, rgba(0,0,0,0.05), transparent);
   }
 
   .delkal-card {
-    background: linear-gradient(135deg, #161c26 0%, #1a2235 100%);
-    @apply border border-white/5 rounded-xl shadow-xl;
+    @apply bg-white border border-slate-200 rounded-xl shadow-sm;
   }
 
   .delkal-card-green {
-    background: linear-gradient(135deg, #0f2a1a 0%, #142d1e 100%);
-    @apply border border-green-500/20 rounded-xl shadow-xl;
+    @apply bg-green-50 border border-green-200 rounded-xl shadow-sm;
   }
 
   .green-glow {
-    box-shadow: 0 0 20px rgba(74, 222, 128, 0.15);
+    box-shadow: 0 4px 20px rgba(34, 197, 94, 0.15);
   }
   
   .metallic-text {
-    @apply text-transparent bg-clip-text bg-gradient-to-r from-slate-200 to-slate-400;
+    @apply text-slate-900;
   }
   
   .neon-glow {
-    /* Removed neon effect, keeping class for compatibility but making it clean */
-    @apply text-green-400; /* Adjusted for dark theme */
+    @apply text-green-600;
   }
   
   .holographic {
-    @apply bg-[#1e293b]; /* Adjusted for dark theme */
+    @apply bg-white;
   }
 }
 
-/* Recharts overrides for dark theme */
+/* Recharts overrides for light theme */
 .recharts-cartesian-grid-horizontal line,
 .recharts-cartesian-grid-vertical line {
-  stroke: rgba(255,255,255,0.05);
+  stroke: rgba(0,0,0,0.05);
 }
 .recharts-text {
   fill: #64748b;
@@ -107,15 +103,16 @@
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0d1117;
+  background: #f1f5f9;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2d3748;
-  border-radius: 4px;
+  background: #cbd5e1;
+  border-radius: 6px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #4ade80;
+  background: #94a3b8;
 }
