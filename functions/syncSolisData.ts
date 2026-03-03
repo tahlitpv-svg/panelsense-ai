@@ -106,22 +106,25 @@ async function mapStationToSite(s, existingLat, existingLng) {
 }
 
 // Extract MPPT strings from inverter detail
-// Solis API returns: u_pv1, i_pv1, pow1, u_pv2, i_pv2, pow2, etc.
+// Solis API returns: u_pv1, i_pv1, pow1 ... OR mppt_upv1, mppt_ipv1, mppt_pow1
 function extractMpptStrings(detail) {
   const strings = [];
   if (!detail) return strings;
+
+  // Try standard string fields first (u_pv1..u_pv16)
   for (let i = 1; i <= 16; i++) {
-    const v = parseFloat(detail[`u_pv${i}`]);
-    const a = parseFloat(detail[`i_pv${i}`]);
-    const p = parseFloat(detail[`pow${i}`]);
-    if (!isNaN(v) && v > 0) {
-      strings.push({
-        string_id: `PV${i}`,
-        voltage_v: v,
-        current_a: isNaN(a) ? 0 : a,
-        power_kw: !isNaN(p) ? parseFloat((p / 1000).toFixed(3)) : parseFloat(((v * (isNaN(a) ? 0 : a)) / 1000).toFixed(3))
-      });
-    }
+    const v = parseFloat(detail[`u_pv${i}`] ?? detail[`mppt_upv${i}`]);
+    const a = parseFloat(detail[`i_pv${i}`] ?? detail[`mppt_ipv${i}`]);
+    const pRaw = parseFloat(detail[`pow${i}`] ?? detail[`mppt_pow${i}`]);
+    // Include string even if voltage is 0 (offline state) as long as the key exists
+    const keyExists = detail.hasOwnProperty(`u_pv${i}`) || detail.hasOwnProperty(`mppt_upv${i}`);
+    if (!keyExists) break; // no more strings
+    strings.push({
+      string_id: `PV${i}`,
+      voltage_v: isNaN(v) ? 0 : v,
+      current_a: isNaN(a) ? 0 : a,
+      power_kw: !isNaN(pRaw) ? parseFloat((pRaw / 1000).toFixed(3)) : parseFloat((((isNaN(v)?0:v) * (isNaN(a)?0:a)) / 1000).toFixed(3))
+    });
   }
   return strings;
 }
