@@ -1,182 +1,189 @@
-import React from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from "recharts";
-import { Card } from "@/components/ui/card";
+import React, { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, CartesianGrid } from "recharts";
 import { motion } from "framer-motion";
+import { Loader2 } from "lucide-react";
+import { format, subDays } from "date-fns";
 
-export default function FleetProductionChart({ sites, timeframe = 'daily' }) {
-  // Generate hourly data for today (simulated based on current power)
-  const generateHourlyData = () => {
-    return Array.from({ length: 24 }, (_, hour) => {
-      let totalPower = 0;
-      
-      if (hour >= 6 && hour <= 18) {
-        const sunIntensity = Math.sin(((hour - 6) / 12) * Math.PI);
-        sites.forEach(site => {
-          const sitePower = (site.current_power_kw || 0) * sunIntensity * (0.85 + Math.random() * 0.3);
-          totalPower += sitePower;
-        });
-      }
-      
-      return {
-        hour: `${hour.toString().padStart(2, '0')}:00`,
-        power: parseFloat(totalPower.toFixed(1)),
-        energy: parseFloat((totalPower * 1).toFixed(2))
-      };
+// Fetch one station's day data and return array of { time, power }
+async function fetchStationDay(stationId, dateStr) {
+  try {
+    const res = await base44.functions.invoke('getSolisGraphData', {
+      endpoint: '/v1/api/stationDay',
+      body: { id: stationId, time: dateStr, timezone: 2 }
     });
-  };
+    if (res.data?.success && res.data?.data) {
+      return res.data.data.map(p => ({
+        time: p.timeStr ? p.timeStr.split(' ')[1]?.slice(0, 5) : p.time,
+        power: parseFloat((parseFloat(p.power || 0) / 1000).toFixed(2))
+      }));
+    }
+  } catch (_) {}
+  return [];
+}
 
-  // Generate daily data for the month
-  const generateDailyData = () => {
-    const daysInMonth = 30;
-    return Array.from({ length: daysInMonth }, (_, i) => {
-      const day = i + 1;
-      let totalYield = 0;
-      
-      sites.forEach(site => {
-        const dailyBase = site.daily_yield_kwh || 0;
-        const variation = 0.8 + Math.random() * 0.4;
-        totalYield += dailyBase * variation;
-      });
-      
-      return {
-        day: `${day}`,
-        yield: parseFloat(totalYield.toFixed(1)),
-        revenue: parseFloat((totalYield * 0.45).toFixed(2))
-      };
+// Fetch one station's month data
+async function fetchStationMonth(stationId, monthStr) {
+  try {
+    const res = await base44.functions.invoke('getSolisGraphData', {
+      endpoint: '/v1/api/stationMonth',
+      body: { id: stationId, month: monthStr, timezone: 2 }
     });
-  };
+    if (res.data?.success && res.data?.data) {
+      return res.data.data.map(p => ({
+        date: p.dateStr?.split('-')[2] || p.dateStr,
+        energy: parseFloat(p.energy || 0)
+      }));
+    }
+  } catch (_) {}
+  return [];
+}
 
-  // Generate monthly data for the year
-  const generateMonthlyData = () => {
-    const months = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
-    return months.map((month, i) => {
-      let totalYield = 0;
-      
-      sites.forEach(site => {
-        const monthlyBase = (site.monthly_yield_kwh || 0);
-        const seasonalFactor = 0.7 + 0.6 * Math.sin(((i - 3) / 12) * 2 * Math.PI);
-        totalYield += monthlyBase * seasonalFactor;
-      });
-      
-      return {
-        month,
-        yield: parseFloat((totalYield / 1000).toFixed(1)),
-        revenue: parseFloat((totalYield * 0.45 / 1000).toFixed(2))
-      };
+// Merge multiple station arrays by time/date key, summing values
+function mergeByKey(arrays, key, valueKey) {
+  const map = {};
+  arrays.forEach(arr => {
+    arr.forEach(item => {
+      const k = item[key];
+      if (!map[k]) map[k] = { [key]: k, value: 0 };
+      map[k].value += item[valueKey] || 0;
     });
-  };
+  });
+  return Object.values(map).sort((a, b) => a[key].localeCompare(b[key]));
+}
 
-  const data = timeframe === 'hourly' ? generateHourlyData() 
-    : timeframe === 'daily' ? generateDailyData()
-    : generateMonthlyData();
+const CustomTooltip = ({ active, payload, label, unit }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg p-3 shadow-lg bg-white border border-slate-200 text-sm">
+      <p className="font-bold text-slate-900 mb-1">{label}</p>
+      <p className="text-green-700 font-bold">{payload[0]?.value?.toFixed(2)} {unit}</p>
+    </div>
+  );
+};
 
-  const dataKey = timeframe === 'hourly' ? 'power' : 'yield';
-  const xAxisKey = timeframe === 'hourly' ? 'hour' : timeframe === 'daily' ? 'day' : 'month';
-  const yAxisLabel = timeframe === 'hourly' ? 'kW' : timeframe === 'monthly' ? 'MWh' : 'kWh';
+export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
+  const now = new Date();
+  const today = format(now, 'yyyy-MM-dd');
+  const yesterday = format(subDays(now, 1), 'yyyy-MM-dd');
+  const thisMonth = format(now, 'yyyy-MM');
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload?.length) return null;
-    
+  // Pick stations with a solis_station_id
+  const stationIds = useMemo(() =>
+    sites.filter(s => s.solis_station_id).map(s => s.solis_station_id),
+    [sites]
+  );
+
+  // Hourly: today's power curve - sum across all stations
+  const { data: hourlyData, isLoading: loadingHourly } = useQuery({
+    queryKey: ['fleetDay', today, stationIds.join(',')],
+    queryFn: async () => {
+      if (stationIds.length === 0) return [];
+      const all = await Promise.all(stationIds.map(id => fetchStationDay(id, today)));
+      return mergeByKey(all, 'time', 'power');
+    },
+    enabled: timeframe === 'hourly' && stationIds.length > 0,
+    staleTime: 5 * 60 * 1000
+  });
+
+  // Daily: this month's daily yield - sum across all stations
+  const { data: dailyData, isLoading: loadingDaily } = useQuery({
+    queryKey: ['fleetMonth', thisMonth, stationIds.join(',')],
+    queryFn: async () => {
+      if (stationIds.length === 0) return [];
+      const all = await Promise.all(stationIds.map(id => fetchStationMonth(id, thisMonth)));
+      return mergeByKey(all, 'date', 'energy');
+    },
+    enabled: timeframe === 'daily' && stationIds.length > 0,
+    staleTime: 30 * 60 * 1000
+  });
+
+  // Monthly: use site.monthly_yield_kwh from DB (real data from sync)
+  const monthlyData = useMemo(() => {
+    if (timeframe !== 'monthly') return [];
+    // Group by month is not available per-month from sites entity,
+    // so show per-site daily yield summed as a bar for today only
+    // Actually use monthly_yield_kwh from sites
+    const total = sites.reduce((sum, s) => sum + (s.monthly_yield_kwh || 0), 0);
+    const monthly = sites.reduce((sum, s) => sum + (s.yearly_yield_kwh || 0), 0);
+    // Build a simple current month bar from real data
+    const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+    const currentMonth = now.getMonth();
+    return months.map((name, i) => ({
+      time: name,
+      value: i === currentMonth ? parseFloat((total / 1000).toFixed(1)) : 0
+    }));
+  }, [sites, timeframe]);
+
+  const isLoading = (timeframe === 'hourly' && loadingHourly) || (timeframe === 'daily' && loadingDaily);
+
+  const chartData = useMemo(() => {
+    if (timeframe === 'hourly') return (hourlyData || []).map(d => ({ time: d.time, value: d.value }));
+    if (timeframe === 'daily') return (dailyData || []).map(d => ({ time: d.date, value: parseFloat((d.value / 1000).toFixed(2)) }));
+    return monthlyData;
+  }, [timeframe, hourlyData, dailyData, monthlyData]);
+
+  const unit = timeframe === 'hourly' ? 'kW' : 'MWh';
+  const yLabel = unit;
+
+  if (stationIds.length === 0) {
     return (
-      <div className="rounded-lg p-3 shadow-lg bg-white border border-slate-200">
-        <p className="text-slate-900 font-bold mb-2">{label}</p>
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-green-500" />
-            <span className="text-slate-500 text-sm">
-              {timeframe === 'hourly' ? 'הספק' : 'תפוקה'}: 
-            </span>
-            <span className="text-slate-900 font-bold text-sm">
-              {payload[0].value.toFixed(1)} {yAxisLabel}
-            </span>
-          </div>
-          {timeframe !== 'hourly' && payload[1] && (
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-blue-500" />
-              <span className="text-slate-500 text-sm">הכנסות:</span>
-              <span className="text-slate-900 font-bold text-sm">
-                ₪{payload[1].value.toFixed(0)}K
-              </span>
-            </div>
-          )}
-        </div>
+      <div className="h-80 flex items-center justify-center text-slate-400 text-sm border border-dashed rounded-xl">
+        אין אתרים עם נתוני Solis
       </div>
     );
-  };
+  }
+
+  if (isLoading) {
+    return (
+      <div className="h-80 flex flex-col items-center justify-center text-slate-400 gap-3">
+        <Loader2 className="w-7 h-7 animate-spin text-green-500" />
+        <span className="text-sm">מושך נתוני ייצור...</span>
+      </div>
+    );
+  }
+
+  if (!chartData || chartData.length === 0) {
+    return (
+      <div className="h-80 flex items-center justify-center text-slate-400 text-sm border border-dashed rounded-xl">
+        אין נתונים לתקופה זו
+      </div>
+    );
+  }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 }}
-      className="h-full"
-    >
-        <div className="h-80 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+      <div className="h-80 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          {timeframe === 'daily' || timeframe === 'monthly' ? (
+            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={20} />
+              <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
+                label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12 }} />
+              <Tooltip content={<CustomTooltip unit={unit} />} cursor={{ fill: 'rgba(22,163,74,0.05)' }} />
+              <Bar dataKey="value" fill="#16a34a" radius={[4, 4, 0, 0]} barSize={timeframe === 'daily' ? 10 : 32} />
+            </BarChart>
+          ) : (
+            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
-                <linearGradient id="colorYield" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#16a34a" stopOpacity={0.15}/>
-                  <stop offset="95%" stopColor="#16a34a" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                <linearGradient id="colorPower" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#16a34a" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <XAxis 
-                dataKey={xAxisKey}
-                tick={{ fill: '#64748b', fontSize: 11 }}
-                stroke="#f1f5f9"
-                axisLine={{ stroke: '#f1f5f9' }}
-              />
-              <YAxis 
-                tick={{ fill: '#64748b', fontSize: 11 }}
-                stroke="#f1f5f9"
-                axisLine={{ stroke: '#f1f5f9' }}
-                label={{ 
-                  value: yAxisLabel, 
-                  angle: -90, 
-                  position: 'insideLeft', 
-                  fill: '#64748b',
-                  fontSize: 12
-                }}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              {timeframe !== 'hourly' && (
-                <Legend 
-                  wrapperStyle={{ paddingTop: '20px' }}
-                  iconType="circle"
-                  formatter={(value) => (
-                    <span style={{ color: '#64748b', fontSize: '12px' }}>
-                      {value === 'yield' ? 'תפוקה' : 'הכנסות'}
-                    </span>
-                  )}
-                />
-              )}
-              <Area 
-                type="monotone" 
-                dataKey={dataKey}
-                stroke="#16a34a" 
-                strokeWidth={2}
-                fill="url(#colorYield)"
-                dot={false}
-                activeDot={{ r: 6, fill: '#16a34a', stroke: '#ffffff', strokeWidth: 2 }}
-              />
-              {timeframe !== 'hourly' && (
-                <Area 
-                  type="monotone" 
-                  dataKey="revenue"
-                  stroke="#3b82f6" 
-                  strokeWidth={2}
-                  fill="url(#colorRevenue)"
-                  dot={false}
-                  activeDot={{ r: 6, fill: '#3b82f6', stroke: '#ffffff', strokeWidth: 2 }}
-                />
-              )}
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={40} />
+              <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
+                label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12 }} />
+              <Tooltip content={<CustomTooltip unit={unit} />} />
+              <Area type="monotone" dataKey="value" stroke="#16a34a" strokeWidth={2}
+                fill="url(#colorPower)" dot={false} activeDot={{ r: 5, fill: '#16a34a', stroke: '#fff', strokeWidth: 2 }} />
             </AreaChart>
-          </ResponsiveContainer>
-        </div>
+          )}
+        </ResponsiveContainer>
+      </div>
     </motion.div>
   );
 }
