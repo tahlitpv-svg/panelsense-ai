@@ -153,7 +153,10 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
     );
   }
 
-
+  // Pad single data point so recharts can draw a line
+  const displayData = chartData.length === 1
+    ? [{ time: '', value: 0 }, ...chartData, { time: '  ', value: 0 }]
+    : chartData;
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
