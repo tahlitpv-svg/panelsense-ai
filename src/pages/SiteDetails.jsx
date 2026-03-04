@@ -41,11 +41,6 @@ export default function SiteDetails() {
     );
   }
 
-  const totalRevenue = (site.lifetime_yield_kwh || 0) * (site.tariff_per_kwh || 0);
-  const roi = site.initial_investment > 0 
-    ? ((totalRevenue / site.initial_investment) * 100).toFixed(1)
-    : 0;
-
   // Data will be fetched dynamically in SiteProductionChart
 
   return (
@@ -102,22 +97,13 @@ export default function SiteDetails() {
 
         <TabsContent value="overview" className="space-y-4 md:space-y-6">
           {/* KPI row - horizontal scroll on mobile */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             <Card className="p-3 md:p-5 border border-slate-200 shadow-sm bg-white">
               <div className="text-slate-500 text-[10px] md:text-xs font-medium uppercase mb-1">תפוקה יומית</div>
               <div className="text-lg md:text-2xl font-bold text-slate-800">{site.daily_yield_kwh?.toFixed(0)} <span className="text-xs md:text-sm font-normal text-slate-500">kWh</span></div>
               <div className="text-[10px] md:text-xs text-emerald-600 mt-0.5">₪{((site.daily_yield_kwh || 0) * (site.tariff_per_kwh || 0)).toFixed(0)}</div>
             </Card>
-            <Card className="p-3 md:p-5 border border-slate-200 shadow-sm bg-white">
-              <div className="text-slate-500 text-[10px] md:text-xs font-medium uppercase mb-1">תפוקה שנתית</div>
-              <div className="text-lg md:text-2xl font-bold text-slate-800">{(site.yearly_yield_kwh / 1000)?.toFixed(1)} <span className="text-xs md:text-sm font-normal text-slate-500">MWh</span></div>
-              <div className="text-[10px] md:text-xs text-slate-400 mt-0.5">{site.dc_capacity_kwp > 0 ? (site.yearly_yield_kwh / site.dc_capacity_kwp).toFixed(0) : 0} kWh/kWp</div>
-            </Card>
-            <Card className="p-3 md:p-5 border border-slate-200 shadow-sm bg-white">
-              <div className="text-slate-500 text-[10px] md:text-xs font-medium uppercase mb-1">ROI</div>
-              <div className="text-lg md:text-2xl font-bold text-slate-800">{roi}<span className="text-xs md:text-sm font-normal text-slate-500">%</span></div>
-              <div className="text-[10px] md:text-xs text-slate-400 mt-0.5">₪{totalRevenue.toFixed(0)}</div>
-            </Card>
+
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
