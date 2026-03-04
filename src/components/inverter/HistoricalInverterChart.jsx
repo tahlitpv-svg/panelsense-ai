@@ -74,28 +74,28 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
     return nums.filter(i => rawData.some(p => (parseFloat(p[`uPv${i}`]) || 0) > 0));
   }, [rawData]);
 
-  // Limit visible strings to 8 by default, with "show more"
-  const visibleStringNums = useMemo(() => (showAllStrings ? stringNums : stringNums.slice(0, 8)), [showAllStrings, stringNums]);
+  // Limit visible strings to first 8 by default (toggle to show more)
+  const visibleStrings = useMemo(() => (showAllStrings ? stringNums : stringNums.slice(0, 8)), [stringNums, showAllStrings]);
 
   // Group strings into MPPT pairs: MPPT1 = PV1+PV2, MPPT2 = PV3+PV4, etc.
   const mppts = useMemo(() => {
     const groups = [];
-    for (let i = 0; i < visibleStringNums.length; i += 2) {
-      const members = [visibleStringNums[i]];
-      if (visibleStringNums[i + 1] !== undefined) members.push(visibleStringNums[i + 1]);
+    for (let i = 0; i < visibleStrings.length; i += 2) {
+      const members = [visibleStrings[i]];
+      if (visibleStrings[i + 1] !== undefined) members.push(visibleStrings[i + 1]);
       groups.push({ mppt: Math.floor(i / 2) + 1, strings: members });
     }
     return groups;
-  }, [visibleStringNums]);
+  }, [visibleStrings]);
 
   // Build chart data
   const chartData = useMemo(() => {
-    if (!rawData || rawData.length === 0 || stringNums.length === 0) return [];
+    if (!rawData || rawData.length === 0 || visibleStrings.length === 0) return [];
     const pacPec = parseFloat(rawData[0]?.pacPec) || 0.001;
     return rawData
-      .map(item => mapPoint(item, stringNums, pacPec))
+      .map(item => mapPoint(item, visibleStrings, pacPec))
       .sort((a, b) => a.time.localeCompare(b.time));
-  }, [rawData, stringNums]);
+  }, [rawData, visibleStrings]);
 
   // Initialize selection when strings are detected
   const initSelection = useMemo(() => {
@@ -118,7 +118,7 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
     const newVal = !allChecked;
     const next = {};
     next.power = newVal;
-    for (const i of visibleStringNums) next[i] = newVal;
+    for (const i of visibleStrings) next[i] = newVal;
     setSelected(next);
     setAllChecked(newVal);
   };
@@ -130,7 +130,7 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
       result.push({ key: 'power', name: 'Total Power (kW)', color: '#f59e0b', yAxis: 'left', unit: 'kW' });
     }
     if (metric === 'voltage') {
-      visibleStringNums.forEach((i, idx) => {
+      visibleStrings.forEach((i, idx) => {
         if (activeSelection[i]) {
           const mpptIdx = Math.floor(idx / 2);
           const stringInMppt = idx % 2;
@@ -145,7 +145,7 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
       });
     }
     if (metric === 'current') {
-      visibleStringNums.forEach((i, idx) => {
+      visibleStrings.forEach((i, idx) => {
         if (activeSelection[i]) {
           result.push({
             key: `a${i}`,
@@ -158,7 +158,7 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
       });
     }
     return result;
-  }, [metric, activeSelection, visibleStringNums]);
+  }, [metric, activeSelection, stringNums]);
 
   const yLabel = metric === 'voltage' ? 'V' : metric === 'current' ? 'A' : 'kW';
 
@@ -211,14 +211,6 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
               <Checkbox id="chk-all" checked={allChecked} onCheckedChange={toggleAll} />
               <Label htmlFor="chk-all" className="text-sm font-bold cursor-pointer text-slate-700">סמן הכל</Label>
             </div>
-            {stringNums.length > 8 && (
-              <button
-                onClick={() => setShowAllStrings(s => !s)}
-                className="w-full text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 rounded-lg px-3 py-1.5 mb-2 transition-colors"
-              >
-                {showAllStrings ? 'הצג פחות' : `הצג עוד (${stringNums.length - 8})`}
-              </button>
-            )}
             {/* Group by MPPT */}
             <div className="space-y-3">
               {mppts.map((group) => (
@@ -248,6 +240,15 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
                 </div>
               ))}
             </div>
+
+            {stringNums.length > 8 && (
+              <button
+                className="mt-3 text-xs font-medium text-green-700 hover:text-green-800"
+                onClick={() => setShowAllStrings(v => !v)}
+              >
+                {showAllStrings ? 'הצג פחות' : `הצג עוד (${stringNums.length - 8} נוספים)`}
+              </button>
+            )}
           </div>
         )}
       </div>
