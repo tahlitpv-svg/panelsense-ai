@@ -50,6 +50,7 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
   const [metric, setMetric] = useState('voltage');
   const [selected, setSelected] = useState({}); // key = string index or 'power'
   const [allChecked, setAllChecked] = useState(true);
+  const [showAllStrings, setShowAllStrings] = useState(false);
 
   const { data: rawData, isLoading, error } = useQuery({
     queryKey: ['inverterDay', inverterId, inverterSn],
@@ -73,25 +74,28 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
     return nums.filter(i => rawData.some(p => (parseFloat(p[`uPv${i}`]) || 0) > 0));
   }, [rawData]);
 
+  // Limit visible strings to first 8 by default (toggle to show more)
+  const visibleStrings = useMemo(() => (showAllStrings ? stringNums : stringNums.slice(0, 8)), [stringNums, showAllStrings]);
+
   // Group strings into MPPT pairs: MPPT1 = PV1+PV2, MPPT2 = PV3+PV4, etc.
   const mppts = useMemo(() => {
     const groups = [];
-    for (let i = 0; i < stringNums.length; i += 2) {
-      const members = [stringNums[i]];
-      if (stringNums[i + 1] !== undefined) members.push(stringNums[i + 1]);
+    for (let i = 0; i < visibleStrings.length; i += 2) {
+      const members = [visibleStrings[i]];
+      if (visibleStrings[i + 1] !== undefined) members.push(visibleStrings[i + 1]);
       groups.push({ mppt: Math.floor(i / 2) + 1, strings: members });
     }
     return groups;
-  }, [stringNums]);
+  }, [visibleStrings]);
 
   // Build chart data
   const chartData = useMemo(() => {
-    if (!rawData || rawData.length === 0 || stringNums.length === 0) return [];
+    if (!rawData || rawData.length === 0 || visibleStrings.length === 0) return [];
     const pacPec = parseFloat(rawData[0]?.pacPec) || 0.001;
     return rawData
-      .map(item => mapPoint(item, stringNums, pacPec))
+      .map(item => mapPoint(item, visibleStrings, pacPec))
       .sort((a, b) => a.time.localeCompare(b.time));
-  }, [rawData, stringNums]);
+  }, [rawData, visibleStrings]);
 
   // Initialize selection when strings are detected
   const initSelection = useMemo(() => {
@@ -114,7 +118,7 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
     const newVal = !allChecked;
     const next = {};
     next.power = newVal;
-    for (const i of stringNums) next[i] = newVal;
+    for (const i of visibleStrings) next[i] = newVal;
     setSelected(next);
     setAllChecked(newVal);
   };
@@ -126,7 +130,7 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
       result.push({ key: 'power', name: 'Total Power (kW)', color: '#f59e0b', yAxis: 'left', unit: 'kW' });
     }
     if (metric === 'voltage') {
-      stringNums.forEach((i, idx) => {
+      visibleStrings.forEach((i, idx) => {
         if (activeSelection[i]) {
           const mpptIdx = Math.floor(idx / 2);
           const stringInMppt = idx % 2;
@@ -141,7 +145,7 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
       });
     }
     if (metric === 'current') {
-      stringNums.forEach((i, idx) => {
+      visibleStrings.forEach((i, idx) => {
         if (activeSelection[i]) {
           result.push({
             key: `a${i}`,
