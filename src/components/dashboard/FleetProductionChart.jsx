@@ -168,7 +168,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
         points.push({ time: d.time, value: d.value });
       }
     });
-    return points.sort((a, b) => a.time.localeCompare(b.time));
+    return points.filter(p => p.time).sort((a, b) => a.time.localeCompare(b.time));
   };
 
   // Pad single data point so recharts can draw a line
