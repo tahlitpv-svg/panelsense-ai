@@ -153,15 +153,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
     );
   }
 
-  // If only 1 data point, show a simple value instead of a broken chart
-  if (chartData.length === 1) {
-    return (
-      <div className="h-64 flex flex-col items-center justify-center gap-1 rounded-xl bg-green-50 border border-green-100">
-        <div className="text-3xl font-bold text-green-700">{chartData[0].value} {unit}</div>
-        <div className="text-sm text-slate-500">{chartData[0].time}</div>
-      </div>
-    );
-  }
+
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
