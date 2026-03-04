@@ -64,13 +64,22 @@ export default function SiteProductionChart({ stationId }) {
     queryFn: async () => {
       if (!stationId) return [];
 
+      // Daily (today/yesterday) — read from DB snapshots (no live pull)
+      if (isDay) {
+        const dateKey = format(refDate, 'yyyy-MM-dd');
+        const snaps = await base44.entities.SiteGraphSnapshot.filter({ station_id: stationId, date_key: dateKey });
+        const raw = snaps?.[0]?.data || [];
+        const mapped = raw.map((d) => ({ label: d.time, value: d.value }));
+        const ticks = ['03:00','06:00','09:00','12:00','15:00','18:00','21:00'];
+        ticks.forEach(t => { if (!mapped.find(d => d.label === t)) mapped.push({ label: t, value: 0 }); });
+        return mapped.sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+      }
+
+      // Month / Year — keep using live pull
       let endpoint = '';
       let body = { id: stationId, timezone: 2 };
 
-      if (isDay) {
-        endpoint = '/v1/api/stationDay';
-        body.time = format(refDate, 'yyyy-MM-dd');
-      } else if (timeframe === 'month') {
+      if (timeframe === 'month') {
         endpoint = '/v1/api/stationMonth';
         body.month = format(refDate, 'yyyy-MM');
       } else if (timeframe === 'year') {
@@ -79,23 +88,10 @@ export default function SiteProductionChart({ stationId }) {
       }
 
       const res = await base44.functions.invoke('getSolisGraphData', { endpoint, body });
-
       if (!res.data?.success || !res.data?.data) return [];
       const raw = res.data.data;
 
-      if (isDay) {
-        const mapped = raw.map(item => ({
-          label: item.timeStr ? item.timeStr.split(' ')[1]?.slice(0, 5) : item.time,
-          value: parseFloat(((parseFloat(item.power) || 0) / 1000).toFixed(2))
-        }));
-        const ticks = ['03:00','06:00','09:00','12:00','15:00','18:00','21:00'];
-        ticks.forEach(t => { if (!mapped.find(d => d.label === t)) mapped.push({ label: t, value: 0 }); });
-        return mapped.sort((a, b) => (a.label || '').localeCompare(b.label || ''));
-      }
-
       if (timeframe === 'month') {
-        const year = refDate.getFullYear();
-        const month = refDate.getMonth();
         const daysInMonth = getDaysInMonth(refDate);
         const byDay = {};
         raw.forEach(item => {
@@ -121,10 +117,7 @@ export default function SiteProductionChart({ stationId }) {
             byMonth[m] = energy;
           }
         });
-        return months.map(m => ({
-          label: m,
-          value: byMonth[m] || 0
-        }));
+        return months.map(m => ({ label: m, value: byMonth[m] || 0 }));
       }
 
       return [];
