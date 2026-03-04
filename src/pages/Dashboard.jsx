@@ -132,7 +132,9 @@ export default function Dashboard() {
                 </TabsList>
               </Tabs>
             </div>
-            <FleetProductionChart sites={filteredSites} timeframe={chartTimeframe} />
+            <div style={{ width: '100%', minHeight: 260 }}>
+              <FleetProductionChart sites={filteredSites} timeframe={chartTimeframe} />
+            </div>
           </div>
 
           {/* Map - shorter on mobile */}
