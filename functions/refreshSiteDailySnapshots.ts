@@ -20,8 +20,8 @@ Deno.serve(async (req) => {
     await base44.auth.isAuthenticated().catch(() => false);
 
     const now = new Date();
-    const minute = now.getMinutes();
-    const wave = Math.floor(minute / 20); // 0,1,2 based on 0,20,40
+    const hourJerusalem = parseInt(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', hour12: false }).format(now), 10);
+    const wave = hourJerusalem % 3; // rotate waves each hour (0,1,2)
 
     // Determine which dates to update
     const todayKey = formatDateInTZ(now, 'Asia/Jerusalem');
