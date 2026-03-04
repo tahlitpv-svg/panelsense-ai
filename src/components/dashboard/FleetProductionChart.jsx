@@ -153,10 +153,35 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
     );
   }
 
+  // For hourly chart: build a full day skeleton 06:00–20:00 and merge real data into it
+  const buildFullDayData = (data) => {
+    const map = {};
+    data.forEach(d => { map[d.time] = d.value; });
+    const points = [];
+    for (let h = 6; h <= 20; h++) {
+      const label = `${String(h).padStart(2, '0')}:00`;
+      points.push({ time: label, value: map[label] ?? null });
+    }
+    // Also fill in real data points that fall between hours
+    data.forEach(d => {
+      if (!points.find(p => p.time === d.time)) {
+        points.push({ time: d.time, value: d.value });
+      }
+    });
+    return points.sort((a, b) => a.time.localeCompare(b.time));
+  };
+
   // Pad single data point so recharts can draw a line
-  const displayData = chartData.length === 1
-    ? [{ time: '', value: 0 }, ...chartData, { time: '  ', value: 0 }]
-    : chartData;
+  const displayData = timeframe === 'hourly'
+    ? buildFullDayData(chartData)
+    : (chartData.length === 1
+        ? [{ time: '', value: 0 }, ...chartData, { time: '  ', value: 0 }]
+        : chartData);
+
+  // Only show whole-hour ticks on X axis for hourly view
+  const hourlyTicks = timeframe === 'hourly'
+    ? Array.from({ length: 15 }, (_, i) => `${String(i + 6).padStart(2, '0')}:00`)
+    : undefined;
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
