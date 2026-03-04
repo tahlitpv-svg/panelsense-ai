@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, CartesianGrid } from "recharts";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 
 const CustomTooltip = ({ active, payload, label, unit }) => {
   if (!active || !payload?.length) return null;
@@ -26,37 +26,33 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
     [sites]
   );
 
-  const { data: fetchedData, isLoading } = useQuery({
-    queryKey: ['fleetGraph', timeframe, stationIds.join(',')],
-    queryFn: async () => {
-      if (stationIds.length === 0) return [];
-      const res = await base44.functions.invoke('getFleetGraphData', {
-        stationIds,
-        timeframe: timeframe === 'monthly' ? 'daily' : timeframe,
-        dateStr: timeframe === 'daily' ? thisMonth : today
-      });
-      return res.data?.data || [];
-    },
-    enabled: stationIds.length > 0 && (timeframe === 'hourly' || timeframe === 'daily'),
+  // Read from cached snapshot in DB (refreshed every 10 min by automation)
+  const snapshotKey = timeframe === 'daily' ? thisMonth : today;
+  const snapshotTimeframe = timeframe === 'monthly' ? null : timeframe;
+
+  const { data: snapshot, isLoading } = useQuery({
+    queryKey: ['fleetSnapshot', snapshotTimeframe, snapshotKey],
+    queryFn: () => base44.entities.FleetGraphSnapshot.filter({ timeframe: snapshotTimeframe, date_key: snapshotKey }),
+    enabled: !!snapshotTimeframe && stationIds.length > 0,
     staleTime: 5 * 60 * 1000,
-    retry: 2
+    refetchInterval: 10 * 60 * 1000  // auto-refetch every 10 min to stay fresh
   });
 
   const monthlyData = useMemo(() => {
     if (timeframe !== 'monthly') return [];
     const total = sites.reduce((sum, s) => sum + (s.monthly_yield_kwh || 0), 0);
     const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
-    const currentMonth = now.getMonth();
     return months.map((name, i) => ({
       time: name,
-      value: i === currentMonth ? parseFloat((total / 1000).toFixed(1)) : 0
+      value: i === now.getMonth() ? parseFloat((total / 1000).toFixed(1)) : 0
     }));
   }, [sites, timeframe]);
 
   const chartData = useMemo(() => {
     if (timeframe === 'monthly') return monthlyData;
-    return (fetchedData || []).map(d => ({ time: d.time, value: d.value }));
-  }, [timeframe, fetchedData, monthlyData]);
+    const snap = snapshot?.[0];
+    return (snap?.data || []).map(d => ({ time: d.time, value: d.value }));
+  }, [timeframe, snapshot, monthlyData]);
 
   const unit = timeframe === 'hourly' ? 'MW' : 'MWh';
   const yLabel = unit;
@@ -73,12 +69,12 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
     return (
       <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
         <Loader2 className="w-7 h-7 animate-spin text-green-500" />
-        <span className="text-sm">מושך נתוני ייצור...</span>
+        <span className="text-sm">טוען נתוני ייצור...</span>
       </div>
     );
   }
 
-  // Build full day skeleton for hourly
+  // Build full day skeleton for hourly view
   const buildFullDayData = (data) => {
     const map = {};
     (data || []).forEach(d => { if (d?.time) map[d.time] = d.value; });
@@ -96,10 +92,16 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
   };
 
   const hourlyTicks = Array.from({ length: 15 }, (_, i) => `${String(i + 6).padStart(2, '0')}:00`);
+  const displayData = timeframe === 'hourly' ? buildFullDayData(chartData) : chartData;
 
-  const displayData = timeframe === 'hourly'
-    ? buildFullDayData(chartData)
-    : chartData;
+  if (timeframe !== 'hourly' && displayData.length === 0) {
+    return (
+      <div className="h-64 flex flex-col items-center justify-center text-slate-400 text-sm border border-dashed rounded-xl gap-2">
+        <span>אין נתוני ייצור</span>
+        <span className="text-xs text-slate-300">הנתונים מתעדכנים כל 10 דקות</span>
+      </div>
+    );
+  }
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
