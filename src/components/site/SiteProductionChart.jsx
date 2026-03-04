@@ -182,6 +182,7 @@ export default function SiteProductionChart({ stationId }) {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} ticks={timeTicks} interval={0} tickMargin={12} padding={{ left: 20, right: 20 }} />
                 <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
+                  domain={[0, 'auto']}
                   label={{ value: 'kW', angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
                 <Tooltip
                   contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
@@ -196,6 +197,7 @@ export default function SiteProductionChart({ stationId }) {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} padding={{ left: 20, right: 20 }} />
                 <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
+                  domain={[0, 'auto']}
                   label={{ value: yUnit, angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
                 <Tooltip
                   contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}

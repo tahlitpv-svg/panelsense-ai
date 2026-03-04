@@ -99,6 +99,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} minTickGap={20} tickMargin={12} padding={{ left: 20, right: 20 }} />
               <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
+                domain={[0, 'auto']}
                 label={{ value: unit, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12 }} />
               <Tooltip content={<CustomTooltip unit={unit} />} cursor={{ fill: 'rgba(22,163,74,0.05)' }} />
               <Bar dataKey="value" fill="#16a34a" radius={[4, 4, 0, 0]} barSize={timeframe === 'daily' ? 10 : 32} />
@@ -115,6 +116,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
               <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={true} tickLine={false}
                 ticks={hourlyTicks} interval={0} minTickGap={20} tickMargin={12} padding={{ left: 20, right: 20 }} />
               <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
+                domain={[0, 'auto']}
                 label={{ value: unit, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12, offset: -2 }} />
               <Tooltip content={<CustomTooltip unit={unit} />} />
               <Area type="monotone" dataKey="value" stroke="#f97316" strokeWidth={2}
