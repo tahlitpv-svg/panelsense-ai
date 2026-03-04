@@ -157,7 +157,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-      <div className="h-64 md:h-80 w-full">
+      <div style={{ width: '100%', height: 260 }}>
         <ResponsiveContainer width="100%" height="100%">
           {timeframe === 'daily' || timeframe === 'monthly' ? (
             <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
