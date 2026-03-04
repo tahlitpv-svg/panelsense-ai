@@ -272,7 +272,9 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
               tick={{ fontSize: 11, fill: '#64748b' }}
               axisLine={{ stroke: '#cbd5e1' }}
               tickLine={false}
-              minTickGap={20}
+              ticks={hourlyTicks}
+              interval={0}
+              tickMargin={8}
             />
             <YAxis
               tick={{ fontSize: 11, fill: '#64748b' }}
