@@ -36,10 +36,10 @@ export default function KPICard({ title, value, unit, icon: Icon, trend, color =
         )}
       </div>
 
-      <h3 className="text-slate-500 text-xs font-medium mb-1 uppercase tracking-wider">{title}</h3>
+      <h3 className="text-slate-500 text-[10px] md:text-xs font-medium mb-1 uppercase tracking-wider">{title}</h3>
       <div className="flex items-baseline gap-1">
-        <span className="text-2xl font-bold text-slate-900">{value}</span>
-        <span className="text-sm font-medium" style={{ color }}>{unit}</span>
+        <span className="text-xl md:text-2xl font-bold text-slate-900">{value}</span>
+        <span className="text-xs md:text-sm font-medium" style={{ color }}>{unit}</span>
       </div>
     </motion.div>
   );
