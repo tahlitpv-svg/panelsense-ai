@@ -49,27 +49,27 @@ export default function SiteDetails() {
   // Data will be fetched dynamically in SiteProductionChart
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-3">
           <Link to={createPageUrl('Dashboard')}>
-            <Button variant="ghost" size="icon" className="rounded-full bg-white border border-slate-200 text-slate-500 hover:text-orange-500 hover:bg-orange-50 shrink-0">
-              <ArrowRight className="w-5 h-5" />
+            <Button variant="ghost" size="icon" className="rounded-full bg-white border border-slate-200 text-slate-500 hover:text-orange-500 hover:bg-orange-50 shrink-0 w-8 h-8 md:w-10 md:h-10">
+              <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
             </Button>
           </Link>
-          <div className="min-w-0">
-            <h1 className="text-lg md:text-2xl font-bold text-slate-800 truncate">{site.name}</h1>
-            <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+          <div>
+            <h1 className="text-lg md:text-2xl font-bold text-slate-800 leading-tight">{site.name}</h1>
+            <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm text-slate-500 mt-1">
               <div className="flex items-center gap-1">
                 <MapPin className="w-3 h-3" />
                 <span>{site.region_tag}</span>
               </div>
-              <Badge variant="outline" className="font-normal bg-white border-slate-200 text-slate-600 text-[10px] px-1.5 py-0">
-                {site.owner === 'delkal_energy' ? 'דלקל' : 'חיצוני'}
+              <Badge variant="outline" className="font-normal bg-white border-slate-200 text-slate-600 text-[10px] md:text-xs">
+                {site.owner === 'delkal_energy' ? 'אתר דלקל' : 'לקוח חיצוני'}
               </Badge>
               {site.status === 'warning' && (
-                <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 gap-1 text-[10px] px-1.5 py-0">
+                <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 gap-1 text-[10px] md:text-xs">
                   <AlertTriangle className="w-3 h-3" /> תקלה
                 </Badge>
               )}
@@ -84,140 +84,118 @@ export default function SiteDetails() {
         )}
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        {/* Tab bar — icons only on mobile */}
-        <TabsList className="bg-white p-1 border border-slate-200 h-11 w-full grid grid-cols-3 rounded-xl">
-          <TabsTrigger value="overview"
-            className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 text-slate-500 gap-1.5 px-2 rounded-lg h-9 text-xs"
-          >
-            <Wrench className="w-4 h-4 shrink-0" />
-            <span className="hidden sm:inline">סקירה כללית</span>
-            <span className="sm:hidden">סקירה</span>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 md:space-y-6">
+        <TabsList className="bg-white p-1 border border-slate-200 h-10 md:h-11 w-full rounded-xl grid grid-cols-3">
+          <TabsTrigger value="overview" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 text-slate-500 gap-1.5 rounded-lg text-xs md:text-sm">
+            <Wrench className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            סקירה
           </TabsTrigger>
-          <TabsTrigger value="analysis"
-            className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 text-slate-500 gap-1.5 px-2 rounded-lg h-9 text-xs"
-          >
-            <BarChart3 className="w-4 h-4 shrink-0" />
-            <span className="hidden sm:inline">ניתוח ייצור</span>
-            <span className="sm:hidden">ניתוח</span>
+          <TabsTrigger value="analysis" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 text-slate-500 gap-1.5 rounded-lg text-xs md:text-sm">
+            <BarChart3 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            ייצור
           </TabsTrigger>
-          <TabsTrigger value="config"
-            className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 text-slate-500 gap-1.5 px-2 rounded-lg h-9 text-xs"
-          >
-            <SettingsIcon className="w-4 h-4 shrink-0" />
-            <span className="hidden sm:inline">הגדרות</span>
-            <span className="sm:hidden">הגדרות</span>
+          <TabsTrigger value="config" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 text-slate-500 gap-1.5 rounded-lg text-xs md:text-sm">
+            <SettingsIcon className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            הגדרות
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4">
-          {/* KPI row — 3 cards, compact */}
+        <TabsContent value="overview" className="space-y-4 md:space-y-6">
+          {/* KPI row - horizontal scroll on mobile */}
           <div className="grid grid-cols-3 gap-3">
-            <Card className="p-3 md:p-5 border border-slate-200 shadow-sm bg-white flex items-center justify-between">
-              <div>
-                <div className="text-slate-500 text-[10px] font-medium uppercase mb-1">תפוקה יומית</div>
-                <div className="text-lg md:text-2xl font-bold text-slate-800">{site.daily_yield_kwh?.toFixed(0)}</div>
-                <div className="text-[10px] text-slate-400">kWh</div>
-                <div className="text-[10px] text-emerald-600">₪{((site.daily_yield_kwh || 0) * (site.tariff_per_kwh || 0)).toFixed(0)}</div>
-              </div>
-              <div className="p-2 bg-orange-50 rounded-full hidden sm:block">
-                <Sun className="w-5 h-5 text-orange-500" />
-              </div>
+            <Card className="p-3 md:p-5 border border-slate-200 shadow-sm bg-white">
+              <div className="text-slate-500 text-[10px] md:text-xs font-medium uppercase mb-1">תפוקה יומית</div>
+              <div className="text-lg md:text-2xl font-bold text-slate-800">{site.daily_yield_kwh?.toFixed(0)} <span className="text-xs md:text-sm font-normal text-slate-500">kWh</span></div>
+              <div className="text-[10px] md:text-xs text-emerald-600 mt-0.5">₪{((site.daily_yield_kwh || 0) * (site.tariff_per_kwh || 0)).toFixed(0)}</div>
             </Card>
-            <Card className="p-3 md:p-5 border border-slate-200 shadow-sm bg-white flex items-center justify-between">
-              <div>
-                <div className="text-slate-500 text-[10px] font-medium uppercase mb-1">תפוקה שנתית</div>
-                <div className="text-lg md:text-2xl font-bold text-slate-800">{(site.yearly_yield_kwh / 1000)?.toFixed(1)}</div>
-                <div className="text-[10px] text-slate-400">MWh</div>
-              </div>
-              <div className="p-2 bg-blue-50 rounded-full hidden sm:block">
-                <Zap className="w-5 h-5 text-blue-500" />
-              </div>
+            <Card className="p-3 md:p-5 border border-slate-200 shadow-sm bg-white">
+              <div className="text-slate-500 text-[10px] md:text-xs font-medium uppercase mb-1">תפוקה שנתית</div>
+              <div className="text-lg md:text-2xl font-bold text-slate-800">{(site.yearly_yield_kwh / 1000)?.toFixed(1)} <span className="text-xs md:text-sm font-normal text-slate-500">MWh</span></div>
+              <div className="text-[10px] md:text-xs text-slate-400 mt-0.5">{site.dc_capacity_kwp > 0 ? (site.yearly_yield_kwh / site.dc_capacity_kwp).toFixed(0) : 0} kWh/kWp</div>
             </Card>
-            <Card className="p-3 md:p-5 border border-slate-200 shadow-sm bg-white flex items-center justify-between">
-              <div>
-                <div className="text-slate-500 text-[10px] font-medium uppercase mb-1">ROI</div>
-                <div className="text-lg md:text-2xl font-bold text-slate-800">{roi}%</div>
-                <div className="text-[10px] text-slate-400">₪{totalRevenue.toFixed(0)}</div>
-              </div>
-              <div className="p-2 bg-emerald-50 rounded-full hidden sm:block">
-                <BarChart3 className="w-5 h-5 text-emerald-500" />
-              </div>
+            <Card className="p-3 md:p-5 border border-slate-200 shadow-sm bg-white">
+              <div className="text-slate-500 text-[10px] md:text-xs font-medium uppercase mb-1">ROI</div>
+              <div className="text-lg md:text-2xl font-bold text-slate-800">{roi}<span className="text-xs md:text-sm font-normal text-slate-500">%</span></div>
+              <div className="text-[10px] md:text-xs text-slate-400 mt-0.5">₪{totalRevenue.toFixed(0)}</div>
             </Card>
           </div>
 
-          {/* Chart */}
-          <SiteProductionChart stationId={site.solis_station_id} />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+            <div className="lg:col-span-2 space-y-4 md:space-y-6">
+              <SiteProductionChart stationId={site.solis_station_id} />
 
-          {/* Tech + Maintenance — side by side on md+ */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="p-4 md:p-6 border border-slate-200 shadow-sm bg-white">
-              <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <Wrench className="w-4 h-4 text-slate-400" />
-                מפרט טכני
-              </h3>
-              <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-xs">
-                {[
-                  { l: 'הספק DC', v: `${site.dc_capacity_kwp} kWp` },
-                  { l: 'הספק AC', v: `${site.ac_capacity_kw} kW` },
-                  { l: 'סוג ממירים', v: site.inverter_type || 'N/A' },
-                  { l: 'סוג פאנלים', v: site.panel_type || 'N/A' },
-                  { l: 'אזימוט', v: `${site.azimuth_deg}°` },
-                  { l: 'זווית הטיה', v: `${site.tilt_deg}°` },
-                  { l: 'סוג התקנה', v: site.mounting_type === 'roof' ? 'גג' : site.mounting_type === 'ground' ? 'קרקע' : 'עוקב' },
-                ].map((item, i) => (
-                  <div key={i}>
-                    <div className="text-slate-500 mb-0.5">{item.l}</div>
-                    <div className="font-medium text-slate-800">{item.v}</div>
-                  </div>
-                ))}
-              </div>
-            </Card>
+              {/* Tech Specs */}
+              <Card className="p-4 md:p-6 border border-slate-200 shadow-sm bg-white">
+                <h3 className="text-base md:text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <Wrench className="w-4 h-4 text-slate-400" />
+                  מפרט טכני
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-y-3 gap-x-6 text-sm">
+                  {[
+                    { l: 'הספק DC', v: `${site.dc_capacity_kwp} kWp` },
+                    { l: 'הספק AC', v: `${site.ac_capacity_kw} kW` },
+                    { l: 'ממירים', v: site.inverter_type || 'N/A' },
+                    { l: 'פאנלים', v: site.panel_type || 'N/A' },
+                    { l: 'אזימוט', v: `${site.azimuth_deg}°` },
+                    { l: 'הטיה', v: `${site.tilt_deg}°` },
+                    { l: 'התקנה', v: site.mounting_type === 'roof' ? 'גג' : site.mounting_type === 'ground' ? 'קרקע' : 'עוקב' },
+                  ].map((item, i) => (
+                    <div key={i}>
+                      <div className="text-slate-500 text-xs mb-0.5">{item.l}</div>
+                      <div className="font-medium text-slate-800 text-sm">{item.v}</div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
 
-            <Card className="p-4 md:p-6 border border-slate-200 shadow-sm bg-white">
-              <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-slate-400" />
-                תחזוקה
-              </h3>
-              <div className="space-y-3 text-xs border-r-2 border-slate-100 pr-3 mr-1">
-                <div>
-                  <div className="text-slate-500 mb-0.5">ניקוי אחרון</div>
-                  <div className="font-medium text-slate-800">
-                    {site.last_cleaning_date ? new Date(site.last_cleaning_date).toLocaleDateString('he-IL') : 'אין נתונים'}
+            <div className="space-y-4">
+              {/* Maintenance Card */}
+              <Card className="p-4 md:p-6 border border-slate-200 shadow-sm bg-white">
+                <h3 className="text-base md:text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-slate-400" />
+                  תחזוקה
+                </h3>
+                <div className="space-y-3 text-sm border-r-2 border-slate-100 pr-4 mr-1">
+                  <div>
+                    <div className="text-slate-500 text-xs mb-0.5">ניקוי אחרון</div>
+                    <div className="font-medium text-slate-800 text-sm">
+                      {site.last_cleaning_date ? new Date(site.last_cleaning_date).toLocaleDateString('he-IL') : 'אין נתונים'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-slate-500 text-xs mb-0.5">מרווח ניקוי</div>
+                    <div className="font-medium text-slate-800 text-sm">{site.cleaning_interval_days} ימים</div>
+                  </div>
+                  <div>
+                    <div className="text-slate-500 text-xs mb-0.5">תאריך התקנה</div>
+                    <div className="font-medium text-slate-800 text-sm">
+                      {site.installation_date ? new Date(site.installation_date).toLocaleDateString('he-IL') : 'אין נתונים'}
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <div className="text-slate-500 mb-0.5">מרווח ניקוי מומלץ</div>
-                  <div className="font-medium text-slate-800">{site.cleaning_interval_days} ימים</div>
-                </div>
-                <div>
-                  <div className="text-slate-500 mb-0.5">תאריך התקנה</div>
-                  <div className="font-medium text-slate-800">
-                    {site.installation_date ? new Date(site.installation_date).toLocaleDateString('he-IL') : 'אין נתונים'}
-                  </div>
-                </div>
-              </div>
-            </Card>
+              </Card>
+            </div>
           </div>
 
-          {/* Inverters */}
+          {/* Inverters Section */}
           <div>
-            <h2 className="text-base font-bold text-slate-800 mb-3">ממירים</h2>
+            <h2 className="text-base md:text-xl font-bold text-slate-800 mb-4">ממירים ומערכת חשמל</h2>
             {inverters.length === 0 ? (
-              <div className="text-center py-10 bg-white rounded-xl border border-dashed border-slate-200 text-slate-400 text-sm">
+              <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-200 text-slate-400 text-sm">
                 אין ממירים מוגדרים לאתר זה
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:gap-6">
                 {inverters.map(inverter => (
                   <Card key={inverter.id} className="p-4 md:p-6 border border-slate-200 shadow-sm bg-white">
-                    <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+                    <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-4">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-slate-100 rounded-lg">
                           <Zap className="w-4 h-4 text-slate-500" />
                         </div>
                         <div>
-                          <h3 className="font-bold text-slate-800 text-sm">{inverter.name}</h3>
+                          <h3 className="font-bold text-slate-800 text-sm md:text-base">{inverter.name}</h3>
                           <p className="text-xs text-slate-500">{inverter.model}</p>
                         </div>
                       </div>
@@ -225,18 +203,19 @@ export default function SiteDetails() {
                         {inverter.status === 'online' ? 'מקוון' : 'תקלה'}
                       </Badge>
                     </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
                       <div className="lg:col-span-2">
                         <MPPTTable mpptStrings={inverter.mppt_strings} />
                       </div>
-                      <div className="flex items-center justify-center bg-slate-50 rounded-xl p-3">
+                      <div className="flex items-center justify-center bg-slate-50 rounded-xl p-4">
                         <EfficiencyGauge efficiency={inverter.efficiency_percent} />
                       </div>
                     </div>
-                    <div className="mt-6 border-t border-slate-100 pt-4">
-                      <h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2 text-sm">
+                    <div className="mt-6 border-t border-slate-100 pt-4 md:pt-6">
+                      <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2 text-sm md:text-base">
                         <BarChart3 className="w-4 h-4 text-green-600" />
-                        היסטוריית ממיר
+                        גרף מהפך
                       </h4>
                       <HistoricalInverterChart
                         inverterId={inverter.solis_inverter_id}
