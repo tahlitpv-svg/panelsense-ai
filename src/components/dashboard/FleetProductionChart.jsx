@@ -124,7 +124,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
     return monthlyData;
   }, [timeframe, hourlyData, dailyData, monthlyData]);
 
-  const unit = timeframe === 'hourly' ? 'kW' : 'MWh';
+  const unit = timeframe === 'hourly' ? 'MW' : 'MWh';
   const yLabel = unit;
 
   if (stationIds.length === 0) {
