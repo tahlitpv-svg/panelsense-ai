@@ -133,6 +133,7 @@ export default function SiteProductionChart({ stationId }) {
   });
 
   const yUnit = isDay ? 'kW' : 'kWh';
+  const barSize = vw < 380 ? 8 : vw < 480 ? 10 : 12;
   const chartTitle = isDay
     ? `ייצור יומי (הספק kW) - ${getPeriodLabel()}`
     : timeframe === 'month'
@@ -199,6 +200,7 @@ export default function SiteProductionChart({ stationId }) {
                   formatter={(value) => [`${value} kW`, 'הספק']}
                 />
                 <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false}
+                  connectNulls
                   activeDot={{ r: 6, fill: color, stroke: '#fff', strokeWidth: 2 }} />
               </LineChart>
             ) : (
@@ -215,7 +217,7 @@ export default function SiteProductionChart({ stationId }) {
                   formatter={(value) => [`${value?.toLocaleString(undefined, { maximumFractionDigits: 1 })} ${yUnit}`, 'תפוקה']}
                 />
                 <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]}
-                  barSize={timeframe === 'month' ? 12 : 32} />
+                  barSize={timeframe === 'month' ? barSize : 28} />
               </BarChart>
             )}
           </ResponsiveContainer>

@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -93,6 +92,10 @@
 }
 
 /* Recharts overrides for light theme */
+/* Improve tick text wrapping on very small screens */
+@media (max-width: 360px) {
+  .recharts-cartesian-axis-tick-value tspan { font-size: 10px; }
+}
 .recharts-cartesian-grid-horizontal line,
 .recharts-cartesian-grid-vertical line {
   stroke: rgba(0,0,0,0.05);
