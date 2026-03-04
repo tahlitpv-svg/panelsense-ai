@@ -264,17 +264,18 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
 
       {/* Chart */}
       <div className="flex-1 h-64 sm:h-80 md:h-[400px] min-w-0">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" >
           <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
             <XAxis
               dataKey="time"
-              tick={{ fontSize: 11, fill: '#64748b' }}
+              tick={{ fontSize: 11, fill: '#64748b', textAnchor: 'middle' }}
               axisLine={{ stroke: '#cbd5e1' }}
               tickLine={false}
               ticks={hourlyTicks}
               interval={0}
-              tickMargin={8}
+              tickMargin={12}
+              padding={{ left: 20, right: 20 }}
             />
             <YAxis
               tick={{ fontSize: 11, fill: '#64748b' }}

@@ -178,7 +178,7 @@ export default function SiteProductionChart({ stationId }) {
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             {isDay ? (
-              <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 12 }}>
+              <LineChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 14 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} ticks={timeTicks} interval={0} tickMargin={12} padding={{ left: 20, right: 20 }} />
                 <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
@@ -192,7 +192,7 @@ export default function SiteProductionChart({ stationId }) {
                   activeDot={{ r: 6, fill: color, stroke: '#fff', strokeWidth: 2 }} />
               </LineChart>
             ) : (
-              <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 12 }}>
+              <BarChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 14 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} padding={{ left: 20, right: 20 }} />
                 <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
