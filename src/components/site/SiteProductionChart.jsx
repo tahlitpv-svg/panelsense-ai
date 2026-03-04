@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card } from "@/components/ui/card";
@@ -11,6 +11,12 @@ export default function SiteProductionChart({ stationId }) {
   const [timeframe, setTimeframe] = useState('today');
   // offset: 0 = current, -1 = one back, etc.
   const [offset, setOffset] = useState(0);
+  const [vw, setVw] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+  useEffect(() => {
+    const onResize = () => setVw(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   // Reset offset when timeframe changes
   const handleTimeframeChange = (tf) => {
@@ -46,6 +52,9 @@ export default function SiteProductionChart({ stationId }) {
   const isDay = timeframe === 'today' || timeframe === 'yesterday';
   const color = isDay ? "#f97316" : "#3b82f6";
   const timeTicks = ['03:00','06:00','09:00','12:00','15:00','18:00','21:00'];
+  const displayTicks = vw < 380
+    ? ['06:00','12:00','18:00']
+    : (vw < 480 ? ['03:00','09:00','15:00','21:00'] : timeTicks);
   const canGoForward = offset < 0;
 
   const queryKey = ['stationGraph', stationId, timeframe, offset];
@@ -180,7 +189,7 @@ export default function SiteProductionChart({ stationId }) {
             {isDay ? (
               <LineChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 14 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} ticks={timeTicks} interval={0} tickMargin={12} padding={{ left: 20, right: 20 }} />
+                <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} ticks={displayTicks} interval={0} tickMargin={12} padding={{ left: 20, right: 20 }} />
                 <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
                   domain={[0, 'auto']}
                   label={{ value: 'kW', angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
