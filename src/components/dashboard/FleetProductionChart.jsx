@@ -97,7 +97,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
           {timeframe === 'daily' || timeframe === 'monthly' ? (
             <BarChart data={displayData} margin={{ top: 10, right: 10, left: 0, bottom: 12 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} minTickGap={20} tickMargin={8} />
+              <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} minTickGap={20} tickMargin={12} padding={{ left: 20, right: 20 }} />
               <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
                 label={{ value: unit, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12 }} />
               <Tooltip content={<CustomTooltip unit={unit} />} cursor={{ fill: 'rgba(22,163,74,0.05)' }} />
