@@ -71,6 +71,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
   const hourlyTicks = ['03:00','06:00','09:00','12:00','15:00','18:00','21:00'];
 
   const displayData = timeframe === 'hourly' ? buildFullDayData(chartData) : chartData;
+  const hasValues = Array.isArray(displayData) && displayData.some(d => d?.value != null);
 
   if (isLoading) {
     return (
@@ -81,7 +82,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
     );
   }
 
-  if (!isLoading && (!displayData || displayData.length === 0)) {
+  if (!isLoading && (!displayData || displayData.length === 0 || !hasValues)) {
     return (
       <div className="h-64 flex items-center justify-center text-slate-500 border border-dashed rounded-xl">
         אין נתוני גרף זמינים
@@ -112,7 +113,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={true} tickLine={false}
-                ticks={hourlyTicks} interval={0} minTickGap={20} tickMargin={8} />
+                ticks={hourlyTicks} interval={0} minTickGap={20} tickMargin={12} padding={{ left: 20, right: 20 }} />
               <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
                 label={{ value: unit, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12, offset: -2 }} />
               <Tooltip content={<CustomTooltip unit={unit} />} />

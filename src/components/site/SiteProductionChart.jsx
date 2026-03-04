@@ -180,7 +180,7 @@ export default function SiteProductionChart({ stationId }) {
             {isDay ? (
               <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 12 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} ticks={timeTicks} interval={0} tickMargin={8} />
+                <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} ticks={timeTicks} interval={0} tickMargin={12} padding={{ left: 20, right: 20 }} />
                 <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
                   label={{ value: 'kW', angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
                 <Tooltip
@@ -194,7 +194,7 @@ export default function SiteProductionChart({ stationId }) {
             ) : (
               <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 12 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} padding={{ left: 20, right: 20 }} />
                 <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
                   label={{ value: yUnit, angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
                 <Tooltip
