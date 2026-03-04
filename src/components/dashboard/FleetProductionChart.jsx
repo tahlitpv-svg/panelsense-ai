@@ -91,19 +91,19 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-      <div style={{ width: '100%', height: 260 }}>
+      <div style={{ width: '100%', height: 260 }} dir="ltr">
         <ResponsiveContainer width="100%" height="100%">
           {timeframe === 'daily' || timeframe === 'monthly' ? (
-            <BarChart data={displayData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <BarChart data={displayData} margin={{ top: 10, right: 10, left: 0, bottom: 12 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={20} tickMargin={8} />
+              <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} minTickGap={20} tickMargin={8} />
               <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
                 label={{ value: unit, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12 }} />
               <Tooltip content={<CustomTooltip unit={unit} />} cursor={{ fill: 'rgba(22,163,74,0.05)' }} />
               <Bar dataKey="value" fill="#16a34a" radius={[4, 4, 0, 0]} barSize={timeframe === 'daily' ? 10 : 32} />
             </BarChart>
           ) : (
-            <AreaChart data={displayData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+            <AreaChart data={displayData} margin={{ top: 10, right: 10, left: 10, bottom: 12 }}>
               <defs>
                 <linearGradient id="colorPower" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#f97316" stopOpacity={0.25} />
@@ -111,7 +111,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={true} tickLine={false}
+              <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={true} tickLine={false}
                 ticks={hourlyTicks} interval={0} minTickGap={20} tickMargin={8} />
               <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
                 label={{ value: unit, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12, offset: -2 }} />
