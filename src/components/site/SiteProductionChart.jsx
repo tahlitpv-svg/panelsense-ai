@@ -45,6 +45,7 @@ export default function SiteProductionChart({ stationId }) {
 
   const isDay = timeframe === 'today' || timeframe === 'yesterday';
   const color = isDay ? "#f97316" : "#3b82f6";
+  const timeTicks = ['03:00','06:00','09:00','12:00','15:00','18:00','21:00'];
   const canGoForward = offset < 0;
 
   const queryKey = ['stationGraph', stationId, timeframe, offset];
@@ -74,10 +75,13 @@ export default function SiteProductionChart({ stationId }) {
       const raw = res.data.data;
 
       if (isDay) {
-        return raw.map(item => ({
+        const mapped = raw.map(item => ({
           label: item.timeStr ? item.timeStr.split(' ')[1]?.slice(0, 5) : item.time,
           value: parseFloat(((parseFloat(item.power) || 0) / 1000).toFixed(2))
         }));
+        const ticks = ['03:00','06:00','09:00','12:00','15:00','18:00','21:00'];
+        ticks.forEach(t => { if (!mapped.find(d => d.label === t)) mapped.push({ label: t, value: null }); });
+        return mapped.sort((a, b) => (a.label || '').localeCompare(b.label || ''));
       }
 
       if (timeframe === 'month') {
@@ -176,7 +180,7 @@ export default function SiteProductionChart({ stationId }) {
             {isDay ? (
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={30} />
+                <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} ticks={timeTicks} interval={0} tickMargin={8} />
                 <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
                   label={{ value: 'kW', angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
                 <Tooltip

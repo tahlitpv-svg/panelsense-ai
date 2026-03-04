@@ -56,7 +56,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
     const map = {};
     data.forEach(d => { if (d?.time) map[d.time] = d.value; });
     const points = [];
-    for (let h = 6; h <= 20; h++) {
+    for (let h = 3; h <= 21; h++) {
       const label = `${String(h).padStart(2, '0')}:00`;
       points.push({ time: label, value: map[label] !== undefined ? map[label] : null });
     }
@@ -68,7 +68,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
     return points.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
   };
 
-  const hourlyTicks = Array.from({ length: 15 }, (_, i) => `${String(i + 6).padStart(2, '0')}:00`);
+  const hourlyTicks = ['03:00','06:00','09:00','12:00','15:00','18:00','21:00'];
 
   const displayData = timeframe === 'hourly' ? buildFullDayData(chartData) : chartData;
 
