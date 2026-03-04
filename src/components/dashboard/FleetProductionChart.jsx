@@ -21,21 +21,16 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
   const today = format(now, 'yyyy-MM-dd');
   const thisMonth = format(now, 'yyyy-MM');
 
-  const stationIds = useMemo(() =>
-    sites.filter(s => s.solis_station_id).map(s => s.solis_station_id),
-    [sites]
-  );
-
-  // Read from cached snapshot in DB (refreshed every 10 min by automation)
-  const snapshotKey = timeframe === 'daily' ? thisMonth : today;
-  const snapshotTimeframe = timeframe === 'monthly' ? null : timeframe;
+  const dateKey = timeframe === 'daily' ? thisMonth : today;
+  const snapshotTimeframe = timeframe === 'monthly' ? null : (timeframe === 'daily' ? 'daily' : 'hourly');
 
   const { data: snapshot, isLoading } = useQuery({
-    queryKey: ['fleetSnapshot', snapshotTimeframe, snapshotKey],
-    queryFn: () => base44.entities.FleetGraphSnapshot.filter({ timeframe: snapshotTimeframe, date_key: snapshotKey }),
-    enabled: !!snapshotTimeframe && stationIds.length > 0,
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 10 * 60 * 1000  // auto-refetch every 10 min to stay fresh
+    queryKey: ['fleetSnapshot', snapshotTimeframe, dateKey],
+    queryFn: () =>
+      base44.entities.FleetGraphSnapshot.filter({ timeframe: snapshotTimeframe, date_key: dateKey }),
+    enabled: !!snapshotTimeframe,
+    refetchInterval: 10 * 60 * 1000, // re-read every 10 min
+    staleTime: 9 * 60 * 1000
   });
 
   const monthlyData = useMemo(() => {
@@ -50,40 +45,22 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
 
   const chartData = useMemo(() => {
     if (timeframe === 'monthly') return monthlyData;
-    const snap = snapshot?.[0];
-    return (snap?.data || []).map(d => ({ time: d.time, value: d.value }));
+    const raw = snapshot?.[0]?.data || [];
+    return raw.map(d => ({ time: d.time, value: d.value }));
   }, [timeframe, snapshot, monthlyData]);
 
   const unit = timeframe === 'hourly' ? 'MW' : 'MWh';
-  const yLabel = unit;
 
-  if (stationIds.length === 0) {
-    return (
-      <div className="h-64 flex items-center justify-center text-slate-400 text-sm border border-dashed rounded-xl">
-        אין אתרים עם נתוני Solis
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
-        <Loader2 className="w-7 h-7 animate-spin text-green-500" />
-        <span className="text-sm">טוען נתוני ייצור...</span>
-      </div>
-    );
-  }
-
-  // Build full day skeleton for hourly view
+  // Full day skeleton 06:00–20:00
   const buildFullDayData = (data) => {
     const map = {};
-    (data || []).forEach(d => { if (d?.time) map[d.time] = d.value; });
+    data.forEach(d => { if (d?.time) map[d.time] = d.value; });
     const points = [];
     for (let h = 6; h <= 20; h++) {
       const label = `${String(h).padStart(2, '0')}:00`;
       points.push({ time: label, value: map[label] !== undefined ? map[label] : null });
     }
-    (data || []).forEach(d => {
+    data.forEach(d => {
       if (d?.time && !points.find(p => p.time === d.time)) {
         points.push({ time: d.time, value: d.value });
       }
@@ -92,13 +69,14 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
   };
 
   const hourlyTicks = Array.from({ length: 15 }, (_, i) => `${String(i + 6).padStart(2, '0')}:00`);
+
   const displayData = timeframe === 'hourly' ? buildFullDayData(chartData) : chartData;
 
-  if (timeframe !== 'hourly' && displayData.length === 0) {
+  if (isLoading) {
     return (
-      <div className="h-64 flex flex-col items-center justify-center text-slate-400 text-sm border border-dashed rounded-xl gap-2">
-        <span>אין נתוני ייצור</span>
-        <span className="text-xs text-slate-300">הנתונים מתעדכנים כל 10 דקות</span>
+      <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
+        <Loader2 className="w-7 h-7 animate-spin text-green-500" />
+        <span className="text-sm">טוען נתוני ייצור...</span>
       </div>
     );
   }
@@ -112,7 +90,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={20} />
               <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
-                label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12 }} />
+                label={{ value: unit, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12 }} />
               <Tooltip content={<CustomTooltip unit={unit} />} cursor={{ fill: 'rgba(22,163,74,0.05)' }} />
               <Bar dataKey="value" fill="#16a34a" radius={[4, 4, 0, 0]} barSize={timeframe === 'daily' ? 10 : 32} />
             </BarChart>
@@ -128,7 +106,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
               <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={true} tickLine={false}
                 ticks={hourlyTicks} interval={0} minTickGap={20} />
               <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
-                label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12, offset: -2 }} />
+                label={{ value: unit, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12, offset: -2 }} />
               <Tooltip content={<CustomTooltip unit={unit} />} />
               <Area type="monotone" dataKey="value" stroke="#f97316" strokeWidth={2}
                 fill="url(#colorPower)" dot={false} connectNulls={false}
