@@ -95,11 +95,10 @@ Deno.serve(async (req) => {
       return Response.json({ message: 'No stations found' });
     }
 
-    // Fetch both timeframes in parallel
-    const [hourlyData, dailyData] = await Promise.all([
-      fetchAndMerge(stationIds, 'hourly'),
-      fetchAndMerge(stationIds, 'daily')
-    ]);
+    // Fetch sequentially to avoid rate limits (syncSolisData also runs concurrently)
+    const hourlyData = await fetchAndMerge(stationIds, 'hourly');
+    await new Promise(r => setTimeout(r, 2000)); // pause between timeframes
+    const dailyData = await fetchAndMerge(stationIds, 'daily');
 
     const today = todayStr();
     const thisMonth = thisMonthStr();
