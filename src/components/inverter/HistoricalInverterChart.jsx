@@ -176,9 +176,9 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
   }
 
   return (
-    <div className="flex gap-4">
+    <div className="flex flex-col md:flex-row gap-4">
       {/* Sidebar */}
-      <div className="w-52 shrink-0 border-l border-slate-100 pl-4 space-y-4">
+      <div className="w-full md:w-52 md:shrink-0 md:border-l border-t border-slate-100 md:pl-4 pl-0 md:pt-0 pt-4 space-y-4">
         {/* Metric selector */}
         <div>
           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">פרמטר</div>
@@ -241,7 +241,7 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
       </div>
 
       {/* Chart */}
-      <div className="flex-1 h-[400px]">
+      <div className="flex-1 h-[320px] md:h-[400px] w-full overflow-x-auto">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -250,7 +250,7 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
               tick={{ fontSize: 11, fill: '#64748b' }}
               axisLine={{ stroke: '#cbd5e1' }}
               tickLine={false}
-              minTickGap={40}
+              minTickGap={20}
             />
             <YAxis
               tick={{ fontSize: 11, fill: '#64748b' }}
