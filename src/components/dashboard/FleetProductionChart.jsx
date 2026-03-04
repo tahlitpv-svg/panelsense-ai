@@ -180,7 +180,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-            <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={40} />
+            <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={true} tickLine={false} minTickGap={30} interval="preserveStartEnd" />
             <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => v}
               label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12, offset: -2 }} />
             <Tooltip content={<CustomTooltip unit={unit} />} />
