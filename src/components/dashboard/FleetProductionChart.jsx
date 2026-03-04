@@ -119,7 +119,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
   const isLoading = (timeframe === 'hourly' && loadingHourly) || (timeframe === 'daily' && loadingDaily);
 
   const chartData = useMemo(() => {
-    if (timeframe === 'hourly') return (hourlyData || []).map(d => ({ time: d.time, value: d.value }));
+    if (timeframe === 'hourly') return (hourlyData || []).map(d => ({ time: d.time, value: parseFloat((d.value / 1000).toFixed(3)) }));
     if (timeframe === 'daily') return (dailyData || []).map(d => ({ time: d.date, value: parseFloat((d.value / 1000).toFixed(2)) }));
     return monthlyData;
   }, [timeframe, hourlyData, dailyData, monthlyData]);
