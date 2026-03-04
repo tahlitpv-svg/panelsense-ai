@@ -48,7 +48,7 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="space-y-4 text-slate-900">
+    <div className="space-y-4 md:space-y-6 text-slate-900">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -59,32 +59,33 @@ export default function Dashboard() {
           onClick={() => refetch()}
           size="sm"
           variant="outline"
-          className="gap-2 text-green-700 border-green-200 bg-green-50 hover:bg-green-100 hover:text-green-800"
+          className="gap-2 text-green-700 border-green-200 bg-green-50 hover:bg-green-100 hover:text-green-800 text-xs md:text-sm"
         >
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className="w-3.5 h-3.5 md:w-4 md:h-4" />
           <span className="hidden sm:inline">רענן נתונים</span>
+          <span className="sm:hidden">רענן</span>
         </Button>
       </div>
 
-      {/* KPI Cards — 2 cols on mobile, 4 on desktop */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* KPI Cards - 2 cols on mobile, 4 on desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <KPICard title="תפוקה יומית" value={totalDailyYield.toFixed(0)} unit="kWh" icon={Zap} color="#16a34a" />
         <KPICard title="הכנסות היום" value={`₪${totalRevenue.toFixed(0)}`} unit="" icon={DollarSign} color="#16a34a" />
-        <KPICard title="תקינות הצי" value={healthRatio.toFixed(0)} unit="%" icon={Activity}
+        <KPICard title="תקינות" value={healthRatio.toFixed(0)} unit="%" icon={Activity}
           color={healthRatio >= 90 ? '#16a34a' : healthRatio >= 70 ? '#d97706' : '#dc2626'} />
         <KPICard title="הספק פעיל" value={(totalPower / 1000).toFixed(2)} unit="MW" icon={TrendingUp} color="#2563eb" />
       </div>
 
       {/* Alert Banner */}
       {alerts.length > 0 && (
-        <div className="flex items-center justify-between p-3 rounded-xl bg-red-50 border border-red-200 border-r-4 border-r-red-500">
+        <div className="flex items-center justify-between p-3 md:p-4 rounded-xl bg-red-50 border border-red-200 border-r-4 border-r-red-500">
           <div>
-            <div className="text-red-700 font-bold mb-0.5 flex items-center gap-2 text-sm">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
+            <div className="text-red-700 font-bold mb-0.5 flex items-center gap-2 text-xs md:text-sm">
+              <AlertTriangle className="w-3.5 h-3.5" />
               {alerts.length} התראות פעילות
             </div>
             <div className="text-xs text-red-600 line-clamp-1">
-              {alerts.slice(0, 2).map(a => a.message).join(' • ')}
+              {alerts.slice(0, 1).map(a => a.message).join(' • ')}
             </div>
           </div>
           <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-100 text-xs shrink-0">
@@ -93,19 +94,19 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Filter Tabs — scrollable on mobile */}
-      <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-        <div className="inline-flex p-1 rounded-xl bg-white border border-slate-200 shadow-sm whitespace-nowrap">
+      {/* Filter Tabs - scrollable on mobile */}
+      <div className="overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="inline-flex p-1 rounded-xl bg-white border border-slate-200 shadow-sm min-w-max">
           <Tabs value={filter} onValueChange={setFilter}>
             <TabsList className="bg-transparent gap-1 h-8 p-0">
               {[
-                { v: 'all', l: 'כל האתרים' },
+                { v: 'all', l: 'הכל' },
                 { v: 'delkal', l: 'דלקל' },
                 { v: 'external', l: 'חיצוניים' },
                 { v: 'faulty', l: 'תקלות' }
               ].map(tab => (
                 <TabsTrigger key={tab.v} value={tab.v}
-                  className="text-slate-500 rounded-lg px-3 h-8 text-xs font-medium shadow-none data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900"
+                  className="text-slate-500 rounded-lg px-3 md:px-4 h-8 text-xs font-medium shadow-none data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900"
                 >
                   {tab.l}
                 </TabsTrigger>
@@ -116,12 +117,13 @@ export default function Dashboard() {
       </div>
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
+        <div className="lg:col-span-2 space-y-4 md:space-y-5">
+
           {/* Energy Chart */}
-          <div className="rounded-2xl p-4 bg-white border border-slate-200 shadow-sm">
+          <div className="rounded-2xl p-4 md:p-5 bg-white border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-slate-900">ייצור אנרגיה</h2>
+              <h2 className="text-sm md:text-base font-bold text-slate-900">ייצור אנרגיה</h2>
               <Tabs value={chartTimeframe} onValueChange={setChartTimeframe}>
                 <TabsList className="h-7 p-0.5 gap-0.5 bg-slate-100">
                   {[{ v: 'hourly', l: 'שעתי' }, { v: 'daily', l: 'יומי' }, { v: 'monthly', l: 'חודשי' }].map(t => (
@@ -133,31 +135,31 @@ export default function Dashboard() {
             <FleetProductionChart sites={filteredSites} timeframe={chartTimeframe} />
           </div>
 
-          {/* Map — shorter on mobile */}
-          <div className="rounded-2xl overflow-hidden h-[260px] md:h-[380px] relative bg-white border border-slate-200 shadow-sm">
+          {/* Map - shorter on mobile */}
+          <div className="rounded-2xl overflow-hidden h-[260px] md:h-[380px] bg-white border border-slate-200 shadow-sm">
             <FleetMap sites={filteredSites} />
           </div>
         </div>
 
         {/* Right column */}
-        <div className="space-y-4">
-          {/* Regional chart */}
-          <div className="rounded-2xl p-4 bg-white border border-slate-200 shadow-sm">
-            <h2 className="text-sm font-bold text-slate-900 mb-3">התפלגות גיאוגרפית</h2>
+        <div className="space-y-4 md:space-y-5">
+          {/* Regional chart - hidden on mobile to save space, shown on desktop */}
+          <div className="hidden lg:block rounded-2xl p-5 bg-white border border-slate-200 shadow-sm">
+            <h2 className="text-base font-bold text-slate-900 mb-4">התפלגות גיאוגרפית</h2>
             <FleetOverviewChart sites={filteredSites} />
           </div>
 
           {/* Site list */}
           <div>
             <div className="flex items-center justify-between mb-3 px-1">
-              <h2 className="text-sm font-bold text-slate-900">רשימת אתרים</h2>
+              <h2 className="text-sm md:text-base font-bold text-slate-900">רשימת אתרים</h2>
               <span className="text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
                 {filteredSites.length} אתרים
               </span>
             </div>
-            <div className="grid grid-cols-1 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 lg:max-h-[620px] lg:overflow-y-auto">
               {filteredSites.length === 0 ? (
-                <div className="text-center text-slate-500 py-10 rounded-xl text-sm border border-dashed border-slate-200 bg-slate-50">
+                <div className="text-center text-slate-500 py-12 rounded-xl text-sm border border-dashed border-slate-200 bg-slate-50 col-span-full">
                   אין אתרים להצגה
                 </div>
               ) : (
