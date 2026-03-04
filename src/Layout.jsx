@@ -13,12 +13,16 @@ export default function Layout({ children, currentPageName }) {
     { name: 'SiteManager', label: 'ניהול אתרים', icon: Settings }
   ];
 
+  // Hide sidebar page names that don't need bottom nav
+  const isSiteDetail = currentPageName === 'SiteDetails' || currentPageName === 'SiteDetail';
+
   return (
     <div className="min-h-screen flex flex-row-reverse overflow-hidden bg-slate-50 text-slate-900" dir="rtl">
-      {/* Sidebar */}
+
+      {/* ── Desktop Sidebar (hidden on mobile) ── */}
       <aside
         className={cn(
-          "h-screen sticky top-0 z-50 flex flex-col transition-all duration-300 border-l bg-white border-slate-200 shadow-sm",
+          "hidden md:flex h-screen sticky top-0 z-50 flex-col transition-all duration-300 border-l bg-white border-slate-200 shadow-sm",
           sidebarOpen ? "w-64" : "w-20"
         )}
       >
@@ -76,18 +80,23 @@ export default function Layout({ children, currentPageName }) {
         </div>
       </aside>
 
-      {/* Main */}
+      {/* ── Main ── */}
       <main className="flex-1 overflow-auto">
         {/* Header */}
-        <header className="h-16 sticky top-0 z-40 border-b border-slate-200 px-8 flex items-center justify-between bg-white/80 backdrop-blur-md">
-          <div className="flex items-center gap-3">
+        <header className="h-14 md:h-16 sticky top-0 z-40 border-b border-slate-200 px-4 md:px-8 flex items-center justify-between bg-white/95 backdrop-blur-md">
+          <div className="flex items-center gap-2 md:gap-3">
+            {/* Mobile logo */}
+            <div className="flex md:hidden items-center justify-center w-8 h-8 rounded-lg"
+              style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)' }}>
+              <span className="text-white font-black text-base leading-none">D</span>
+            </div>
             <span className="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-700">
               LIVE
             </span>
-            <span className="text-slate-500 text-sm font-medium">מערכת ניהול ובקרה</span>
+            <span className="hidden sm:block text-slate-500 text-sm font-medium">מערכת ניהול ובקרה</span>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-slate-600 font-medium">
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-2 text-sm text-slate-600 font-medium">
               <Zap className="w-4 h-4 text-green-500" />
               <span>Fleet Control Tower</span>
             </div>
@@ -97,9 +106,34 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </header>
 
-        <div className="p-8 max-w-[1600px] mx-auto">
+        {/* Page content */}
+        <div className="p-4 md:p-8 max-w-[1600px] mx-auto pb-24 md:pb-8">
           {children}
         </div>
+
+        {/* ── Mobile Bottom Nav (visible only on mobile, not on detail pages) ── */}
+        {!isSiteDetail && (
+          <nav className="md:hidden fixed bottom-0 right-0 left-0 z-50 bg-white border-t border-slate-200 flex justify-around items-center h-16 px-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+            {navItems.map(item => {
+              const Icon = item.icon;
+              const isActive = currentPageName === item.name;
+              return (
+                <Link
+                  key={item.name}
+                  to={createPageUrl(item.name)}
+                  className={cn(
+                    "flex flex-col items-center gap-1 px-4 py-1 rounded-xl transition-all",
+                    isActive ? "text-green-700" : "text-slate-400"
+                  )}
+                >
+                  <Icon className={cn("w-5 h-5", isActive && "text-green-600")} />
+                  <span className="text-[10px] font-medium">{item.label}</span>
+                  {isActive && <div className="w-1 h-1 rounded-full bg-green-500" />}
+                </Link>
+              );
+            })}
+          </nav>
+        )}
       </main>
     </div>
   );
