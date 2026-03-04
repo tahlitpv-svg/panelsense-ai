@@ -146,15 +146,26 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
 
   if (!chartData || chartData.length === 0) {
     return (
-      <div className="h-80 flex items-center justify-center text-slate-400 text-sm border border-dashed rounded-xl">
-        אין נתונים לתקופה זו
+      <div className="h-64 flex flex-col items-center justify-center text-slate-400 text-sm border border-dashed rounded-xl gap-2">
+        <span>אין נתוני ייצור להיום</span>
+        <span className="text-xs text-slate-300">הנתונים מתעדכנים מ-Solis Cloud</span>
+      </div>
+    );
+  }
+
+  // If only 1 data point, show a simple value instead of a broken chart
+  if (chartData.length === 1) {
+    return (
+      <div className="h-64 flex flex-col items-center justify-center gap-1 rounded-xl bg-green-50 border border-green-100">
+        <div className="text-3xl font-bold text-green-700">{chartData[0].value} {unit}</div>
+        <div className="text-sm text-slate-500">{chartData[0].time}</div>
       </div>
     );
   }
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-      <div className="h-80 w-full">
+      <div className="h-64 md:h-80 w-full">
         <ResponsiveContainer width="100%" height="100%">
           {timeframe === 'daily' || timeframe === 'monthly' ? (
             <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -179,7 +190,8 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
                 label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12 }} />
               <Tooltip content={<CustomTooltip unit={unit} />} />
               <Area type="monotone" dataKey="value" stroke="#16a34a" strokeWidth={2}
-                fill="url(#colorPower)" dot={false} activeDot={{ r: 5, fill: '#16a34a', stroke: '#fff', strokeWidth: 2 }} />
+                fill="url(#colorPower)" dot={{ r: 3, fill: '#16a34a', stroke: '#fff', strokeWidth: 1 }}
+                activeDot={{ r: 5, fill: '#16a34a', stroke: '#fff', strokeWidth: 2 }} />
             </AreaChart>
           )}
         </ResponsiveContainer>
