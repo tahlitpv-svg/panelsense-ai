@@ -172,21 +172,21 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
               <Bar dataKey="value" fill="#16a34a" radius={[4, 4, 0, 0]} barSize={timeframe === 'daily' ? 10 : 32} />
             </BarChart>
           ) : (
-            <AreaChart data={displayData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorPower" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#16a34a" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={40} />
-              <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
-                label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12 }} />
-              <Tooltip content={<CustomTooltip unit={unit} />} />
-              <Area type="monotone" dataKey="value" stroke="#16a34a" strokeWidth={2}
-                fill="url(#colorPower)" dot={{ r: 3, fill: '#16a34a', stroke: '#fff', strokeWidth: 1 }}
-                activeDot={{ r: 5, fill: '#16a34a', stroke: '#fff', strokeWidth: 2 }} />
+            <AreaChart data={displayData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+            <defs>
+              <linearGradient id="colorPower" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#f97316" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="#f97316" stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+            <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={40} />
+            <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => v}
+              label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12, offset: -2 }} />
+            <Tooltip content={<CustomTooltip unit={unit} />} />
+            <Area type="monotone" dataKey="value" stroke="#f97316" strokeWidth={2}
+              fill="url(#colorPower)" dot={false}
+              activeDot={{ r: 5, fill: '#f97316', stroke: '#fff', strokeWidth: 2 }} />
             </AreaChart>
           )}
         </ResponsiveContainer>
