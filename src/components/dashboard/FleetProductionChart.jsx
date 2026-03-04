@@ -58,7 +58,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
     const points = [];
     for (let h = 3; h <= 21; h++) {
       const label = `${String(h).padStart(2, '0')}:00`;
-      points.push({ time: label, value: map[label] !== undefined ? map[label] : null });
+      points.push({ time: label, value: map[label] !== undefined ? map[label] : 0 });
     }
     data.forEach(d => {
       if (d?.time && !points.find(p => p.time === d.time)) {
@@ -118,7 +118,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
                 label={{ value: unit, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12, offset: -2 }} />
               <Tooltip content={<CustomTooltip unit={unit} />} />
               <Area type="monotone" dataKey="value" stroke="#f97316" strokeWidth={2}
-                fill="url(#colorPower)" dot={false} connectNulls={false}
+                fill="url(#colorPower)" dot={false} connectNulls={true}
                 activeDot={{ r: 5, fill: '#f97316', stroke: '#fff', strokeWidth: 2 }} />
             </AreaChart>
           )}

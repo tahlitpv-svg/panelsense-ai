@@ -80,7 +80,7 @@ export default function SiteProductionChart({ stationId }) {
           value: parseFloat(((parseFloat(item.power) || 0) / 1000).toFixed(2))
         }));
         const ticks = ['03:00','06:00','09:00','12:00','15:00','18:00','21:00'];
-        ticks.forEach(t => { if (!mapped.find(d => d.label === t)) mapped.push({ label: t, value: null }); });
+        ticks.forEach(t => { if (!mapped.find(d => d.label === t)) mapped.push({ label: t, value: 0 }); });
         return mapped.sort((a, b) => (a.label || '').localeCompare(b.label || ''));
       }
 
