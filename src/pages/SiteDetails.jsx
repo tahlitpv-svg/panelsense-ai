@@ -97,7 +97,7 @@ export default function SiteDetails() {
 
         <TabsContent value="overview" className="space-y-4 md:space-y-6">
           {/* KPI row - horizontal scroll on mobile */}
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Card className="p-3 md:p-5 border border-slate-200 shadow-sm bg-white">
               <div className="text-slate-500 text-[10px] md:text-xs font-medium uppercase mb-1">תפוקה יומית</div>
               <div className="text-lg md:text-2xl font-bold text-slate-800">{site.daily_yield_kwh?.toFixed(0)} <span className="text-xs md:text-sm font-normal text-slate-500">kWh</span></div>
