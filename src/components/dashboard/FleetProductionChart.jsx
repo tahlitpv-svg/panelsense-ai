@@ -156,19 +156,19 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
   // For hourly chart: build a full day skeleton 06:00–20:00 and merge real data into it
   const buildFullDayData = (data) => {
     const map = {};
-    data.forEach(d => { map[d.time] = d.value; });
+    (data || []).forEach(d => { if (d && d.time) map[d.time] = d.value; });
     const points = [];
     for (let h = 6; h <= 20; h++) {
       const label = `${String(h).padStart(2, '0')}:00`;
       points.push({ time: label, value: map[label] ?? null });
     }
     // Also fill in real data points that fall between hours
-    data.forEach(d => {
-      if (!points.find(p => p.time === d.time)) {
+    (data || []).forEach(d => {
+      if (d && d.time && !points.find(p => p.time === d.time)) {
         points.push({ time: d.time, value: d.value });
       }
     });
-    return points.filter(p => p.time).sort((a, b) => a.time.localeCompare(b.time));
+    return points.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
   };
 
   // Pad single data point so recharts can draw a line
