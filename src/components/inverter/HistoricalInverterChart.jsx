@@ -51,6 +51,7 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
   const [selected, setSelected] = useState({}); // key = string index or 'power'
   const [allChecked, setAllChecked] = useState(true);
   const [showAllStrings, setShowAllStrings] = useState(false);
+  const hourlyTicks = ['03:00','06:00','09:00','12:00','15:00','18:00','21:00'];
 
   const { data: rawData, isLoading, error } = useQuery({
     queryKey: ['inverterDay', inverterId, inverterSn],
@@ -92,10 +93,18 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
   const chartData = useMemo(() => {
     if (!rawData || rawData.length === 0 || visibleStrings.length === 0) return [];
     const pacPec = parseFloat(rawData[0]?.pacPec) || 0.001;
-    return rawData
+    const mapped = rawData
       .map(item => mapPoint(item, visibleStrings, pacPec))
-      .sort((a, b) => a.time.localeCompare(b.time));
-  }, [rawData, visibleStrings]);
+      .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+    // Ensure time categories include standard ticks like Solis (03:00..21:00)
+    const timesSet = new Set(mapped.map(r => r.time));
+    hourlyTicks.forEach(t => {
+      if (!timesSet.has(t)) mapped.push({ time: t });
+    });
+
+    return mapped.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+  }, [rawData, visibleStrings, hourlyTicks]);
 
   // Initialize selection when strings are detected
   const initSelection = useMemo(() => {
@@ -270,11 +279,12 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
               axisLine={false}
               tickLine={false}
               label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 12 }}
+              domain={['auto','auto']}
             />
             <Tooltip
               contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: '12px' }}
               labelStyle={{ fontWeight: 'bold', color: '#1e293b', marginBottom: '4px' }}
-              formatter={(value, name) => [`${value} ${yLabel}`, name]}
+              formatter={(value, name) => [value == null ? '-' : `${value} ${yLabel}`, name]}
             />
             {lines.map(l => (
               <Line
