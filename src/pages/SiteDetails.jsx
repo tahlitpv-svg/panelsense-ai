@@ -49,63 +49,64 @@ export default function SiteDetails() {
   // Data will be fetched dynamically in SiteProductionChart
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3 min-w-0">
           <Link to={createPageUrl('Dashboard')}>
-            <Button variant="ghost" size="icon" className="rounded-full bg-white border border-slate-200 text-slate-500 hover:text-orange-500 hover:bg-orange-50">
+            <Button variant="ghost" size="icon" className="rounded-full bg-white border border-slate-200 text-slate-500 hover:text-orange-500 hover:bg-orange-50 shrink-0">
               <ArrowRight className="w-5 h-5" />
             </Button>
           </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">{site.name}</h1>
-            <div className="flex items-center gap-3 text-sm text-slate-500">
+          <div className="min-w-0">
+            <h1 className="text-lg md:text-2xl font-bold text-slate-800 truncate">{site.name}</h1>
+            <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
               <div className="flex items-center gap-1">
-                <MapPin className="w-4 h-4" />
+                <MapPin className="w-3 h-3" />
                 <span>{site.region_tag}</span>
               </div>
-              <Badge variant="outline" className="font-normal bg-white border-slate-200 text-slate-600">
-                {site.owner === 'delkal_energy' ? 'אתר דלקל' : 'לקוח חיצוני'}
+              <Badge variant="outline" className="font-normal bg-white border-slate-200 text-slate-600 text-[10px] px-1.5 py-0">
+                {site.owner === 'delkal_energy' ? 'דלקל' : 'חיצוני'}
               </Badge>
               {site.status === 'warning' && (
-                 <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 gap-1">
-                    <AlertTriangle className="w-3 h-3" /> תקלה
-                 </Badge>
+                <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 gap-1 text-[10px] px-1.5 py-0">
+                  <AlertTriangle className="w-3 h-3" /> תקלה
+                </Badge>
               )}
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
-            {site.cleaning_recommended && (
-                <Button variant="outline" className="text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100 gap-2">
-                    <Droplets className="w-4 h-4" /> דורש ניקוי
-                </Button>
-            )}
-        </div>
+        {site.cleaning_recommended && (
+          <Button variant="outline" size="sm" className="text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100 gap-1.5 shrink-0 text-xs">
+            <Droplets className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">דורש ניקוי</span>
+          </Button>
+        )}
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-white p-1 border border-slate-200 h-11 w-full justify-start rounded-xl">
-          <TabsTrigger 
-            value="overview" 
-            className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 text-slate-500 gap-2 px-6 rounded-lg h-9"
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        {/* Tab bar — icons only on mobile */}
+        <TabsList className="bg-white p-1 border border-slate-200 h-11 w-full grid grid-cols-3 rounded-xl">
+          <TabsTrigger value="overview"
+            className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 text-slate-500 gap-1.5 px-2 rounded-lg h-9 text-xs"
           >
-            <Wrench className="w-4 h-4" />
-            סקירה כללית
+            <Wrench className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">סקירה כללית</span>
+            <span className="sm:hidden">סקירה</span>
           </TabsTrigger>
-          <TabsTrigger 
-            value="analysis" 
-            className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 text-slate-500 gap-2 px-6 rounded-lg h-9"
+          <TabsTrigger value="analysis"
+            className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 text-slate-500 gap-1.5 px-2 rounded-lg h-9 text-xs"
           >
-            <BarChart3 className="w-4 h-4" />
-            ניתוח ייצור
+            <BarChart3 className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">ניתוח ייצור</span>
+            <span className="sm:hidden">ניתוח</span>
           </TabsTrigger>
-          <TabsTrigger 
-            value="config" 
-            className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 text-slate-500 gap-2 px-6 rounded-lg h-9"
+          <TabsTrigger value="config"
+            className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 text-slate-500 gap-1.5 px-2 rounded-lg h-9 text-xs"
           >
-            <SettingsIcon className="w-4 h-4" />
-            הגדרות
+            <SettingsIcon className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">הגדרות</span>
+            <span className="sm:hidden">הגדרות</span>
           </TabsTrigger>
         </TabsList>
 
