@@ -250,9 +250,17 @@ export default function SiteProductionChart({ stationId }) {
 
     if (isDay) {
       const dayExpected = expectedDailyYield || 0;
+      const monthIndex = refDate.getMonth();
       
-      // Calculate the theoretical DC peak based on expected daily energy
-      const peakKw = dayExpected / 8; // Area of parabola is 8 * peakKw
+      // Approximate daylight hours for each month in Israel
+      const daylightHoursByMonth = [10, 10.5, 12, 13, 14, 14.2, 14, 13, 12, 11, 10.5, 10];
+      const W = daylightHoursByMonth[monthIndex];
+      const startHour = 12 - (W / 2);
+      const endHour = 12 + (W / 2);
+      
+      // A typical solar production curve resembles a squared sine wave.
+      // The area under a curve P * sin^2(pi * t / W) is (P * W) / 2.
+      const peakKw = dayExpected / (W / 2); 
       
       // Inverter AC capacity acts as a ceiling (clipping) for power export
       const acLimit = site?.ac_capacity_kw || peakKw;
@@ -261,9 +269,10 @@ export default function SiteProductionChart({ stationId }) {
         let expectedValue = 0;
         if (d.minutes) {
           const hours = d.minutes / 60;
-          if (hours >= 6 && hours <= 18) {
-            expectedValue = peakKw * (1 - Math.pow((hours - 12) / 6, 2));
-            if (expectedValue < 0) expectedValue = 0;
+          if (hours > startHour && hours < endHour) {
+            // Squared sine wave for a more realistic "bell" shape
+            const rad = Math.PI * (hours - startHour) / W;
+            expectedValue = peakKw * Math.pow(Math.sin(rad), 2);
             
             // Clip the top of the curve at the AC capacity
             if (expectedValue > acLimit) {
