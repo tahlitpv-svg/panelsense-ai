@@ -51,14 +51,19 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
 
   const unit = timeframe === 'hourly' ? 'MW' : 'MWh';
 
-  // Use data as-is (already has real time labels from Solis e.g. "06:15")
   const buildFullDayData = (data) => {
-    return data
+    const sorted = data
       .filter(d => d?.time && d.time !== '')
       .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    // Ensure full day domain 05:00-20:00
+    if (sorted.length > 0) {
+      if (sorted[0].time > '05:00') sorted.unshift({ time: '05:00', value: null });
+      if (sorted[sorted.length - 1].time < '20:00') sorted.push({ time: '20:00', value: null });
+    }
+    return sorted;
   };
 
-  const hourlyTicks = ['06:00','09:00','12:00','15:00','18:00'];
+  const dayTicks = ['05:00','12:00','20:00'];
 
   const displayData = timeframe === 'hourly' ? buildFullDayData(chartData) : chartData;
   const hasValues = Array.isArray(displayData) && displayData.some(d => d?.value != null);
@@ -104,7 +109,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={true} tickLine={false}
-                ticks={hourlyTicks} interval="preserveStartEnd" minTickGap={30} tickMargin={12} padding={{ left: 20, right: 20 }} />
+                ticks={dayTicks} interval="preserveStartEnd" minTickGap={30} tickMargin={12} padding={{ left: 10, right: 10 }} domain={['05:00', '20:00']} type="category" />
               <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
                 domain={[0, 'auto']}
                 label={{ value: unit, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12, offset: -2 }} />

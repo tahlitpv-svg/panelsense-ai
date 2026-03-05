@@ -103,6 +103,14 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
       .filter(d => d.time && d.time !== '')
       .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
+    // Ensure full day domain 05:00-20:00
+    if (mapped.length > 0) {
+      const emptyRow = { time: '' };
+      for (const i of visibleStrings) { emptyRow[`v${i}`] = null; emptyRow[`a${i}`] = null; }
+      emptyRow.power = null;
+      if (mapped[0].time > '05:00') mapped.unshift({ ...emptyRow, time: '05:00' });
+      if (mapped[mapped.length - 1].time < '20:00') mapped.push({ ...emptyRow, time: '20:00' });
+    }
     return mapped;
   }, [rawData, visibleStrings]);
 
@@ -272,7 +280,7 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
               tick={{ fontSize: 11, fill: '#64748b', textAnchor: 'middle' }}
               axisLine={{ stroke: '#cbd5e1' }}
               tickLine={false}
-              ticks={['06:00','09:00','12:00','15:00','18:00']}
+              ticks={['05:00','12:00','20:00']}
               interval="preserveStartEnd"
               tickMargin={12}
               padding={{ left: 20, right: 20 }}

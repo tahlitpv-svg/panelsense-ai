@@ -51,10 +51,7 @@ export default function SiteProductionChart({ stationId }) {
 
   const isDay = timeframe === 'today' || timeframe === 'yesterday';
   const color = isDay ? "#f97316" : "#3b82f6";
-  const timeTicks = ['06:00','09:00','12:00','15:00','18:00'];
-  const displayTicks = vw < 380
-    ? ['06:00','12:00','18:00']
-    : (vw < 480 ? ['06:00','09:00','12:00','15:00','18:00'] : timeTicks);
+  const dayTicks = ['05:00','12:00','20:00'];
   const canGoForward = offset < 0;
 
   const queryKey = ['stationGraph', stationId, timeframe, offset];
@@ -69,11 +66,15 @@ export default function SiteProductionChart({ stationId }) {
         const dateKey = format(refDate, 'yyyy-MM-dd');
         const snaps = await base44.entities.SiteGraphSnapshot.filter({ station_id: stationId, date_key: dateKey });
         const raw = snaps?.[0]?.data || [];
-        // Data now has real time labels from Solis (e.g. "06:15", "06:20")
         const mapped = raw
           .filter(d => d.time && d.time !== '')
           .map((d) => ({ label: d.time, value: d.value }));
         mapped.sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+        // Ensure full day domain 05:00-20:00
+        if (mapped.length > 0) {
+          if (mapped[0].label > '05:00') mapped.unshift({ label: '05:00', value: null });
+          if (mapped[mapped.length - 1].label < '20:00') mapped.push({ label: '20:00', value: null });
+        }
         return mapped;
       }
 
@@ -185,7 +186,7 @@ export default function SiteProductionChart({ stationId }) {
             {isDay ? (
               <LineChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 14 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} ticks={displayTicks} interval="preserveStartEnd" tickMargin={12} padding={{ left: 20, right: 20 }} />
+                <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} ticks={dayTicks} interval="preserveStartEnd" tickMargin={12} padding={{ left: 10, right: 10 }} domain={['05:00', '20:00']} type="category" />
                 <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
                   domain={[0, 'auto']}
                   label={{ value: 'kW', angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
