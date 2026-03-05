@@ -151,13 +151,22 @@ export default function SiteProductionChart({ stationId }) {
       if (!res.data?.success || !res.data?.data) return [];
       const raw = res.data.data;
 
+      const parseEnergyToKwh = (item) => {
+        let val = parseFloat(item.energy) || 0;
+        const unit = (item.energyStr || '').toLowerCase();
+        if (unit === 'mwh') return val * 1000;
+        if (unit === 'gwh') return val * 1000000;
+        if (unit === 'wh') return val / 1000;
+        return val;
+      };
+
       if (timeframe === 'month') {
         const daysInMonth = getDaysInMonth(refDate);
         const byDay = {};
         raw.forEach(item => {
           const parts = (item.dateStr || '').split('-');
           const day = parts.length > 2 ? parseInt(parts[2], 10) : null;
-          if (day) byDay[day] = parseFloat(item.energy) || 0;
+          if (day) byDay[day] = parseEnergyToKwh(item);
         });
         return Array.from({ length: daysInMonth }, (_, i) => ({
           label: String(i + 1).padStart(2, '0'),
@@ -171,11 +180,7 @@ export default function SiteProductionChart({ stationId }) {
         raw.forEach(item => {
           const parts = (item.dateStr || '').split('-');
           const m = parts.length > 1 ? parts[1] : null;
-          if (m) {
-            let energy = parseFloat(item.energy) || 0;
-            if (item.energyStr === 'MWh') energy = energy * 1000;
-            byMonth[m] = energy;
-          }
+          if (m) byMonth[m] = parseEnergyToKwh(item);
         });
         return months.map(m => ({ label: m, value: byMonth[m] || 0 }));
       }
