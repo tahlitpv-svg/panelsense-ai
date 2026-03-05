@@ -33,6 +33,14 @@ export default function SiteDetails() {
     enabled: !!siteId
   });
 
+  const { data: systemSettings } = useQuery({
+    queryKey: ['systemSettings'],
+    queryFn: async () => {
+      const result = await base44.entities.SystemSettings.list();
+      return result[0] || null;
+    }
+  });
+
   if (!site) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
