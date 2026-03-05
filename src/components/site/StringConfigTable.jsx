@@ -99,6 +99,8 @@ export default function StringConfigTable({ strings, panelWatt, panelVoltage, pa
     totalDailyKwh = totalAnnualKwh / 365;
   }
 
+  const globalMonthlyPercentages = systemSettings?.monthly_production_percentages || {};
+
   const MONTHS = [
     { num: 1, name: 'ינואר', days: 31 },
     { num: 2, name: 'פברואר', days: 28 },
