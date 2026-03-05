@@ -1,17 +1,28 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { LayoutDashboard, FileText, Settings, ChevronLeft, Menu, Zap } from 'lucide-react';
+import { LayoutDashboard, FileText, Settings, ChevronLeft, Menu, Zap, Users } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 
 export default function Layout({ children, currentPageName }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const navItems = [
+  const { data: user } = useQuery({
+    queryKey: ['me'],
+    queryFn: () => base44.auth.me()
+  });
+
+  const baseNavItems = [
     { name: 'Dashboard', label: 'דאשבורד', icon: LayoutDashboard },
     { name: 'Reports', label: 'דוחות', icon: FileText },
     { name: 'SiteManager', label: 'ניהול אתרים', icon: Settings }
   ];
+
+  const navItems = user?.role === 'admin' 
+    ? [...baseNavItems, { name: 'AdminPanel', label: 'ניהול לקוחות', icon: Users }] 
+    : baseNavItems;
 
   // Hide sidebar page names that don't need bottom nav
   const isSiteDetail = currentPageName === 'SiteDetails' || currentPageName === 'SiteDetail';

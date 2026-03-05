@@ -54,6 +54,7 @@ import Reports from './pages/Reports';
 import SiteDetail from './pages/SiteDetail';
 import SiteDetails from './pages/SiteDetails';
 import SiteManager from './pages/SiteManager';
+import AdminPanel from './pages/AdminPanel';
 import __Layout from './Layout.jsx';
 
 
@@ -65,6 +66,7 @@ export const PAGES = {
     "SiteDetail": SiteDetail,
     "SiteDetails": SiteDetails,
     "SiteManager": SiteManager,
+    "AdminPanel": AdminPanel,
 }
 
 export const pagesConfig = {
