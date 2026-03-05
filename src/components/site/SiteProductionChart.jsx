@@ -88,9 +88,11 @@ export default function SiteProductionChart({ stationId }) {
             let label = '';
             if (item.timeStr) {
               const ts = item.timeStr.trim();
-              label = ts.includes(' ') ? (ts.split(' ')[1]?.slice(0, 5) || '') : ts.slice(0, 5);
+              const timeMatch = ts.match(/(\d{2}:\d{2})/);
+              label = timeMatch ? timeMatch[1] : '';
             }
-            const valueKw = parseFloat(((parseFloat(item.power) || 0) / 1000).toFixed(2));
+            const pec = parseFloat(item.powerPec) || 0.001;
+            const valueKw = parseFloat(((parseFloat(item.power) || 0) * pec).toFixed(3));
             return { time: label, value: isFinite(valueKw) ? valueKw : 0 };
           }).filter(d => d.time !== '');
           raw.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
