@@ -9,6 +9,7 @@ import SiteCard from "../components/dashboard/SiteCard";
 import FleetMap from "../components/dashboard/FleetMap";
 import FleetProductionChart from "../components/dashboard/FleetProductionChart";
 import FleetOverviewChart from "../components/dashboard/FleetOverviewChart";
+import SiteSearch from "../components/dashboard/SiteSearch";
 
 export default function Dashboard() {
   const [filter, setFilter] = useState('all');
@@ -210,6 +211,9 @@ export default function Dashboard() {
               <span className="text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
                 {filteredSites.length} אתרים
               </span>
+            </div>
+            <div className="mb-3">
+              <SiteSearch sites={filteredSites} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 lg:max-h-[620px] lg:overflow-y-auto">
               {filteredSites.length === 0 ? (
