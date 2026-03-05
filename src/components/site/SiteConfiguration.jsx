@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { base44 } from "@/api/base44Client";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Save, Settings, Wrench, MapPin, DollarSign, Cable } from "lucide-react";
 import { motion } from "framer-motion";
 import PanelSettings from "./PanelSettings";
@@ -42,6 +42,14 @@ export default function SiteConfiguration({ site }) {
   });
 
   const queryClient = useQueryClient();
+
+  const { data: systemSettings } = useQuery({
+    queryKey: ['systemSettings'],
+    queryFn: async () => {
+      const result = await base44.entities.SystemSettings.list();
+      return result[0] || null;
+    }
+  });
 
   const updateMutation = useMutation({
     mutationFn: (data) => base44.entities.Site.update(site.id, data),

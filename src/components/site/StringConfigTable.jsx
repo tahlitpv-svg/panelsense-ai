@@ -255,10 +255,46 @@ export default function StringConfigTable({ strings, panelWatt, panelVoltage, pa
               <div className="text-sm font-bold text-slate-800">{totalPowerKw.toFixed(2)} kWp</div>
             </div>
             <div>
-              <div className="text-[10px] text-slate-400 uppercase">ייצור יומי צפוי</div>
+              <div className="text-[10px] text-slate-400 uppercase">ייצור יומי צפוי (ממוצע שנתי)</div>
               <div className="text-sm font-bold text-green-700">{totalDailyKwh.toFixed(1)} kWh</div>
             </div>
           </div>
+
+          {/* Monthly Expected Production Table */}
+          {totalAnnualKwh > 0 && Object.keys(globalMonthlyPercentages).length > 0 && (
+            <div className="mt-6 border border-slate-200 rounded-lg overflow-hidden">
+              <div className="bg-slate-50 p-3 border-b border-slate-200 font-bold text-slate-700 text-sm">
+                צפי ייצור חודשי ויומי
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-center" dir="rtl">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-500">
+                      <th className="py-2 px-2 font-medium">חודש</th>
+                      <th className="py-2 px-2 font-medium">אחוז שנתי</th>
+                      <th className="py-2 px-2 font-medium">צפי ייצור חודשי (kWh)</th>
+                      <th className="py-2 px-2 font-medium">צפי ייצור יומי (kWh)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {MONTHS.map(m => {
+                      const pct = parseFloat(globalMonthlyPercentages[m.num]) || 0;
+                      const monthKwh = totalAnnualKwh * (pct / 100);
+                      const dailyKwh = monthKwh / m.days;
+                      return (
+                        <tr key={m.num} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                          <td className="py-2 px-2 font-medium text-slate-800">{m.name}</td>
+                          <td className="py-2 px-2 text-slate-600">{pct}%</td>
+                          <td className="py-2 px-2 font-bold text-slate-700">{monthKwh.toFixed(0)}</td>
+                          <td className="py-2 px-2 font-bold text-green-600">{dailyKwh.toFixed(1)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </>
       )}
     </Card>
