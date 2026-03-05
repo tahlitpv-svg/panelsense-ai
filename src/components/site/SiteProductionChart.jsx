@@ -259,9 +259,30 @@ export default function SiteProductionChart({ stationId }) {
 
     if (timeframe === 'month') {
       const monthIndex = refDate.getMonth();
-      const monthExpected = expectedAnnualYield * (getExpectedMonthlyPercentage(monthIndex) / 100);
-      const expectedPerDay = monthExpected / getDaysInMonth(refDate);
-      return chartData.map(d => ({ ...d, expectedValue: expectedPerDay }));
+      const daysInMonth = getDaysInMonth(refDate);
+      
+      const prevMonth = monthIndex === 0 ? 11 : monthIndex - 1;
+      const nextMonth = monthIndex === 11 ? 0 : monthIndex + 1;
+      
+      const expectedThisMonth = expectedAnnualYield * (getExpectedMonthlyPercentage(monthIndex) / 100);
+      const expectedPrevMonth = expectedAnnualYield * (getExpectedMonthlyPercentage(prevMonth) / 100);
+      const expectedNextMonth = expectedAnnualYield * (getExpectedMonthlyPercentage(nextMonth) / 100);
+      
+      const avgThis = expectedThisMonth / daysInMonth;
+      const avgPrev = expectedPrevMonth / 30;
+      const avgNext = expectedNextMonth / 30;
+
+      return chartData.map((d, i) => {
+        const progress = (i + 1) / daysInMonth;
+        let expectedValue = avgThis;
+        // Smooth transition curve between months (simulating seasonal curve)
+        if (progress < 0.5) {
+           expectedValue = avgThis + (avgPrev - avgThis) * (0.5 - progress);
+        } else {
+           expectedValue = avgThis + (avgNext - avgThis) * (progress - 0.5);
+        }
+        return { ...d, expectedValue };
+      });
     }
 
     if (isDay) {
