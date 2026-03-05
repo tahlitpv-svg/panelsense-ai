@@ -1,25 +1,47 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createHmac, createHash } from 'node:crypto';
+
+const SOLIS_KEY_ID = Deno.env.get("SOLIS_API_KEY_ID");
+const SOLIS_KEY_SECRET = Deno.env.get("SOLIS_API_KEY_SECRET");
+const SOLIS_BASE_URL = (Deno.env.get("SOLIS_API_URL") || "https://www.soliscloud.com:13333").replace(/\/$/, '');
+
+function getGMTDate() { return new Date().toUTCString().replace('UTC', 'GMT'); }
+function md5Base64(str) { return createHash('md5').update(str, 'utf8').digest('base64'); }
+function hmacSHA1Base64(secret, str) { return createHmac('sha1', secret).update(str, 'utf8').digest('base64'); }
+
+function buildHeaders(endpoint, bodyStr) {
+  const date = getGMTDate();
+  const contentType = 'application/json';
+  const contentMD5 = md5Base64(bodyStr);
+  const signStr = `POST\n${contentMD5}\n${contentType}\n${date}\n${endpoint}`;
+  const sign = hmacSHA1Base64(SOLIS_KEY_SECRET, signStr);
+  return { 'Content-Type': contentType, 'Content-MD5': contentMD5, 'Date': date, 'Authorization': `API ${SOLIS_KEY_ID}:${sign}` };
+}
+
+async function solisPost(endpoint, body) {
+  const bodyStr = JSON.stringify(body);
+  const headers = buildHeaders(endpoint, bodyStr);
+  const res = await fetch(`${SOLIS_BASE_URL}${endpoint}`, { method: 'POST', headers, body: bodyStr });
+  return res.json();
+}
 
 function formatDateInTZ(date, timeZone) {
   const f = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' });
-  return f.format(date); // YYYY-MM-DD
+  return f.format(date);
 }
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    // Allow both authenticated users and automation service calls
-    try { await base44.auth.me(); } catch(_) {}
 
     const now = new Date();
     const hourJerusalem = parseInt(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', hour12: false }).format(now), 10);
     const wave = hourJerusalem % 3;
 
     const todayKey = formatDateInTZ(now, 'Asia/Jerusalem');
-    const hourNum = hourJerusalem;
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const yesterdayKey = formatDateInTZ(yesterday, 'Asia/Jerusalem');
-    const updateYesterdayToo = hourNum <= 6;
+    const updateYesterdayToo = hourJerusalem <= 6;
 
     const sites = await base44.asServiceRole.entities.Site.list();
     const havingStation = (sites || []).filter(s => !!s.solis_station_id);
@@ -28,29 +50,18 @@ Deno.serve(async (req) => {
     const selected = havingStation.filter((_, idx) => (idx % 3) === wave);
 
     async function fetchDayFromSolis(stationId, dateKey) {
-      const endpoint = '/v1/api/stationDay';
-      const body = { id: stationId, time: dateKey, timezone: 2 };
-      const res = await base44.asServiceRole.functions.invoke('getSolisGraphData', { endpoint, body });
-      const ok = res?.data?.success && Array.isArray(res?.data?.data);
-      const raw = ok ? res.data.data : [];
+      const data = await solisPost('/v1/api/stationDay', { id: stationId, time: dateKey, timezone: 2 });
+      const raw = (data?.success && Array.isArray(data?.data)) ? data.data : [];
 
-      // Extract all data points with their real time labels from Solis
-      // timeStr can be "2026-03-05 06:15:00" OR just "06:15:00"
       const mapped = raw.map(item => {
         let label = '';
         if (item.timeStr) {
           const ts = item.timeStr.trim();
-          if (ts.includes(' ')) {
-            // Full datetime: "2026-03-05 06:15:00"
-            label = ts.split(' ')[1]?.slice(0, 5) || '';
-          } else {
-            // Time only: "06:15:00"
-            label = ts.slice(0, 5);
-          }
+          label = ts.includes(' ') ? (ts.split(' ')[1]?.slice(0, 5) || '') : ts.slice(0, 5);
         }
         const valueKw = parseFloat(((parseFloat(item.power) || 0) / 1000).toFixed(2));
         return { time: label, value: isFinite(valueKw) ? valueKw : 0 };
-      }).filter(d => d.time !== ''); // only keep items with a valid time label
+      }).filter(d => d.time !== '');
 
       mapped.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
       return mapped;
@@ -79,6 +90,9 @@ Deno.serve(async (req) => {
           await base44.asServiceRole.entities.SiteGraphSnapshot.create({ station_id: stationId, date_key: yesterdayKey, data: yData });
         }
       }
+
+      // Small delay between sites to avoid rate limits
+      await new Promise(r => setTimeout(r, 500));
     }
 
     return Response.json({ success: true, processed, wave, totalSites: havingStation.length, selectedCount: selected.length, todayKey, updatedYesterday: updateYesterdayToo });
