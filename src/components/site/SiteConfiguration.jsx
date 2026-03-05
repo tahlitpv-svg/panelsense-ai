@@ -11,6 +11,8 @@ import { Save, Settings, Wrench, MapPin, DollarSign, Cable } from "lucide-react"
 import { motion } from "framer-motion";
 import PanelSettings from "./PanelSettings";
 import StringConfigTable from "./StringConfigTable";
+import AssumptionsSettings from "./AssumptionsSettings";
+import { Calculator } from "lucide-react";
 
 export default function SiteConfiguration({ site }) {
   const [configTab, setConfigTab] = useState('general');
