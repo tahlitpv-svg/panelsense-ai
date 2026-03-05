@@ -151,18 +151,30 @@ export default function SiteProductionChart({ stationId }) {
       if (!res.data?.success || !res.data?.data) return [];
       const raw = res.data.data;
 
-      const parseEnergyToKwh = (item) => {
-        const raw = parseFloat(item.energy) || 0;
-        const pec = parseFloat(item.energyPec) || 1;
+      const dcCap = Number(site?.dc_capacity_kwp) || Number(site?.ac_capacity_kw) || 0;
+
+      const parseEnergyToKwh = (item, isMonthly) => {
+        const cleanEnergyStr = String(item.energy || '0').replace(/,/g, '');
+        const raw = parseFloat(cleanEnergyStr) || 0;
+        const pecStr = String(item.energyPec !== undefined ? item.energyPec : '1').replace(/,/g, '');
+        const pec = parseFloat(pecStr) || 1;
         const valInUnit = raw * pec;
         const unit = (item.energyStr || '').toLowerCase();
         
-        if (unit === 'gwh') return valInUnit * 1000000;
-        if (unit === 'mwh') return valInUnit * 1000;
-        if (unit === 'kwh') return valInUnit;
-        if (unit === 'wh') return valInUnit / 1000;
+        let kwh = valInUnit;
+        if (unit === 'gwh') kwh = valInUnit * 1000000;
+        else if (unit === 'mwh') kwh = valInUnit * 1000;
+        else if (unit === 'wh') kwh = valInUnit / 1000;
         
-        return raw;
+        // Failsafe for Solis API bugs (sometimes raw data is 1000x too large due to missing decimal)
+        if (dcCap > 0) {
+           const maxReasonable = isMonthly ? dcCap * 350 : dcCap * 15;
+           if (kwh > maxReasonable * 5) {
+              kwh = kwh / 1000;
+           }
+        }
+        
+        return kwh;
       };
 
       if (timeframe === 'month') {
@@ -171,7 +183,7 @@ export default function SiteProductionChart({ stationId }) {
         raw.forEach(item => {
           const parts = (item.dateStr || '').split('-');
           const day = parts.length > 2 ? parseInt(parts[2], 10) : null;
-          if (day) byDay[day] = parseEnergyToKwh(item);
+          if (day) byDay[day] = parseEnergyToKwh(item, false);
         });
         return Array.from({ length: daysInMonth }, (_, i) => ({
           label: String(i + 1).padStart(2, '0'),
@@ -185,7 +197,7 @@ export default function SiteProductionChart({ stationId }) {
         raw.forEach(item => {
           const parts = (item.dateStr || '').split('-');
           const m = parts.length > 1 ? parts[1] : null;
-          if (m) byMonth[m] = parseEnergyToKwh(item);
+          if (m) byMonth[m] = parseEnergyToKwh(item, true);
         });
         return months.map(m => ({ label: m, value: byMonth[m] || 0 }));
       }
