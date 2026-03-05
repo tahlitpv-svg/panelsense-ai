@@ -268,7 +268,13 @@ export default function SiteProductionChart({ stationId }) {
   return (
     <Card className="p-6 border border-slate-200 shadow-sm bg-white">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-        <h3 className="text-lg font-bold text-slate-800" dir="rtl">{chartTitle}</h3>
+        <div className="flex items-center gap-4">
+          <h3 className="text-lg font-bold text-slate-800" dir="rtl">{chartTitle}</h3>
+          <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200" dir="rtl">
+            <Switch id="show-expected" checked={showExpected} onCheckedChange={setShowExpected} />
+            <Label htmlFor="show-expected" className="text-xs font-medium text-slate-600 cursor-pointer">הצג צפי ייצור</Label>
+          </div>
+        </div>
 
         <Tabs value={timeframe} onValueChange={handleTimeframeChange}>
           <TabsList className="bg-slate-100 p-1">
@@ -314,14 +320,14 @@ export default function SiteProductionChart({ stationId }) {
             <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
             <div>מושך נתונים...</div>
           </div>
-        ) : !chartData || chartData.length === 0 ? (
+        ) : !chartDataWithExpected || chartDataWithExpected.length === 0 ? (
           <div className="flex items-center justify-center h-full text-slate-500 border border-dashed rounded-xl">
             אין נתונים לתקופה זו
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             {isDay ? (
-              <LineChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 14 }}>
+              <LineChart data={chartDataWithExpected} margin={{ top: 5, right: 10, left: 10, bottom: 14 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="minutes" type="number" domain={[5 * 60, 20 * 60]} ticks={dayTickValues}
                   tickFormatter={minutesToTime} tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }}
@@ -332,15 +338,18 @@ export default function SiteProductionChart({ stationId }) {
                 <Tooltip
                   contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
                   labelStyle={{ color: '#1e293b', fontWeight: 'bold' }}
-                  formatter={(value) => [`${value} kW`, 'הספק']}
+                  formatter={(value, name) => [`${Number(value)?.toFixed(2)} kW`, name === 'expectedValue' ? 'צפי' : 'הספק']}
                   labelFormatter={minutesToTime}
                 />
-                <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false}
+                {showExpected && (
+                  <Line type="monotone" dataKey="expectedValue" name="expectedValue" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                )}
+                <Line type="monotone" dataKey="value" name="value" stroke={color} strokeWidth={2} dot={false}
                   connectNulls
                   activeDot={{ r: 6, fill: color, stroke: '#fff', strokeWidth: 2 }} />
               </LineChart>
             ) : (
-              <BarChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 14 }}>
+              <ComposedChart data={chartDataWithExpected} margin={{ top: 5, right: 10, left: 10, bottom: 14 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} padding={{ left: 20, right: 20 }} />
                 <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
@@ -350,11 +359,14 @@ export default function SiteProductionChart({ stationId }) {
                   contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
                   labelStyle={{ color: '#1e293b', fontWeight: 'bold' }}
                   cursor={{ fill: 'rgba(59,130,246,0.05)' }}
-                  formatter={(value) => [`${value?.toLocaleString(undefined, { maximumFractionDigits: 1 })} ${yUnit}`, 'תפוקה']}
+                  formatter={(value, name) => [`${Number(value)?.toLocaleString(undefined, { maximumFractionDigits: 1 })} ${yUnit}`, name === 'expectedValue' ? 'צפי' : 'תפוקה']}
                 />
-                <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]}
+                <Bar dataKey="value" name="value" fill={color} radius={[4, 4, 0, 0]}
                   barSize={timeframe === 'month' ? barSize : 28} />
-              </BarChart>
+                {showExpected && (
+                  <Line type="monotone" dataKey="expectedValue" name="expectedValue" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                )}
+              </ComposedChart>
             )}
           </ResponsiveContainer>
         )}
