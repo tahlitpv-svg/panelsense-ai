@@ -243,10 +243,10 @@ export default function SiteConfiguration({ site }) {
           />
           <StringConfigTable
             strings={config.string_configs}
-            panelWatt={config.panel_watt}
-            panelVoltage={config.panel_voltage}
-            panelAmperage={config.panel_amperage}
-            peakSunHours={config.peak_sun_hours}
+            panelWatt={parseFloat(config.panel_watt) || 0}
+            panelVoltage={parseFloat(config.panel_voltage) || 0}
+            panelAmperage={parseFloat(config.panel_amperage) || 0}
+            peakSunHours={parseFloat(config.peak_sun_hours) || 0}
             onChange={(newStrings) => setConfig({ ...config, string_configs: newStrings })}
           />
         </TabsContent>
