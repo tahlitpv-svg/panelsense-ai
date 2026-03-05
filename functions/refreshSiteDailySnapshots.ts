@@ -34,12 +34,18 @@ Deno.serve(async (req) => {
       const raw = ok ? res.data.data : [];
 
       // Extract all data points with their real time labels from Solis
+      // timeStr can be "2026-03-05 06:15:00" OR just "06:15:00"
       const mapped = raw.map(item => {
-        // timeStr example: "2026-03-05 06:15:00" — extract HH:MM
         let label = '';
         if (item.timeStr) {
-          const timePart = item.timeStr.split(' ')[1]; // "06:15:00"
-          if (timePart) label = timePart.slice(0, 5); // "06:15"
+          const ts = item.timeStr.trim();
+          if (ts.includes(' ')) {
+            // Full datetime: "2026-03-05 06:15:00"
+            label = ts.split(' ')[1]?.slice(0, 5) || '';
+          } else {
+            // Time only: "06:15:00"
+            label = ts.slice(0, 5);
+          }
         }
         const valueKw = parseFloat(((parseFloat(item.power) || 0) / 1000).toFixed(2));
         return { time: label, value: isFinite(valueKw) ? valueKw : 0 };
