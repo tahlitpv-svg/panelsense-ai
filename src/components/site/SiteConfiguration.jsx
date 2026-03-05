@@ -41,6 +41,8 @@ export default function SiteConfiguration({ site }) {
     peak_sun_hours: site.peak_sun_hours ?? '',
     annual_kwh_per_kwp: site.annual_kwh_per_kwp ?? '',
     string_configs: site.string_configs || [],
+    monthly_production_percentages: site.monthly_production_percentages || {},
+    orientation_kwh_per_kwp: site.orientation_kwh_per_kwp || {},
   });
 
   const queryClient = useQueryClient();
