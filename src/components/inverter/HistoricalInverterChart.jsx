@@ -94,23 +94,29 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
     return groups;
   }, [visibleStrings]);
 
+  const timeToMinutes = (t) => {
+    const [h, m] = (t || '').split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+  };
+  const minutesToTime = (mins) => {
+    const h = String(Math.floor(mins / 60)).padStart(2, '0');
+    const m = String(mins % 60).padStart(2, '0');
+    return `${h}:${m}`;
+  };
+  const dayTickValues = [5 * 60, 12 * 60, 20 * 60];
+
   // Build chart data
   const chartData = useMemo(() => {
     if (!rawData || rawData.length === 0 || visibleStrings.length === 0) return [];
     const pacPec = parseFloat(rawData[0]?.pacPec) || 0.001;
     const mapped = rawData
-      .map(item => mapPoint(item, visibleStrings, pacPec))
+      .map(item => {
+        const row = mapPoint(item, visibleStrings, pacPec);
+        row.minutes = timeToMinutes(row.time);
+        return row;
+      })
       .filter(d => d.time && d.time !== '')
-      .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
-
-    // Ensure full day domain 05:00-20:00
-    if (mapped.length > 0) {
-      const emptyRow = { time: '' };
-      for (const i of visibleStrings) { emptyRow[`v${i}`] = null; emptyRow[`a${i}`] = null; }
-      emptyRow.power = null;
-      if (mapped[0].time > '05:00') mapped.unshift({ ...emptyRow, time: '05:00' });
-      if (mapped[mapped.length - 1].time < '20:00') mapped.push({ ...emptyRow, time: '20:00' });
-    }
+      .sort((a, b) => a.minutes - b.minutes);
     return mapped;
   }, [rawData, visibleStrings]);
 
@@ -276,14 +282,16 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
           <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
             <XAxis
-              dataKey="time"
+              dataKey="minutes"
+              type="number"
+              domain={[5 * 60, 20 * 60]}
+              ticks={dayTickValues}
+              tickFormatter={minutesToTime}
               tick={{ fontSize: 11, fill: '#64748b', textAnchor: 'middle' }}
               axisLine={{ stroke: '#cbd5e1' }}
               tickLine={false}
-              ticks={['05:00','12:00','20:00']}
-              interval="preserveStartEnd"
               tickMargin={12}
-              padding={{ left: 20, right: 20 }}
+              allowDataOverflow={false}
             />
             <YAxis
               tick={{ fontSize: 11, fill: '#64748b' }}

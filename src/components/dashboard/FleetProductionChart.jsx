@@ -51,19 +51,24 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
 
   const unit = timeframe === 'hourly' ? 'MW' : 'MWh';
 
-  const buildFullDayData = (data) => {
-    const sorted = data
-      .filter(d => d?.time && d.time !== '')
-      .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
-    // Ensure full day domain 05:00-20:00
-    if (sorted.length > 0) {
-      if (sorted[0].time > '05:00') sorted.unshift({ time: '05:00', value: null });
-      if (sorted[sorted.length - 1].time < '20:00') sorted.push({ time: '20:00', value: null });
-    }
-    return sorted;
+  const timeToMinutes = (t) => {
+    const [h, m] = (t || '').split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+  };
+  const minutesToTime = (mins) => {
+    const h = String(Math.floor(mins / 60)).padStart(2, '0');
+    const m = String(mins % 60).padStart(2, '0');
+    return `${h}:${m}`;
   };
 
-  const dayTicks = ['05:00','12:00','20:00'];
+  const buildFullDayData = (data) => {
+    return data
+      .filter(d => d?.time && d.time !== '')
+      .map(d => ({ ...d, minutes: timeToMinutes(d.time) }))
+      .sort((a, b) => a.minutes - b.minutes);
+  };
+
+  const dayTickValues = [5 * 60, 12 * 60, 20 * 60]; // 05:00, 12:00, 20:00
 
   const displayData = timeframe === 'hourly' ? buildFullDayData(chartData) : chartData;
   const hasValues = Array.isArray(displayData) && displayData.some(d => d?.value != null);
@@ -108,8 +113,9 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={true} tickLine={false}
-                ticks={dayTicks} interval="preserveStartEnd" minTickGap={30} tickMargin={12} padding={{ left: 10, right: 10 }} domain={['05:00', '20:00']} type="category" />
+              <XAxis dataKey="minutes" type="number" domain={[5 * 60, 20 * 60]} ticks={dayTickValues}
+                tickFormatter={minutesToTime} tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }}
+                axisLine={true} tickLine={false} tickMargin={12} allowDataOverflow={false} />
               <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
                 domain={[0, 'auto']}
                 label={{ value: unit, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12, offset: -2 }} />

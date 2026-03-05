@@ -51,8 +51,18 @@ export default function SiteProductionChart({ stationId }) {
 
   const isDay = timeframe === 'today' || timeframe === 'yesterday';
   const color = isDay ? "#f97316" : "#3b82f6";
-  const dayTicks = ['05:00','12:00','20:00'];
   const canGoForward = offset < 0;
+
+  const timeToMinutes = (t) => {
+    const [h, m] = (t || '').split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+  };
+  const minutesToTime = (mins) => {
+    const h = String(Math.floor(mins / 60)).padStart(2, '0');
+    const m = String(mins % 60).padStart(2, '0');
+    return `${h}:${m}`;
+  };
+  const dayTickValues = [5 * 60, 12 * 60, 20 * 60];
 
   const queryKey = ['stationGraph', stationId, timeframe, offset];
 
@@ -68,13 +78,8 @@ export default function SiteProductionChart({ stationId }) {
         const raw = snaps?.[0]?.data || [];
         const mapped = raw
           .filter(d => d.time && d.time !== '')
-          .map((d) => ({ label: d.time, value: d.value }));
-        mapped.sort((a, b) => (a.label || '').localeCompare(b.label || ''));
-        // Ensure full day domain 05:00-20:00
-        if (mapped.length > 0) {
-          if (mapped[0].label > '05:00') mapped.unshift({ label: '05:00', value: null });
-          if (mapped[mapped.length - 1].label < '20:00') mapped.push({ label: '20:00', value: null });
-        }
+          .map((d) => ({ label: d.time, minutes: timeToMinutes(d.time), value: d.value }));
+        mapped.sort((a, b) => a.minutes - b.minutes);
         return mapped;
       }
 
@@ -186,7 +191,9 @@ export default function SiteProductionChart({ stationId }) {
             {isDay ? (
               <LineChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 14 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} ticks={dayTicks} interval="preserveStartEnd" tickMargin={12} padding={{ left: 10, right: 10 }} domain={['05:00', '20:00']} type="category" />
+                <XAxis dataKey="minutes" type="number" domain={[5 * 60, 20 * 60]} ticks={dayTickValues}
+                  tickFormatter={minutesToTime} tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }}
+                  axisLine={false} tickLine={false} tickMargin={12} allowDataOverflow={false} />
                 <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
                   domain={[0, 'auto']}
                   label={{ value: 'kW', angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
