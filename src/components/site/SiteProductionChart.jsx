@@ -258,6 +258,7 @@ export default function SiteProductionChart({ stationId }) {
                 <Tooltip
                   contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
                   labelStyle={{ color: '#1e293b', fontWeight: 'bold' }}
+                  labelFormatter={(label) => minutesToTime(label)}
                   formatter={(value) => [`${value} kW`, 'הספק']}
                 />
                 <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false}
