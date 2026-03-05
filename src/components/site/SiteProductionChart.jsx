@@ -80,7 +80,7 @@ export default function SiteProductionChart({ stationId }) {
   };
   const dayTickValues = [5 * 60, 12 * 60, 20 * 60];
 
-  const queryKey = ['stationGraph', stationId, timeframe, offset];
+  const queryKey = ['stationGraph_v3', stationId, timeframe, offset];
 
   const { data: chartData, isLoading } = useQuery({
     queryKey,
