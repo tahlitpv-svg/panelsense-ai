@@ -241,12 +241,12 @@ export default function SiteProductionChart({ stationId }) {
       const monthIndex = refDate.getMonth();
       const monthExpected = expectedAnnualYield * (getExpectedMonthlyPercentage(monthIndex) / 100);
       const dayExpected = monthExpected / getDaysInMonth(refDate);
-      let peakKw = dayExpected / 8; // Area of parabola is 8 * peakKw
       
-      // Inverter AC capacity acts as a ceiling for peak power
-      if (site?.ac_capacity_kw && peakKw > site.ac_capacity_kw) {
-        peakKw = site.ac_capacity_kw;
-      }
+      // Calculate the theoretical DC peak based on expected daily energy
+      const peakKw = dayExpected / 8; // Area of parabola is 8 * peakKw
+      
+      // Inverter AC capacity acts as a ceiling (clipping) for power export
+      const acLimit = site?.ac_capacity_kw || peakKw;
 
       return chartData.map(d => {
         let expectedValue = 0;
@@ -255,6 +255,11 @@ export default function SiteProductionChart({ stationId }) {
           if (hours >= 6 && hours <= 18) {
             expectedValue = peakKw * (1 - Math.pow((hours - 12) / 6, 2));
             if (expectedValue < 0) expectedValue = 0;
+            
+            // Clip the top of the curve at the AC capacity
+            if (expectedValue > acLimit) {
+               expectedValue = acLimit;
+            }
           }
         }
         return { ...d, expectedValue };
