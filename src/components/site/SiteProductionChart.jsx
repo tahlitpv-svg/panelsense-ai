@@ -71,11 +71,36 @@ export default function SiteProductionChart({ stationId }) {
     queryFn: async () => {
       if (!stationId) return [];
 
-      // Daily (today/yesterday) — read from DB snapshots (no live pull)
+      // Daily — read from DB snapshots, fallback to live Solis pull
       if (isDay) {
         const dateKey = format(refDate, 'yyyy-MM-dd');
         const snaps = await base44.entities.SiteGraphSnapshot.filter({ station_id: stationId, date_key: dateKey });
-        const raw = snaps?.[0]?.data || [];
+        let raw = snaps?.[0]?.data || [];
+
+        // If no snapshot exists, fetch directly from Solis and cache it
+        if (raw.length === 0) {
+          const res = await base44.functions.invoke('getSolisGraphData', {
+            endpoint: '/v1/api/stationDay',
+            body: { id: stationId, time: dateKey, timezone: 2 }
+          });
+          const solisRaw = (res.data?.success && Array.isArray(res.data?.data)) ? res.data.data : [];
+          raw = solisRaw.map(item => {
+            let label = '';
+            if (item.timeStr) {
+              const ts = item.timeStr.trim();
+              label = ts.includes(' ') ? (ts.split(' ')[1]?.slice(0, 5) || '') : ts.slice(0, 5);
+            }
+            const valueKw = parseFloat(((parseFloat(item.power) || 0) / 1000).toFixed(2));
+            return { time: label, value: isFinite(valueKw) ? valueKw : 0 };
+          }).filter(d => d.time !== '');
+          raw.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+          // Save to DB for next time (don't await to keep UI fast)
+          if (raw.length > 0) {
+            base44.entities.SiteGraphSnapshot.create({ station_id: stationId, date_key: dateKey, data: raw }).catch(() => {});
+          }
+        }
+
         const mapped = raw
           .filter(d => d.time && d.time !== '')
           .map((d) => ({ label: d.time, minutes: timeToMinutes(d.time), value: d.value }));
