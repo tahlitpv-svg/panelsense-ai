@@ -6,10 +6,10 @@ import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
-const CustomTooltip = ({ active, payload, label, unit, timeframe }) => {
+const CustomTooltip = ({ active, payload, label, unit }) => {
   if (!active || !payload?.length) return null;
   
-  const displayLabel = timeframe === 'hourly' && typeof label === 'number' 
+  const displayLabel = typeof label === 'number' 
     ? `${String(Math.floor(label / 60)).padStart(2, '0')}:${String(label % 60).padStart(2, '0')}`
     : label;
 
@@ -106,7 +106,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
               <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
                 domain={[0, 'auto']}
                 label={{ value: unit, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12 }} />
-              <Tooltip content={<CustomTooltip unit={unit} timeframe={timeframe} />} cursor={{ fill: 'rgba(22,163,74,0.05)' }} />
+              <Tooltip content={<CustomTooltip unit={unit} />} cursor={{ fill: 'rgba(22,163,74,0.05)' }} />
               <Bar dataKey="value" fill="#16a34a" radius={[4, 4, 0, 0]} barSize={timeframe === 'daily' ? 10 : 32} />
             </BarChart>
           ) : (
@@ -124,7 +124,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
               <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
                 domain={[0, 'auto']}
                 label={{ value: unit, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12, offset: -2 }} />
-              <Tooltip content={<CustomTooltip unit={unit} timeframe={timeframe} />} />
+              <Tooltip content={<CustomTooltip unit={unit} />} />
               <Area type="monotone" dataKey="value" stroke="#f97316" strokeWidth={2}
                 fill="url(#colorPower)" dot={false} connectNulls={true}
                 activeDot={{ r: 5, fill: '#f97316', stroke: '#fff', strokeWidth: 2 }} />
