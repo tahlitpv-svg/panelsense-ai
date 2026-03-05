@@ -202,19 +202,16 @@ export default function SiteProductionChart({ stationId }) {
   const chartDataWithExpected = useMemo(() => {
     if (!chartData) return [];
     
-    let expectedAnnualYield = (site?.ac_capacity_kw || site?.dc_capacity_kwp || 0) * (site?.annual_kwh_per_kwp || 1650);
+    let expectedAnnualYield = (site?.dc_capacity_kwp || 0) * (site?.annual_kwh_per_kwp || 1650);
     if (site?.string_configs?.length > 0 && systemSettings?.orientation_kwh_per_kwp) {
        let totalDcYield = 0;
-       let totalDcKwp = 0;
        site.string_configs.forEach(s => {
           const kwp = (Number(s.num_panels || 0) * Number(site.panel_watt || 0)) / 1000;
           const kwh_kwp = Number(systemSettings.orientation_kwh_per_kwp[s.orientation || 'south']) || 1650;
           totalDcYield += kwp * kwh_kwp;
-          totalDcKwp += kwp;
        });
-       if (totalDcKwp > 0) {
-          const avgKwhPerKwp = totalDcYield / totalDcKwp;
-          expectedAnnualYield = (site?.ac_capacity_kw || site?.dc_capacity_kwp || 0) * avgKwhPerKwp;
+       if (totalDcYield > 0) {
+          expectedAnnualYield = totalDcYield;
        }
     }
 
