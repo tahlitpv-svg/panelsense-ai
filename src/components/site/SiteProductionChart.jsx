@@ -202,15 +202,20 @@ export default function SiteProductionChart({ stationId }) {
   const chartDataWithExpected = useMemo(() => {
     if (!chartData) return [];
     
-    let expectedAnnualYield = (site?.dc_capacity_kwp || 0) * (site?.annual_kwh_per_kwp || 1650);
+    let expectedAnnualYield = (site?.ac_capacity_kw || site?.dc_capacity_kwp || 0) * (site?.annual_kwh_per_kwp || 1650);
     if (site?.string_configs?.length > 0 && systemSettings?.orientation_kwh_per_kwp) {
-       let total = 0;
+       let totalDcYield = 0;
+       let totalDcKwp = 0;
        site.string_configs.forEach(s => {
           const kwp = (Number(s.num_panels || 0) * Number(site.panel_watt || 0)) / 1000;
           const kwh_kwp = Number(systemSettings.orientation_kwh_per_kwp[s.orientation || 'south']) || 1650;
-          total += kwp * kwh_kwp;
+          totalDcYield += kwp * kwh_kwp;
+          totalDcKwp += kwp;
        });
-       if (total > 0) expectedAnnualYield = total;
+       if (totalDcKwp > 0) {
+          const avgKwhPerKwp = totalDcYield / totalDcKwp;
+          expectedAnnualYield = (site?.ac_capacity_kw || site?.dc_capacity_kwp || 0) * avgKwhPerKwp;
+       }
     }
 
     const getExpectedMonthlyPercentage = (monthIndex) => {
@@ -239,7 +244,12 @@ export default function SiteProductionChart({ stationId }) {
       const monthIndex = refDate.getMonth();
       const monthExpected = expectedAnnualYield * (getExpectedMonthlyPercentage(monthIndex) / 100);
       const dayExpected = monthExpected / getDaysInMonth(refDate);
-      const peakKw = dayExpected / 8; // Area of parabola is 8 * peakKw
+      let peakKw = dayExpected / 8; // Area of parabola is 8 * peakKw
+      
+      // Inverter AC capacity acts as a ceiling for peak power
+      if (site?.ac_capacity_kw && peakKw > site.ac_capacity_kw) {
+        peakKw = site.ac_capacity_kw;
+      }
 
       return chartData.map(d => {
         let expectedValue = 0;
@@ -270,10 +280,10 @@ export default function SiteProductionChart({ stationId }) {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
         <div className="flex items-center gap-4">
           <h3 className="text-lg font-bold text-slate-800" dir="rtl">{chartTitle}</h3>
-          <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200" dir="rtl">
-            <Switch id="show-expected" checked={showExpected} onCheckedChange={setShowExpected} />
-            <Label htmlFor="show-expected" className="text-xs font-medium text-slate-600 cursor-pointer">הצג צפי ייצור</Label>
-          </div>
+          <label className="flex items-center gap-2 cursor-pointer group bg-white hover:bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-full shadow-sm transition-all" dir="rtl">
+            <Switch id="show-expected" checked={showExpected} onCheckedChange={setShowExpected} className="scale-75 data-[state=checked]:bg-green-500" />
+            <span className="text-xs font-semibold text-slate-600 group-hover:text-slate-800">הצג צפי ייצור</span>
+          </label>
         </div>
 
         <Tabs value={timeframe} onValueChange={handleTimeframeChange}>
