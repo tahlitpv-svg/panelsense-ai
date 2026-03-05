@@ -76,9 +76,13 @@ export default function SiteProductionChart({ stationId }) {
         const dateKey = format(refDate, 'yyyy-MM-dd');
         const snaps = await base44.entities.SiteGraphSnapshot.filter({ station_id: stationId, date_key: dateKey });
         let raw = snaps?.[0]?.data || [];
+        const existingSnapshotId = snaps?.[0]?.id || null;
 
-        // If no snapshot exists, fetch directly from Solis and cache it
-        if (raw.length === 0) {
+        // Check if snapshot has valid time data (not all empty)
+        const hasValidTimes = raw.length > 0 && raw.some(d => d.time && d.time !== '');
+
+        // If no snapshot or snapshot has bad data (empty times), fetch from Solis
+        if (raw.length === 0 || !hasValidTimes) {
           const res = await base44.functions.invoke('getSolisGraphData', {
             endpoint: '/v1/api/stationDay',
             body: { id: stationId, time: dateKey, timezone: 2 }
@@ -97,9 +101,13 @@ export default function SiteProductionChart({ stationId }) {
           }).filter(d => d.time !== '');
           raw.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
-          // Save to DB for next time (don't await to keep UI fast)
+          // Save/update to DB for next time (don't await to keep UI fast)
           if (raw.length > 0) {
-            base44.entities.SiteGraphSnapshot.create({ station_id: stationId, date_key: dateKey, data: raw }).catch(() => {});
+            if (existingSnapshotId) {
+              base44.entities.SiteGraphSnapshot.update(existingSnapshotId, { data: raw }).catch(() => {});
+            } else {
+              base44.entities.SiteGraphSnapshot.create({ station_id: stationId, date_key: dateKey, data: raw }).catch(() => {});
+            }
           }
         }
 
