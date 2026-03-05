@@ -88,16 +88,31 @@ export default function StringConfigTable({ strings, panelWatt, panelVoltage, pa
 
   // Calculate expected daily yield based on global settings (kWh per kWp per orientation)
   let totalDailyKwh = 0;
+  let totalAnnualKwh = 0;
   if (systemSettings?.orientation_kwh_per_kwp) {
-    totalDailyKwh = (strings || []).reduce((sum, s) => {
+    totalAnnualKwh = (strings || []).reduce((sum, s) => {
       const kwp = calc(s).power_w / 1000;
       const orientation = s.orientation || 'south';
       const annualKwhPerKwp = parseFloat(systemSettings.orientation_kwh_per_kwp[orientation]) || 0;
-      // Daily average = (kWp * Annual kWh/kWp) / 365
-      const dailyKwh = (kwp * annualKwhPerKwp) / 365;
-      return sum + dailyKwh;
+      return sum + (kwp * annualKwhPerKwp);
     }, 0);
+    totalDailyKwh = totalAnnualKwh / 365;
   }
+
+  const MONTHS = [
+    { num: 1, name: 'ינואר', days: 31 },
+    { num: 2, name: 'פברואר', days: 28 },
+    { num: 3, name: 'מרץ', days: 31 },
+    { num: 4, name: 'אפריל', days: 30 },
+    { num: 5, name: 'מאי', days: 31 },
+    { num: 6, name: 'יוני', days: 30 },
+    { num: 7, name: 'יולי', days: 31 },
+    { num: 8, name: 'אוגוסט', days: 31 },
+    { num: 9, name: 'ספטמבר', days: 30 },
+    { num: 10, name: 'אוקטובר', days: 31 },
+    { num: 11, name: 'נובמבר', days: 30 },
+    { num: 12, name: 'דצמבר', days: 31 },
+  ];
 
   return (
     <Card className="p-5 border border-slate-200 shadow-sm bg-white">
