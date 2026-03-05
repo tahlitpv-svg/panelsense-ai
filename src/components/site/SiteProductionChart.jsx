@@ -158,6 +158,20 @@ export default function SiteProductionChart({ stationId }) {
     enabled: !!stationId
   });
 
+  // Calculate daily total kWh from power curve using trapezoid integration
+  const dailyTotalKwh = React.useMemo(() => {
+    if (!isDay || !chartData || chartData.length < 2) return null;
+    const validPoints = chartData.filter(d => d.value != null && d.minutes != null).sort((a, b) => a.minutes - b.minutes);
+    if (validPoints.length < 2) return null;
+    let totalKwh = 0;
+    for (let i = 1; i < validPoints.length; i++) {
+      const dt = (validPoints[i].minutes - validPoints[i - 1].minutes) / 60; // hours
+      const avgPower = (validPoints[i].value + validPoints[i - 1].value) / 2; // kW
+      totalKwh += avgPower * dt;
+    }
+    return totalKwh;
+  }, [isDay, chartData]);
+
   const yUnit = isDay ? 'kW' : 'kWh';
   const barSize = vw < 380 ? 8 : vw < 480 ? 10 : 12;
   const chartTitle = isDay
@@ -181,23 +195,31 @@ export default function SiteProductionChart({ stationId }) {
         </Tabs>
       </div>
 
-      {/* Period navigation — only for month and year (day handled via today/yesterday tabs + back) */}
+      {/* Period navigation */}
       {(timeframe === 'month' || timeframe === 'year' || isDay) && (
-        <div className="flex items-center gap-2 mb-4">
-          <button
-            onClick={() => setOffset(o => o - 1)}
-            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-          <span className="text-sm font-medium text-slate-700 min-w-[100px] text-center">{getPeriodLabel()}</span>
-          <button
-            onClick={() => setOffset(o => o + 1)}
-            disabled={!canGoForward}
-            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setOffset(o => o - 1)}
+              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            <span className="text-sm font-medium text-slate-700 min-w-[100px] text-center">{getPeriodLabel()}</span>
+            <button
+              onClick={() => setOffset(o => o + 1)}
+              disabled={!canGoForward}
+              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          </div>
+          {isDay && dailyTotalKwh != null && (
+            <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 rounded-lg px-3 py-1.5">
+              <span className="text-xs text-orange-600 font-medium">סה״כ יומי:</span>
+              <span className="text-sm font-bold text-orange-700">{dailyTotalKwh.toFixed(1)} kWh</span>
+            </div>
+          )}
         </div>
       )}
 
