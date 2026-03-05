@@ -19,9 +19,10 @@ const ORIENTATIONS = [
 const ORIENTATION_LABELS = Object.fromEntries(ORIENTATIONS.map(o => [o.value, o.label]));
 
 export default function StringConfigTable({ strings, panelWatt, panelVoltage, panelAmperage, peakSunHours, onChange }) {
-  const pw = parseFloat(panelWatt) || 0;
   const pv = parseFloat(panelVoltage) || 0;
   const pa = parseFloat(panelAmperage) || 0;
+  // Use panel_watt if set, otherwise calculate from voltage * amperage
+  const pw = (parseFloat(panelWatt) || 0) > 0 ? parseFloat(panelWatt) : pv * pa;
 
   // Helper: compute values in real-time from panel specs
   const calc = (s) => {
@@ -29,7 +30,7 @@ export default function StringConfigTable({ strings, panelWatt, panelVoltage, pa
     return {
       voltage: parseFloat((n * pv).toFixed(1)),
       amperage: pa,
-      power_w: n * pw,
+      power_w: parseFloat((n * pw).toFixed(1)),
     };
   };
 
