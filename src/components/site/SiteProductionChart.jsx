@@ -51,10 +51,10 @@ export default function SiteProductionChart({ stationId }) {
 
   const isDay = timeframe === 'today' || timeframe === 'yesterday';
   const color = isDay ? "#f97316" : "#3b82f6";
-  const timeTicks = ['03:00','06:00','09:00','12:00','15:00','18:00','21:00'];
+  const timeTicks = ['06:00','09:00','12:00','15:00','18:00'];
   const displayTicks = vw < 380
     ? ['06:00','12:00','18:00']
-    : (vw < 480 ? ['03:00','09:00','15:00','21:00'] : timeTicks);
+    : (vw < 480 ? ['06:00','09:00','12:00','15:00','18:00'] : timeTicks);
   const canGoForward = offset < 0;
 
   const queryKey = ['stationGraph', stationId, timeframe, offset];
@@ -69,10 +69,12 @@ export default function SiteProductionChart({ stationId }) {
         const dateKey = format(refDate, 'yyyy-MM-dd');
         const snaps = await base44.entities.SiteGraphSnapshot.filter({ station_id: stationId, date_key: dateKey });
         const raw = snaps?.[0]?.data || [];
-        const mapped = raw.map((d) => ({ label: d.time, value: d.value }));
-        const ticks = ['03:00','06:00','09:00','12:00','15:00','18:00','21:00'];
-        ticks.forEach(t => { if (!mapped.find(d => d.label === t)) mapped.push({ label: t, value: 0 }); });
-        return mapped.sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+        // Data now has real time labels from Solis (e.g. "06:15", "06:20")
+        const mapped = raw
+          .filter(d => d.time && d.time !== '')
+          .map((d) => ({ label: d.time, value: d.value }));
+        mapped.sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+        return mapped;
       }
 
       // Month / Year — keep using live pull
@@ -183,7 +185,7 @@ export default function SiteProductionChart({ stationId }) {
             {isDay ? (
               <LineChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 14 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} ticks={displayTicks} interval={0} tickMargin={12} padding={{ left: 20, right: 20 }} />
+                <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11, textAnchor: 'middle' }} axisLine={false} tickLine={false} ticks={displayTicks} interval="preserveStartEnd" tickMargin={12} padding={{ left: 20, right: 20 }} />
                 <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false}
                   domain={[0, 'auto']}
                   label={{ value: 'kW', angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
