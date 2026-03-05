@@ -14,10 +14,19 @@ export default function Reports() {
   const [timeframe, setTimeframe] = useState('monthly');
   const [selectedSite, setSelectedSite] = useState('all');
 
-  const { data: sites = [] } = useQuery({
+  const { data: user } = useQuery({
+    queryKey: ['me'],
+    queryFn: () => base44.auth.me()
+  });
+
+  const { data: allSites = [] } = useQuery({
     queryKey: ['sites'],
     queryFn: () => base44.entities.Site.list()
   });
+
+  const sites = user?.role === 'admin' 
+    ? allSites 
+    : allSites.filter(s => s.assigned_user_email === user?.email);
 
   const generateReport = () => {
     const filteredSites = selectedSite === 'all' 

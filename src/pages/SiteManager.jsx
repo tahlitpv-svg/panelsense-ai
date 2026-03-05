@@ -23,10 +23,19 @@ export default function SiteManager() {
   const [searchTerm, setSearchTerm] = useState("");
   const queryClient = useQueryClient();
 
-  const { data: sites = [], isLoading } = useQuery({
+  const { data: user } = useQuery({
+    queryKey: ['me'],
+    queryFn: () => base44.auth.me()
+  });
+
+  const { data: allSites = [], isLoading } = useQuery({
     queryKey: ["sites"],
     queryFn: () => base44.entities.Site.list("-created_date"),
   });
+
+  const sites = user?.role === 'admin' 
+    ? allSites 
+    : allSites.filter(s => s.assigned_user_email === user?.email);
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Site.create(data),
