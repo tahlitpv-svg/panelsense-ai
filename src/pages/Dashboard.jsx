@@ -14,16 +14,31 @@ export default function Dashboard() {
   const [filter, setFilter] = useState('all');
   const [chartTimeframe, setChartTimeframe] = useState('hourly');
 
-  const { data: sites = [], isLoading, refetch } = useQuery({
+  const { data: user } = useQuery({
+    queryKey: ['me'],
+    queryFn: () => base44.auth.me()
+  });
+
+  const { data: allSites = [], isLoading, refetch } = useQuery({
     queryKey: ['sites'],
     queryFn: () => base44.entities.Site.list('-updated_date'),
     refetchInterval: 30000
   });
 
-  const { data: alerts = [] } = useQuery({
+  const sites = user?.role === 'admin' 
+    ? allSites 
+    : allSites.filter(s => s.assigned_user_email === user?.email);
+
+  const siteIds = sites.map(s => s.id);
+
+  const { data: allAlerts = [] } = useQuery({
     queryKey: ['alerts'],
     queryFn: () => base44.entities.Alert.filter({ is_resolved: false })
   });
+
+  const alerts = user?.role === 'admin' 
+    ? allAlerts 
+    : allAlerts.filter(a => siteIds.includes(a.site_id));
 
   const filteredSites = sites.filter(site => {
     if (filter === 'delkal') return site.owner === 'delkal_energy';
