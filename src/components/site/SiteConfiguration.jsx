@@ -264,6 +264,14 @@ export default function SiteConfiguration({ site }) {
             onChange={(newStrings) => setConfig({ ...config, string_configs: newStrings })}
           />
         </TabsContent>
+
+        <TabsContent value="assumptions" className="mt-4">
+          <AssumptionsSettings
+            monthlyProductionPercentages={config.monthly_production_percentages}
+            orientationKwhPerKwp={config.orientation_kwh_per_kwp}
+            onChange={handleAssumptionsChange}
+          />
+        </TabsContent>
       </Tabs>
     </div>
   );
