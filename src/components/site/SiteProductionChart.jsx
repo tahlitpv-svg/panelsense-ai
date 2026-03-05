@@ -130,10 +130,10 @@ export default function SiteProductionChart({ stationId }) {
   const yUnit = isDay ? 'kW' : 'kWh';
   const barSize = vw < 380 ? 8 : vw < 480 ? 10 : 12;
   const chartTitle = isDay
-    ? `ייצור יומי (הספק kW) - ${getPeriodLabel()}`
+    ? `ייצור יומי - הספק (kW)`
     : timeframe === 'month'
-      ? `ייצור חודשי (kWh) - ${getPeriodLabel()}`
-      : `ייצור שנתי (kWh) - ${getPeriodLabel()}`;
+      ? `ייצור חודשי (kWh)`
+      : `ייצור שנתי (kWh)`;
 
   return (
     <Card className="p-6 border border-slate-200 shadow-sm bg-white">

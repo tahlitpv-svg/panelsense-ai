@@ -29,13 +29,19 @@ function detectStrings(firstPoint) {
 
 // Map raw data point → chart row
 function mapPoint(item, stringNums, pacPec) {
-  let timeLabel = item.time || '';
+  let timeLabel = '';
   if (item.timeStr) {
-    const parts = item.timeStr.split(' ');
-    if (parts.length > 1) {
-      const tp = parts[1].split(':');
-      timeLabel = `${tp[0]}:${tp[1]}`;
+    const ts = item.timeStr.trim();
+    // Could be "2026-03-05 09:15:00" or "09:15" or "09:15:00"
+    if (ts.includes(' ')) {
+      const timePart = ts.split(' ')[1] || '';
+      timeLabel = timePart.slice(0, 5); // "HH:MM"
+    } else {
+      timeLabel = ts.slice(0, 5); // "HH:MM"
     }
+  }
+  if (!timeLabel && item.time) {
+    timeLabel = String(item.time).slice(0, 5);
   }
   const row = { time: timeLabel, power: parseFloat(((parseFloat(item.pac) || 0) * (pacPec || 0.001)).toFixed(2)) };
   for (const i of stringNums) {
@@ -95,16 +101,11 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
     const pacPec = parseFloat(rawData[0]?.pacPec) || 0.001;
     const mapped = rawData
       .map(item => mapPoint(item, visibleStrings, pacPec))
+      .filter(d => d.time && d.time !== '')
       .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
-    // Ensure time categories include standard ticks like Solis (03:00..21:00)
-    const timesSet = new Set(mapped.map(r => r.time));
-    hourlyTicks.forEach(t => {
-      if (!timesSet.has(t)) mapped.push({ time: t });
-    });
-
-    return mapped.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
-  }, [rawData, visibleStrings, hourlyTicks]);
+    return mapped;
+  }, [rawData, visibleStrings]);
 
   // Initialize selection when strings are detected
   const initSelection = useMemo(() => {
@@ -272,8 +273,8 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
               tick={{ fontSize: 11, fill: '#64748b', textAnchor: 'middle' }}
               axisLine={{ stroke: '#cbd5e1' }}
               tickLine={false}
-              ticks={hourlyTicks}
-              interval={0}
+              ticks={['06:00','09:00','12:00','15:00','18:00']}
+              interval="preserveStartEnd"
               tickMargin={12}
               padding={{ left: 20, right: 20 }}
             />
