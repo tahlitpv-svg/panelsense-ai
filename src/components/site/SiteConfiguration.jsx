@@ -179,14 +179,18 @@ export default function SiteConfiguration({ site }) {
       </div>
 
       <Tabs value={configTab} onValueChange={setConfigTab}>
-        <TabsList className="bg-white p-1 border border-slate-200 h-10 rounded-xl grid grid-cols-2 w-full max-w-md">
-          <TabsTrigger value="general" className="data-[state=active]:bg-green-50 data-[state=active]:text-green-700 text-slate-500 rounded-lg text-sm gap-1.5">
+        <TabsList className="bg-white p-1 border border-slate-200 h-auto sm:h-10 rounded-xl grid grid-cols-1 sm:grid-cols-3 w-full max-w-2xl gap-1">
+          <TabsTrigger value="general" className="data-[state=active]:bg-green-50 data-[state=active]:text-green-700 text-slate-500 rounded-lg text-sm gap-1.5 py-1.5">
             <Settings className="w-3.5 h-3.5" />
             כללי
           </TabsTrigger>
-          <TabsTrigger value="strings" className="data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 text-slate-500 rounded-lg text-sm gap-1.5">
+          <TabsTrigger value="strings" className="data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 text-slate-500 rounded-lg text-sm gap-1.5 py-1.5">
             <Cable className="w-3.5 h-3.5" />
             פאנלים וסטרינגים
+          </TabsTrigger>
+          <TabsTrigger value="assumptions" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-700 text-slate-500 rounded-lg text-sm gap-1.5 py-1.5">
+            <Calculator className="w-3.5 h-3.5" />
+            הנחות יסוד
           </TabsTrigger>
         </TabsList>
 
