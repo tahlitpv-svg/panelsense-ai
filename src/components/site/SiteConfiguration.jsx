@@ -74,7 +74,13 @@ export default function SiteConfiguration({ site }) {
       peak_sun_hours: parseFloat(config.peak_sun_hours),
       annual_kwh_per_kwp: parseFloat(config.annual_kwh_per_kwp),
       string_configs: config.string_configs,
+      monthly_production_percentages: config.monthly_production_percentages,
+      orientation_kwh_per_kwp: config.orientation_kwh_per_kwp,
     });
+  };
+
+  const handleAssumptionsChange = (field, value) => {
+    setConfig({ ...config, [field]: value });
   };
 
   const handlePanelChange = (field, value) => {
