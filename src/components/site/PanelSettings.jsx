@@ -20,7 +20,7 @@ export default function PanelSettings({ panelWatt, panelVoltage, panelAmperage, 
             type="number"
             value={panelWatt || ''}
             onChange={(e) => onChange('panel_watt', parseFloat(e.target.value) || 0)}
-            placeholder="650"
+            placeholder="הזן הספק (לדוגמה 650)"
             className="border-slate-200"
           />
         </div>
@@ -31,7 +31,7 @@ export default function PanelSettings({ panelWatt, panelVoltage, panelAmperage, 
             step="0.1"
             value={panelVoltage || ''}
             onChange={(e) => onChange('panel_voltage', parseFloat(e.target.value) || 0)}
-            placeholder="51"
+            placeholder="הזן מתח"
             className="border-slate-200"
           />
         </div>
@@ -42,7 +42,7 @@ export default function PanelSettings({ panelWatt, panelVoltage, panelAmperage, 
             step="0.01"
             value={panelAmperage || ''}
             onChange={(e) => onChange('panel_amperage', parseFloat(e.target.value) || 0)}
-            placeholder="16"
+            placeholder="הזן זרם"
             className="border-slate-200"
           />
         </div>
