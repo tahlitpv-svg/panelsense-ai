@@ -199,10 +199,8 @@ export default function SiteProductionChart({ stationId }) {
     return totalKwh;
   }, [isDay, chartData]);
 
-  const chartDataWithExpected = useMemo(() => {
-    if (!chartData) return [];
-    
-    let expectedAnnualYield = (site?.dc_capacity_kwp || 0) * (site?.annual_kwh_per_kwp || 1650);
+  const { expectedAnnualYield, getExpectedMonthlyPercentage } = useMemo(() => {
+    let yieldVal = (site?.dc_capacity_kwp || 0) * (site?.annual_kwh_per_kwp || 1650);
     if (site?.string_configs?.length > 0 && systemSettings?.orientation_kwh_per_kwp) {
        let totalDcYield = 0;
        site.string_configs.forEach(s => {
@@ -211,7 +209,7 @@ export default function SiteProductionChart({ stationId }) {
           totalDcYield += kwp * kwh_kwp;
        });
        if (totalDcYield > 0) {
-          expectedAnnualYield = totalDcYield;
+          yieldVal = totalDcYield;
        }
     }
 
@@ -222,6 +220,19 @@ export default function SiteProductionChart({ stationId }) {
       }
       return defaultPercentages[monthIndex];
     };
+    
+    return { expectedAnnualYield: yieldVal, getExpectedMonthlyPercentage };
+  }, [site, systemSettings]);
+
+  const expectedDailyYield = useMemo(() => {
+    if (!isDay) return null;
+    const monthIndex = refDate.getMonth();
+    const monthExpected = expectedAnnualYield * (getExpectedMonthlyPercentage(monthIndex) / 100);
+    return monthExpected / getDaysInMonth(refDate);
+  }, [isDay, refDate, expectedAnnualYield, getExpectedMonthlyPercentage]);
+
+  const chartDataWithExpected = useMemo(() => {
+    if (!chartData) return [];
 
     if (timeframe === 'year') {
       return chartData.map((d, i) => {
@@ -238,9 +249,7 @@ export default function SiteProductionChart({ stationId }) {
     }
 
     if (isDay) {
-      const monthIndex = refDate.getMonth();
-      const monthExpected = expectedAnnualYield * (getExpectedMonthlyPercentage(monthIndex) / 100);
-      const dayExpected = monthExpected / getDaysInMonth(refDate);
+      const dayExpected = expectedDailyYield || 0;
       
       // Calculate the theoretical DC peak based on expected daily energy
       const peakKw = dayExpected / 8; // Area of parabola is 8 * peakKw
@@ -267,7 +276,7 @@ export default function SiteProductionChart({ stationId }) {
     }
 
     return chartData;
-  }, [chartData, site, systemSettings, timeframe, refDate, isDay]);
+  }, [chartData, timeframe, isDay, expectedAnnualYield, getExpectedMonthlyPercentage, refDate, expectedDailyYield, site]);
 
   const yUnit = isDay ? 'kW' : 'kWh';
   const barSize = vw < 380 ? 8 : vw < 480 ? 10 : 12;
