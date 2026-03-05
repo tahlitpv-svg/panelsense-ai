@@ -18,7 +18,18 @@ const ORIENTATIONS = [
 
 const ORIENTATION_LABELS = Object.fromEntries(ORIENTATIONS.map(o => [o.value, o.label]));
 
-export default function StringConfigTable({ strings, panelWatt, panelVoltage, panelAmperage, peakSunHours, onChange }) {
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+
+export default function StringConfigTable({ strings, panelWatt, panelVoltage, panelAmperage, onChange }) {
+  // Fetch global settings to get expected kWh/kWp per orientation
+  const { data: systemSettings } = useQuery({
+    queryKey: ['systemSettings'],
+    queryFn: async () => {
+      const result = await base44.entities.SystemSettings.list();
+      return result[0] || null;
+    }
+  });
   const pw = Number(panelWatt) || 0;
   const pv = Number(panelVoltage) || 0;
   const pa = Number(panelAmperage) || 0;
@@ -74,8 +85,19 @@ export default function StringConfigTable({ strings, panelWatt, panelVoltage, pa
   const totalPanels = (strings || []).reduce((sum, s) => sum + (parseInt(s.num_panels) || 0), 0);
   const totalPowerW = (strings || []).reduce((sum, s) => sum + calc(s).power_w, 0);
   const totalPowerKw = totalPowerW / 1000;
-  const psh = parseFloat(peakSunHours) || 0;
-  const totalDailyKwh = psh > 0 ? totalPowerKw * psh : 0;
+
+  // Calculate expected daily yield based on global settings (kWh per kWp per orientation)
+  let totalDailyKwh = 0;
+  if (systemSettings?.orientation_kwh_per_kwp) {
+    totalDailyKwh = (strings || []).reduce((sum, s) => {
+      const kwp = calc(s).power_w / 1000;
+      const orientation = s.orientation || 'south';
+      const annualKwhPerKwp = parseFloat(systemSettings.orientation_kwh_per_kwp[orientation]) || 0;
+      // Daily average = (kWp * Annual kWh/kWp) / 365
+      const dailyKwh = (kwp * annualKwhPerKwp) / 365;
+      return sum + dailyKwh;
+    }, 0);
+  }
 
   return (
     <Card className="p-5 border border-slate-200 shadow-sm bg-white">
