@@ -327,9 +327,17 @@ export default function SiteProductionChart({ stationId }) {
             </button>
           </div>
           {isDay && dailyTotalKwh != null && (
-            <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 rounded-lg px-3 py-1.5">
-              <span className="text-xs text-orange-600 font-medium">סה״כ יומי:</span>
-              <span className="text-sm font-bold text-orange-700">{dailyTotalKwh.toFixed(1)} kWh</span>
+            <div className="flex flex-col gap-1.5 items-end">
+              <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 rounded-lg px-3 py-1.5 shadow-sm">
+                <span className="text-xs text-orange-600 font-medium">סה״כ יומי:</span>
+                <span className="text-sm font-bold text-orange-700">{dailyTotalKwh.toFixed(1)} kWh</span>
+              </div>
+              {showExpected && expectedDailyYield != null && (
+                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 shadow-sm animate-in fade-in slide-in-from-top-2">
+                  <span className="text-[10px] text-slate-500 font-medium">צפי יומי:</span>
+                  <span className="text-xs font-bold text-slate-600">{expectedDailyYield.toFixed(1)} kWh</span>
+                </div>
+              )}
             </div>
           )}
         </div>
