@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { LayoutDashboard, FileText, Settings, ChevronLeft, Menu, Zap, Users, Sliders } from 'lucide-react';
 import { cn } from "@/lib/utils";
@@ -29,12 +29,14 @@ export default function Layout({ children, currentPageName }) {
   const isSiteDetail = currentPageName === 'SiteDetails' || currentPageName === 'SiteDetail';
 
   const mainRef = useRef(null);
+  const location = useLocation();
 
   useEffect(() => {
     if (mainRef.current) {
       mainRef.current.scrollTo(0, 0);
     }
-  }, [currentPageName]);
+    window.scrollTo(0, 0);
+  }, [location.pathname, location.search]);
 
   return (
     <div className="min-h-screen flex flex-row-reverse overflow-hidden bg-slate-50 text-slate-900" dir="rtl">
