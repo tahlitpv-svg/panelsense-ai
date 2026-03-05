@@ -45,17 +45,19 @@ export default function StringConfigTable({ strings, panelWatt, panelVoltage, pa
     // Recalculate expected values when num_panels changes
     if (field === 'num_panels') {
       const numPanels = parseInt(value) || 0;
-      updated[idx].expected_voltage = parseFloat((numPanels * (panelVoltage || 0)).toFixed(1));
-      updated[idx].expected_amperage = panelAmperage || 0;
-      updated[idx].expected_power_w = numPanels * (panelWatt || 0);
+      updated[idx].num_panels = numPanels;
+      updated[idx].expected_voltage = parseFloat((numPanels * (parseFloat(panelVoltage) || 0)).toFixed(1));
+      updated[idx].expected_amperage = parseFloat(panelAmperage) || 0;
+      updated[idx].expected_power_w = numPanels * (parseFloat(panelWatt) || 0);
     }
 
     onChange(updated);
   };
 
   // Calculate totals
-  const totalPanels = (strings || []).reduce((sum, s) => sum + (s.num_panels || 0), 0);
-  const totalPowerKw = (strings || []).reduce((sum, s) => sum + (s.expected_power_w || 0), 0) / 1000;
+  const totalPanels = (strings || []).reduce((sum, s) => sum + (parseInt(s.num_panels) || 0), 0);
+  const totalPowerW = (strings || []).reduce((sum, s) => sum + (parseFloat(s.expected_power_w) || 0), 0);
+  const totalPowerKw = totalPowerW / 1000;
   const totalDailyKwh = peakSunHours > 0 ? totalPowerKw * peakSunHours : 0;
 
   return (

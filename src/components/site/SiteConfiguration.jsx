@@ -142,7 +142,9 @@ export default function SiteConfiguration({ site }) {
       fields: [
         { key: 'tariff_per_kwh', label: 'תעריף (₪/kWh)', type: 'number', step: '0.01' },
         { key: 'initial_investment', label: 'השקעה ראשונית (₪)', type: 'number' },
-        { key: 'cleaning_interval_days', label: 'מרווח ניקוי (ימים)', type: 'number' }
+        { key: 'cleaning_interval_days', label: 'מרווח ניקוי (ימים)', type: 'number' },
+        { key: 'peak_sun_hours', label: 'שעות שמש שיא ביום (PSH)', type: 'number', step: '0.1' },
+        { key: 'annual_kwh_per_kwp', label: 'kWh שנתי לכל kWp', type: 'number' }
       ]
     }
   ];
@@ -237,8 +239,6 @@ export default function SiteConfiguration({ site }) {
             panelWatt={config.panel_watt}
             panelVoltage={config.panel_voltage}
             panelAmperage={config.panel_amperage}
-            peakSunHours={config.peak_sun_hours}
-            annualKwhPerKwp={config.annual_kwh_per_kwp}
             onChange={handlePanelChange}
           />
           <StringConfigTable
