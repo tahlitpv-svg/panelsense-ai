@@ -17,7 +17,8 @@ export default function Layout({ children, currentPageName }) {
   const baseNavItems = [
     { name: 'Dashboard', label: 'דאשבורד', icon: LayoutDashboard },
     { name: 'Reports', label: 'דוחות', icon: FileText },
-    { name: 'SiteManager', label: 'ניהול אתרים', icon: Settings }
+    { name: 'SiteManager', label: 'ניהול אתרים', icon: Settings },
+    { name: 'SystemSettings', label: 'הגדרות מערכת', icon: Sliders }
   ];
 
   const navItems = user?.role === 'admin' 
