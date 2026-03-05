@@ -68,11 +68,12 @@ export default function StringConfigTable({ strings, panelWatt, panelVoltage, pa
     onChange(updated);
   };
 
-  // Calculate totals
+  // Calculate totals dynamically from panel specs
   const totalPanels = (strings || []).reduce((sum, s) => sum + (parseInt(s.num_panels) || 0), 0);
-  const totalPowerW = (strings || []).reduce((sum, s) => sum + (parseFloat(s.expected_power_w) || 0), 0);
+  const totalPowerW = (strings || []).reduce((sum, s) => sum + calc(s).power_w, 0);
   const totalPowerKw = totalPowerW / 1000;
-  const totalDailyKwh = peakSunHours > 0 ? totalPowerKw * peakSunHours : 0;
+  const psh = parseFloat(peakSunHours) || 0;
+  const totalDailyKwh = psh > 0 ? totalPowerKw * psh : 0;
 
   return (
     <Card className="p-5 border border-slate-200 shadow-sm bg-white">
@@ -136,15 +137,15 @@ export default function StringConfigTable({ strings, panelWatt, panelVoltage, pa
                 <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-200 text-center">
                   <div>
                     <div className="text-[10px] text-slate-400">מתח צפוי</div>
-                    <div className="text-xs font-bold text-slate-700">{s.expected_voltage?.toFixed(1) || 0} V</div>
+                    <div className="text-xs font-bold text-slate-700">{calc(s).voltage} V</div>
                   </div>
                   <div>
                     <div className="text-[10px] text-slate-400">זרם צפוי</div>
-                    <div className="text-xs font-bold text-slate-700">{s.expected_amperage?.toFixed(1) || 0} A</div>
+                    <div className="text-xs font-bold text-slate-700">{calc(s).amperage.toFixed(1)} A</div>
                   </div>
                   <div>
                     <div className="text-[10px] text-slate-400">הספק</div>
-                    <div className="text-xs font-bold text-slate-700">{((s.expected_power_w || 0) / 1000).toFixed(2)} kW</div>
+                    <div className="text-xs font-bold text-slate-700">{(calc(s).power_w / 1000).toFixed(2)} kW</div>
                   </div>
                 </div>
               </div>
@@ -196,13 +197,13 @@ export default function StringConfigTable({ strings, panelWatt, panelVoltage, pa
                       </Select>
                     </td>
                     <td className="py-2 px-2">
-                      <span className="font-medium text-slate-700">{s.expected_voltage?.toFixed(1) || 0}</span>
+                      <span className="font-medium text-slate-700">{calc(s).voltage}</span>
                     </td>
                     <td className="py-2 px-2">
-                      <span className="font-medium text-slate-700">{s.expected_amperage?.toFixed(1) || 0}</span>
+                      <span className="font-medium text-slate-700">{calc(s).amperage.toFixed(1)}</span>
                     </td>
                     <td className="py-2 px-2">
-                      <span className="font-bold text-slate-800">{((s.expected_power_w || 0) / 1000).toFixed(2)}</span>
+                      <span className="font-bold text-slate-800">{(calc(s).power_w / 1000).toFixed(2)}</span>
                     </td>
                     <td className="py-2 px-2">
                       <Button variant="ghost" size="icon" onClick={() => removeString(idx)} className="w-7 h-7 text-red-400 hover:text-red-600 hover:bg-red-50">
