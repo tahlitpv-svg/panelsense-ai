@@ -134,6 +134,21 @@ export default function SiteDetails() {
               <div className="text-[10px] md:text-xs text-emerald-600 mt-0.5">₪{((site.daily_yield_kwh || 0) * (site.tariff_per_kwh || 0)).toFixed(0)}</div>
             </Card>
 
+            <Card className="p-3 md:p-5 border border-slate-200 shadow-sm bg-white">
+              <div className="text-slate-500 text-[10px] md:text-xs font-medium uppercase mb-1 flex items-center gap-1">
+                <Sun className="w-3.5 h-3.5" />
+                ממוצע ייצור שנתי צפוי
+              </div>
+              {strings.length === 0 ? (
+                <div className="text-sm font-medium text-slate-400 mt-2">לא הוגדרו סטרינגים באתר זה</div>
+              ) : averageKwhPerKwp !== null ? (
+                <div className="text-lg md:text-2xl font-bold text-slate-800">
+                  {averageKwhPerKwp.toFixed(0)} <span className="text-xs md:text-sm font-normal text-slate-500">kWh/kWp</span>
+                </div>
+              ) : (
+                <div className="text-sm font-medium text-slate-400 mt-2">חסרים נתוני פאנלים או הגדרות מערכת</div>
+              )}
+            </Card>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
