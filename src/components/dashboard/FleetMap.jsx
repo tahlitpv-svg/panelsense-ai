@@ -33,10 +33,13 @@ export default function FleetMap({ sites }) {
     <div className="overflow-hidden h-full rounded-2xl bg-slate-50">
       <div className="h-full w-full min-h-[380px]">
         <MapContainer 
-          center={center} 
+          center={[31.4, 34.8]} 
           zoom={8} 
           style={{ height: '100%', width: '100%' }}
           attributionControl={false}
+          maxBounds={[[29.3, 33.5], [33.5, 36.5]]}
+          maxBoundsViscosity={1.0}
+          minZoom={7}
         >
           <TileLayer
             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
