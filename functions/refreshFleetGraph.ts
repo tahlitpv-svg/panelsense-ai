@@ -47,10 +47,17 @@ async function fetchAndMerge(stationIds, timeframe) {
         if (timeframe === 'hourly') {
           const data = await solisPost('/v1/api/stationDay', { id, time: dateStr, timezone: 2 });
           if (data?.success && data?.data) {
-            return data.data.map(p => ({
-              time: p.timeStr ? p.timeStr.split(' ')[1]?.slice(0, 5) : p.time,
-              power: parseFloat((parseFloat(p.power || 0) / 1000).toFixed(3))
-            }));
+            return data.data.map(p => {
+              let label = '';
+              if (p.timeStr) {
+                const ts = p.timeStr.trim();
+                label = ts.includes(' ') ? (ts.split(' ')[1]?.slice(0, 5) || '') : ts.slice(0, 5);
+              }
+              return {
+                time: label,
+                power: parseFloat((parseFloat(p.power || 0) / 1000).toFixed(3))
+              };
+            }).filter(p => p.time !== '');
           }
         } else {
           const data = await solisPost('/v1/api/stationMonth', { id, month: dateStr, timezone: 2 });
