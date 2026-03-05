@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Zap, DollarSign, Activity, TrendingUp, RefreshCw, AlertTriangle } from "lucide-react";
+import { Zap, DollarSign, Activity, TrendingUp, RefreshCw, AlertTriangle, DatabaseBackup, Loader2 } from "lucide-react";
 import KPICard from "../components/dashboard/KPICard";
 import SiteCard from "../components/dashboard/SiteCard";
 import FleetMap from "../components/dashboard/FleetMap";
@@ -13,6 +13,16 @@ import FleetOverviewChart from "../components/dashboard/FleetOverviewChart";
 export default function Dashboard() {
   const [filter, setFilter] = useState('all');
   const [chartTimeframe, setChartTimeframe] = useState('hourly');
+  const [backfillLoading, setBackfillLoading] = useState(false);
+  const [backfillResult, setBackfillResult] = useState(null);
+
+  const runBackfill = async () => {
+    setBackfillLoading(true);
+    setBackfillResult(null);
+    const res = await base44.functions.invoke('backfillSiteSnapshots', { daysBack: 730 });
+    setBackfillResult(res.data);
+    setBackfillLoading(false);
+  };
 
   const { data: user } = useQuery({
     queryKey: ['me'],
@@ -70,17 +80,44 @@ export default function Dashboard() {
           <h1 className="text-xl md:text-2xl font-bold text-slate-900">סקירה כללית</h1>
           <p className="text-slate-500 text-xs md:text-sm mt-0.5">תמונת מצב יומית של צי האנרגיה</p>
         </div>
-        <Button
-          onClick={() => refetch()}
-          size="sm"
-          variant="outline"
-          className="gap-2 text-green-700 border-green-200 bg-green-50 hover:bg-green-100 hover:text-green-800 text-xs md:text-sm"
-        >
-          <RefreshCw className="w-3.5 h-3.5 md:w-4 md:h-4" />
-          <span className="hidden sm:inline">רענן נתונים</span>
-          <span className="sm:hidden">רענן</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          {user?.role === 'admin' && (
+            <Button
+              onClick={runBackfill}
+              size="sm"
+              variant="outline"
+              disabled={backfillLoading}
+              className="gap-2 text-blue-700 border-blue-200 bg-blue-50 hover:bg-blue-100 hover:text-blue-800 text-xs md:text-sm"
+            >
+              {backfillLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <DatabaseBackup className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{backfillLoading ? 'טוען היסטוריה...' : 'טעינת היסטוריה'}</span>
+              <span className="sm:hidden">{backfillLoading ? 'טוען...' : 'היסטוריה'}</span>
+            </Button>
+          )}
+          <Button
+            onClick={() => refetch()}
+            size="sm"
+            variant="outline"
+            className="gap-2 text-green-700 border-green-200 bg-green-50 hover:bg-green-100 hover:text-green-800 text-xs md:text-sm"
+          >
+            <RefreshCw className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            <span className="hidden sm:inline">רענן נתונים</span>
+            <span className="sm:hidden">רענן</span>
+          </Button>
+        </div>
       </div>
+
+      {/* Backfill result banner */}
+      {backfillResult && (
+        <div className={`flex items-center justify-between p-3 rounded-xl border text-sm ${backfillResult.success ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+          <span>
+            {backfillResult.success
+              ? `נטענו ${backfillResult.days_created} ימים חדשים (${backfillResult.days_skipped_existing} כבר קיימים, ${backfillResult.days_empty} ריקים)`
+              : `שגיאה: ${backfillResult.error}`}
+          </span>
+          <button onClick={() => setBackfillResult(null)} className="text-xs underline mr-2">סגור</button>
+        </div>
+      )}
 
       {/* KPI Cards - 2 cols on mobile, 4 on desktop */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
