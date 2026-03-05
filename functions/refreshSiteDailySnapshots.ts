@@ -34,6 +34,9 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
+    const body = await req.json().catch(() => ({}));
+    const forceAll = body.forceAll === true;
+
     const now = new Date();
     const hourJerusalem = parseInt(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', hour12: false }).format(now), 10);
     const wave = hourJerusalem % 3;
@@ -47,7 +50,7 @@ Deno.serve(async (req) => {
     const havingStation = (sites || []).filter(s => !!s.solis_station_id);
     havingStation.sort((a, b) => (a.id || '').localeCompare(b.id || ''));
 
-    const selected = havingStation.filter((_, idx) => (idx % 3) === wave);
+    const selected = forceAll ? havingStation : havingStation.filter((_, idx) => (idx % 3) === wave);
 
     async function fetchDayFromSolis(stationId, dateKey) {
       const data = await solisPost('/v1/api/stationDay', { id: stationId, time: dateKey, timezone: 2 });
