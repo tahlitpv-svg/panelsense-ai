@@ -78,10 +78,11 @@ export default function SiteProductionChart({ stationId }) {
         let raw = snaps?.[0]?.data || [];
         const existingSnapshotId = snaps?.[0]?.id || null;
 
-        // Check if snapshot has valid time data (not all empty)
-        const hasValidTimes = raw.length > 0 && raw.some(d => d.time && d.time !== '');
+        // Check if snapshot is corrupted (contains empty times from older bug)
+        // A healthy snapshot only contains valid time strings like "06:05"
+        const hasValidTimes = raw.length > 0 && !raw.some(d => !d.time || d.time === '');
 
-        // If no snapshot or snapshot has bad data (empty times), fetch from Solis
+        // If no snapshot or snapshot is corrupt, fetch from Solis
         if (raw.length === 0 || !hasValidTimes) {
           const res = await base44.functions.invoke('getSolisGraphData', {
             endpoint: '/v1/api/stationDay',
