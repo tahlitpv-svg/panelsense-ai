@@ -57,7 +57,6 @@ export default function HistoricalInverterChart({ inverterId, inverterSn }) {
   const [selected, setSelected] = useState({}); // key = string index or 'power'
   const [allChecked, setAllChecked] = useState(true);
   const [showAllStrings, setShowAllStrings] = useState(false);
-  const hourlyTicks = ['03:00','06:00','09:00','12:00','15:00','18:00','21:00'];
 
   const { data: rawData, isLoading, error } = useQuery({
     queryKey: ['inverterDay', inverterId, inverterSn],
