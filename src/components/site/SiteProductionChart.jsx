@@ -200,12 +200,19 @@ export default function SiteProductionChart({ stationId }) {
   }, [isDay, chartData]);
 
   const { expectedAnnualYield, getExpectedMonthlyPercentage } = useMemo(() => {
-    let yieldVal = (site?.dc_capacity_kwp || 0) * (site?.annual_kwh_per_kwp || 1650);
+    const dcCap = Number(site?.dc_capacity_kwp) || Number(site?.ac_capacity_kw) || 0;
+    const kwhPerKwp = Number(site?.annual_kwh_per_kwp) || 1650;
+    let yieldVal = dcCap * kwhPerKwp;
+
     if (site?.string_configs?.length > 0 && systemSettings?.orientation_kwh_per_kwp) {
        let totalDcYield = 0;
+       const panelWatt = Number(site?.panel_watt) || 0;
        site.string_configs.forEach(s => {
-          const kwp = (Number(s.num_panels || 0) * Number(site.panel_watt || 0)) / 1000;
-          const kwh_kwp = Number(systemSettings.orientation_kwh_per_kwp[s.orientation || 'south']) || 1650;
+          let kwp = (Number(s.num_panels || 0) * panelWatt) / 1000;
+          if (kwp === 0 && dcCap > 0 && site.string_configs.length > 0) {
+            kwp = dcCap / site.string_configs.length;
+          }
+          const kwh_kwp = Number(systemSettings.orientation_kwh_per_kwp[s.orientation || 'south']) || kwhPerKwp;
           totalDcYield += kwp * kwh_kwp;
        });
        if (totalDcYield > 0) {
@@ -213,12 +220,21 @@ export default function SiteProductionChart({ stationId }) {
        }
     }
 
+    // Absolute fallback so it's never "on the floor" even if site config is completely missing
+    if (yieldVal === 0) {
+      yieldVal = 100 * kwhPerKwp; 
+    }
+
     const getExpectedMonthlyPercentage = (monthIndex) => {
       const defaultPercentages = [6, 7, 9, 10, 11, 11, 11, 10, 9, 7, 5, 4];
+      let val = defaultPercentages[monthIndex];
       if (systemSettings?.monthly_production_percentages) {
-         return Number(systemSettings.monthly_production_percentages[monthIndex + 1]) || defaultPercentages[monthIndex];
+         const raw = Number(systemSettings.monthly_production_percentages[monthIndex + 1]);
+         if (!isNaN(raw) && raw > 0) {
+            val = raw < 1 ? raw * 100 : raw; // Convert 0.06 to 6% if entered as decimal
+         }
       }
-      return defaultPercentages[monthIndex];
+      return val;
     };
     
     return { expectedAnnualYield: yieldVal, getExpectedMonthlyPercentage };
