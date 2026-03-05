@@ -37,6 +37,14 @@ export default function AdminPanel() {
     }
   });
 
+  const updateUserRole = useMutation({
+    mutationFn: ({ userId, role }) => base44.entities.User.update(userId, { role }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['users']);
+      toast.success("הרשאת משתמש עודכנה בהצלחה");
+    }
+  });
+
   const handleInvite = async (e) => {
     e.preventDefault();
     if (!inviteEmail) return;
@@ -94,11 +102,21 @@ export default function AdminPanel() {
                     <div className="font-bold text-slate-800 text-sm">{u.full_name || 'לקוח חדש (טרם אישר)'}</div>
                     <div className="text-xs text-slate-500 mt-0.5">{u.email}</div>
                   </div>
-                  <div className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                    u.role === 'admin' ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-slate-200 text-slate-700 border border-slate-300'
-                  }`}>
-                    {u.role === 'admin' ? 'מנהל' : 'לקוח'}
-                  </div>
+                  <Select
+                    value={u.role || "user"}
+                    onValueChange={(val) => updateUserRole.mutate({ userId: u.id, role: val })}
+                    disabled={u.email === user?.email}
+                  >
+                    <SelectTrigger className={`h-8 w-[100px] text-xs font-bold border-0 shadow-none ${
+                      u.role === 'admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-700'
+                    }`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">מנהל</SelectItem>
+                      <SelectItem value="user">לקוח</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               ))
             )}
