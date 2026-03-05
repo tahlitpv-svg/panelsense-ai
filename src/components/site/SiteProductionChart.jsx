@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card } from "@/components/ui/card";
@@ -14,6 +14,20 @@ export default function SiteProductionChart({ stationId }) {
   // offset: 0 = current, -1 = one back, etc.
   const [offset, setOffset] = useState(0);
   const [vw, setVw] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+  const [showExpected, setShowExpected] = useState(false);
+
+  const { data: siteArray } = useQuery({
+    queryKey: ['siteForChart', stationId],
+    queryFn: () => base44.entities.Site.filter({ solis_station_id: stationId }),
+    enabled: !!stationId
+  });
+  const site = siteArray?.[0];
+
+  const { data: systemSettingsArr } = useQuery({
+    queryKey: ['systemSettingsForChart'],
+    queryFn: () => base44.entities.SystemSettings.list()
+  });
+  const systemSettings = systemSettingsArr?.[0];
   useEffect(() => {
     const onResize = () => setVw(window.innerWidth);
     window.addEventListener('resize', onResize);
@@ -172,7 +186,7 @@ export default function SiteProductionChart({ stationId }) {
   });
 
   // Calculate daily total kWh from power curve using trapezoid integration
-  const dailyTotalKwh = React.useMemo(() => {
+  const dailyTotalKwh = useMemo(() => {
     if (!isDay || !chartData || chartData.length < 2) return null;
     const validPoints = chartData.filter(d => d.value != null && d.minutes != null).sort((a, b) => a.minutes - b.minutes);
     if (validPoints.length < 2) return null;
@@ -184,6 +198,64 @@ export default function SiteProductionChart({ stationId }) {
     }
     return totalKwh;
   }, [isDay, chartData]);
+
+  const chartDataWithExpected = useMemo(() => {
+    if (!chartData) return [];
+    
+    let expectedAnnualYield = (site?.dc_capacity_kwp || 0) * (site?.annual_kwh_per_kwp || 1650);
+    if (site?.string_configs?.length > 0 && systemSettings?.orientation_kwh_per_kwp) {
+       let total = 0;
+       site.string_configs.forEach(s => {
+          const kwp = (Number(s.num_panels || 0) * Number(site.panel_watt || 0)) / 1000;
+          const kwh_kwp = Number(systemSettings.orientation_kwh_per_kwp[s.orientation || 'south']) || 1650;
+          total += kwp * kwh_kwp;
+       });
+       if (total > 0) expectedAnnualYield = total;
+    }
+
+    const getExpectedMonthlyPercentage = (monthIndex) => {
+      const defaultPercentages = [6, 7, 9, 10, 11, 11, 11, 10, 9, 7, 5, 4];
+      if (systemSettings?.monthly_production_percentages) {
+         return Number(systemSettings.monthly_production_percentages[monthIndex + 1]) || defaultPercentages[monthIndex];
+      }
+      return defaultPercentages[monthIndex];
+    };
+
+    if (timeframe === 'year') {
+      return chartData.map((d, i) => {
+        const expectedValue = expectedAnnualYield * (getExpectedMonthlyPercentage(i) / 100);
+        return { ...d, expectedValue };
+      });
+    }
+
+    if (timeframe === 'month') {
+      const monthIndex = refDate.getMonth();
+      const monthExpected = expectedAnnualYield * (getExpectedMonthlyPercentage(monthIndex) / 100);
+      const expectedPerDay = monthExpected / getDaysInMonth(refDate);
+      return chartData.map(d => ({ ...d, expectedValue: expectedPerDay }));
+    }
+
+    if (isDay) {
+      const monthIndex = refDate.getMonth();
+      const monthExpected = expectedAnnualYield * (getExpectedMonthlyPercentage(monthIndex) / 100);
+      const dayExpected = monthExpected / getDaysInMonth(refDate);
+      const peakKw = dayExpected / 8; // Area of parabola is 8 * peakKw
+
+      return chartData.map(d => {
+        let expectedValue = 0;
+        if (d.minutes) {
+          const hours = d.minutes / 60;
+          if (hours >= 6 && hours <= 18) {
+            expectedValue = peakKw * (1 - Math.pow((hours - 12) / 6, 2));
+            if (expectedValue < 0) expectedValue = 0;
+          }
+        }
+        return { ...d, expectedValue };
+      });
+    }
+
+    return chartData;
+  }, [chartData, site, systemSettings, timeframe, refDate, isDay]);
 
   const yUnit = isDay ? 'kW' : 'kWh';
   const barSize = vw < 380 ? 8 : vw < 480 ? 10 : 12;
