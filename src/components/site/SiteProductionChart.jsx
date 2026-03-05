@@ -138,7 +138,7 @@ export default function SiteProductionChart({ stationId }) {
   return (
     <Card className="p-6 border border-slate-200 shadow-sm bg-white">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-        <h3 className="text-lg font-bold text-slate-800">{chartTitle}</h3>
+        <h3 className="text-lg font-bold text-slate-800" dir="rtl">{chartTitle}</h3>
 
         <Tabs value={timeframe} onValueChange={handleTimeframeChange}>
           <TabsList className="bg-slate-100 p-1">
