@@ -152,12 +152,17 @@ export default function SiteProductionChart({ stationId }) {
       const raw = res.data.data;
 
       const parseEnergyToKwh = (item) => {
-        let val = parseFloat(item.energy) || 0;
+        const raw = parseFloat(item.energy) || 0;
+        const pec = parseFloat(item.energyPec) || 1;
+        const valInUnit = raw * pec;
         const unit = (item.energyStr || '').toLowerCase();
-        if (unit === 'mwh') return val * 1000;
-        if (unit === 'gwh') return val * 1000000;
-        if (unit === 'wh') return val / 1000;
-        return val;
+        
+        if (unit === 'gwh') return valInUnit * 1000000;
+        if (unit === 'mwh') return valInUnit * 1000;
+        if (unit === 'kwh') return valInUnit;
+        if (unit === 'wh') return valInUnit / 1000;
+        
+        return raw;
       };
 
       if (timeframe === 'month') {
