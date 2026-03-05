@@ -49,6 +49,28 @@ export default function SiteDetails() {
     );
   }
 
+  // Calculate average expected annual yield (kWh/kWp) based on strings
+  let averageKwhPerKwp = null;
+  const strings = site.string_configs || [];
+  
+  if (strings.length > 0 && systemSettings?.orientation_kwh_per_kwp) {
+    const totalAnnualKwh = strings.reduce((sum, s) => {
+      const pw = Number(site.panel_watt) || 0;
+      const n = Number(s.num_panels) || 0;
+      const kwp = (n * pw) / 1000;
+      const orientation = s.orientation || 'south';
+      const annualKwhPerKwp = parseFloat(systemSettings.orientation_kwh_per_kwp[orientation]) || 0;
+      return sum + (kwp * annualKwhPerKwp);
+    }, 0);
+    
+    const totalPowerW = strings.reduce((sum, s) => sum + ((Number(s.num_panels) || 0) * (Number(site.panel_watt) || 0)), 0);
+    const totalKwp = totalPowerW / 1000;
+    
+    if (totalKwp > 0) {
+      averageKwhPerKwp = totalAnnualKwh / totalKwp;
+    }
+  }
+
   // Data will be fetched dynamically in SiteProductionChart
 
   return (
