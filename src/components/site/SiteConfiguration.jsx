@@ -33,11 +33,11 @@ export default function SiteConfiguration({ site }) {
     installation_date: site.installation_date || '',
     cleaning_interval_days: site.cleaning_interval_days || 90,
     num_inverters: site.num_inverters || 1,
-    panel_watt: site.panel_watt || 0,
-    panel_voltage: site.panel_voltage || 0,
-    panel_amperage: site.panel_amperage || 0,
-    peak_sun_hours: site.peak_sun_hours || 0,
-    annual_kwh_per_kwp: site.annual_kwh_per_kwp || 0,
+    panel_watt: site.panel_watt ?? '',
+    panel_voltage: site.panel_voltage ?? '',
+    panel_amperage: site.panel_amperage ?? '',
+    peak_sun_hours: site.peak_sun_hours ?? '',
+    annual_kwh_per_kwp: site.annual_kwh_per_kwp ?? '',
     string_configs: site.string_configs || [],
   });
 
