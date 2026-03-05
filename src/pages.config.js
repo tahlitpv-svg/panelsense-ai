@@ -55,6 +55,7 @@ import Reports from './pages/Reports';
 import SiteDetail from './pages/SiteDetail';
 import SiteDetails from './pages/SiteDetails';
 import SiteManager from './pages/SiteManager';
+import SystemSettings from './pages/SystemSettings';
 import __Layout from './Layout.jsx';
 
 
@@ -67,6 +68,7 @@ export const PAGES = {
     "SiteDetail": SiteDetail,
     "SiteDetails": SiteDetails,
     "SiteManager": SiteManager,
+    "SystemSettings": SystemSettings,
 }
 
 export const pagesConfig = {
