@@ -8,7 +8,8 @@ function formatDateInTZ(date, timeZone) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    await base44.auth.isAuthenticated().catch(() => false);
+    // Allow both authenticated users and automation service calls
+    try { await base44.auth.me(); } catch(_) {}
 
     const now = new Date();
     const hourJerusalem = parseInt(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', hour12: false }).format(now), 10);
