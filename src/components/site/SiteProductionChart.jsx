@@ -213,7 +213,7 @@ export default function SiteProductionChart({ stationId }) {
               onClick={() => setOffset(o => o - 1)}
               className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4" />
             </button>
             <span className="text-sm font-medium text-slate-700 min-w-[100px] text-center">{getPeriodLabel()}</span>
             <button
@@ -221,7 +221,7 @@ export default function SiteProductionChart({ stationId }) {
               disabled={!canGoForward}
               className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
           {isDay && dailyTotalKwh != null && (
