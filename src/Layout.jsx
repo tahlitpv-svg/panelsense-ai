@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { LayoutDashboard, FileText, Settings, ChevronLeft, Menu, Zap, Users, Sliders } from 'lucide-react';
@@ -27,6 +27,14 @@ export default function Layout({ children, currentPageName }) {
 
   // Hide sidebar page names that don't need bottom nav
   const isSiteDetail = currentPageName === 'SiteDetails' || currentPageName === 'SiteDetail';
+
+  const mainRef = useRef(null);
+
+  useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTo(0, 0);
+    }
+  }, [currentPageName]);
 
   return (
     <div className="min-h-screen flex flex-row-reverse overflow-hidden bg-slate-50 text-slate-900" dir="rtl">
@@ -93,7 +101,7 @@ export default function Layout({ children, currentPageName }) {
       </aside>
 
       {/* ── Main ── */}
-      <main className="flex-1 overflow-auto">
+      <main ref={mainRef} className="flex-1 overflow-auto">
         {/* Header */}
         <header className="h-14 md:h-16 sticky top-0 z-40 border-b border-slate-200 px-4 md:px-8 flex items-center justify-between bg-white/95 backdrop-blur-md">
           <div className="flex items-center gap-2 md:gap-3">
