@@ -125,6 +125,17 @@ export default function ActiveAlertsList() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <Input
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="חיפוש לפי שם אתר..."
+          className="pr-9 text-sm"
+        />
+      </div>
+
       {/* Detection result */}
       {detectionResult && (
         <Card className={`p-3 text-sm ${detectionResult.error ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
