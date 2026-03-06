@@ -170,6 +170,29 @@ export default function Faults() {
             <Textarea value={form.solution} onChange={e => set('solution', e.target.value)} placeholder="מה לעשות כשהתקלה מופיעה..." rows={2} />
           </div>
 
+          {/* Detection Rules */}
+          <div className="border-t border-slate-200 pt-4">
+            <div className="flex items-center gap-2 mb-3">
+              <FlaskConical className="w-4 h-4 text-blue-500" />
+              <span className="font-semibold text-slate-700 text-sm">תנאי זיהוי אוטומטי</span>
+            </div>
+            <DetectionRulesEditor
+              rules={form.detection_rules || []}
+              logic={form.detection_logic || 'all'}
+              consecutiveChecks={form.consecutive_checks_required || 2}
+              checkDaylight={form.check_only_during_daylight !== false}
+              onChange={({ rules, logic, consecutiveChecks, checkDaylight }) => {
+                setForm(f => ({
+                  ...f,
+                  detection_rules: rules,
+                  detection_logic: logic,
+                  consecutive_checks_required: consecutiveChecks,
+                  check_only_during_daylight: checkDaylight
+                }));
+              }}
+            />
+          </div>
+
           {/* Notifications */}
           <div className="border-t border-slate-200 pt-4 space-y-3">
             <div className="font-semibold text-slate-700 text-sm">התראות עתידיות</div>
