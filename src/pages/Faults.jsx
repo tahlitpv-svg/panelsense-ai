@@ -257,6 +257,18 @@ export default function Faults() {
                       <span className="font-semibold">פתרון: </span>{ft.solution}
                     </div>
                   )}
+                  {ft.detection_rules?.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {ft.detection_rules.map((r, i) => (
+                        <span key={i} className="text-[11px] bg-blue-50 text-blue-700 border border-blue-100 rounded-full px-2 py-0.5">
+                          {r.description || `${r.metric} ${r.operator} ${r.value_string || r.value}`}
+                        </span>
+                      ))}
+                      <span className="text-[11px] bg-slate-50 text-slate-500 border border-slate-100 rounded-full px-2 py-0.5">
+                        {ft.detection_logic === 'any' ? 'OR' : 'AND'} · {ft.consecutive_checks_required || 2} בדיקות עוקבות
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-3 mt-2">
                     {ft.notify_email && <div className="flex items-center gap-1 text-xs text-slate-500"><Mail className="w-3 h-3" /> מייל</div>}
                     {ft.notify_whatsapp && <div className="flex items-center gap-1 text-xs text-slate-500"><MessageSquare className="w-3 h-3" /> ווצאפ</div>}
