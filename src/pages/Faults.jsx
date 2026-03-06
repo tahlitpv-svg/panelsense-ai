@@ -70,7 +70,7 @@ export default function Faults() {
 
   const { data: faultTypes = [], isLoading } = useQuery({
     queryKey: ['faultTypes'],
-    queryFn: () => base44.entities.FaultType.list()
+    queryFn: () => base44.entities.FaultType.list('-created_date')
   });
 
   const createMutation = useMutation({
