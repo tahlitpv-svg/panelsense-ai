@@ -209,7 +209,7 @@ export default function Faults() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {faultTypes.map(ft => (
+          {[...faultTypes].sort((a, b) => new Date(b.created_date) - new Date(a.created_date)).map(ft => (
             <Card key={ft.id} className={`p-5 border shadow-sm bg-white ${!ft.is_active ? 'opacity-50' : ''}`}>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
