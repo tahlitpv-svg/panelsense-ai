@@ -3,13 +3,15 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const isAuth = await base44.auth.isAuthenticated();
-    // Allow both authenticated calls and scheduled automation calls
-    // For scheduled runs, use service role
     const db = base44.asServiceRole;
 
     const now = new Date();
-    const localHour = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' })).getHours();
+    const localDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
+    const localHour = localDate.getHours();
+    const localMinute = localDate.getMinutes();
+    // Minutes since midnight (local)
+    const minutesSinceMidnight = localHour * 60 + localMinute;
+
     const log = [];
     const triggered = [];
 
@@ -23,15 +25,34 @@ Deno.serve(async (req) => {
       return Response.json({ message: 'No active fault types with detection rules.', log });
     }
 
-    // Load all sites and their inverters
-    const [sites, inverters] = await Promise.all([
+    // Load all sites, inverters, and open alerts
+    const [sites, inverters, openAlerts] = await Promise.all([
       db.entities.Site.list(),
-      db.entities.Inverter.list()
+      db.entities.Inverter.list(),
+      db.entities.Alert.filter({ is_resolved: false })
     ]);
+
+    // Build a map of site solar data context
+    // For "low production" checks, we calculate expected power at this hour
+    // Expected = dc_capacity_kwp * estimated_irradiance_factor
+    // We use a simple bell curve: peak at solar noon (13:00 local = 780 min), 0 before sunrise (6:00=360) and after sunset (19:30=1170)
+    function getExpectedPowerFraction(minutesSinceMidnight) {
+      const sunrise = 360;  // 6:00
+      const sunset = 1170;  // 19:30
+      const peak = 780;     // 13:00
+      if (minutesSinceMidnight <= sunrise || minutesSinceMidnight >= sunset) return 0;
+      // Normalized position in the day (0 to 1)
+      const range = sunset - sunrise;
+      const pos = (minutesSinceMidnight - sunrise) / range;
+      // Bell curve: sin(pos * PI)
+      return Math.sin(pos * Math.PI);
+    }
+
+    const expectedFraction = getExpectedPowerFraction(minutesSinceMidnight);
 
     for (const ft of activeFaultTypes) {
       // Daylight check
-      if (ft.check_only_during_daylight && (localHour < 6 || localHour >= 19)) {
+      if (ft.check_only_during_daylight && (localHour < 6 || localHour >= 20)) {
         log.push(`[${ft.name}] Skipped - outside daylight hours (${localHour}:00)`);
         continue;
       }
@@ -40,24 +61,27 @@ Deno.serve(async (req) => {
         const siteInverters = inverters.filter(inv => inv.site_id === site.id);
 
         // Evaluate rules for this site
-        const ruleResults = ft.detection_rules.map(rule => evaluateRule(rule, site, siteInverters));
+        const ruleResults = ft.detection_rules.map(rule =>
+          evaluateRule(rule, site, siteInverters, expectedFraction)
+        );
         const logic = ft.detection_logic || 'all';
         const faultDetected = logic === 'any'
           ? ruleResults.some(r => r)
           : ruleResults.every(r => r);
 
+        // Find existing open alert for this fault type + site
+        const existingAlert = openAlerts.find(a =>
+          a.site_id === site.id &&
+          a.type === ft.alert_type &&
+          a.fault_type_name === ft.name &&
+          !a.is_resolved
+        );
+
         if (faultDetected) {
           triggered.push({ fault_type: ft.name, site_name: site.name, site_id: site.id, severity: ft.severity });
           log.push(`[${ft.name}] DETECTED on site: ${site.name}`);
 
-          // Create an alert if not already open
-          const existingAlerts = await db.entities.Alert.filter({
-            site_id: site.id,
-            type: ft.alert_type,
-            is_resolved: false
-          });
-
-          if (existingAlerts.length === 0) {
+          if (!existingAlert) {
             await db.entities.Alert.create({
               site_id: site.id,
               site_name: site.name,
@@ -79,7 +103,6 @@ Deno.serve(async (req) => {
                   .replace('{fault_type}', ft.name)
                   .replace('{timestamp}', now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' }));
 
-                // Get admin users to email
                 const adminUsers = await db.entities.User.filter({ role: 'admin' });
                 for (const admin of adminUsers) {
                   await db.integrations.Core.SendEmail({
@@ -95,8 +118,15 @@ Deno.serve(async (req) => {
           } else {
             log.push(`[${ft.name}] Alert already open for site: ${site.name}, skipping`);
           }
+
         } else {
-          log.push(`[${ft.name}] OK on site: ${site.name}`);
+          // Fault NOT detected - if there was an open alert, auto-resolve (delete) it
+          if (existingAlert) {
+            await db.entities.Alert.delete(existingAlert.id);
+            log.push(`[${ft.name}] Alert AUTO-RESOLVED and removed for site: ${site.name}`);
+          } else {
+            log.push(`[${ft.name}] OK on site: ${site.name}`);
+          }
         }
       }
     }
@@ -107,12 +137,11 @@ Deno.serve(async (req) => {
   }
 });
 
-function evaluateRule(rule, site, inverters) {
+function evaluateRule(rule, site, inverters, expectedFraction) {
   const { metric, operator, value, value_string } = rule;
 
   let actual = null;
 
-  // Extract the metric value
   switch (metric) {
     case 'current_power_kw': actual = site.current_power_kw ?? 0; break;
     case 'daily_yield_kwh': actual = site.daily_yield_kwh ?? 0; break;
@@ -139,7 +168,6 @@ function evaluateRule(rule, site, inverters) {
       break;
     }
     case 'inverter_status': {
-      // True if ANY inverter matches
       actual = inverters.some(i => i.status === value_string) ? value_string : 'online';
       break;
     }
@@ -163,7 +191,7 @@ function evaluateRule(rule, site, inverters) {
 
   if (actual === null) return false;
 
-  // Evaluate operator
+  // String comparisons
   if (typeof actual === 'string') {
     if (operator === 'equals') return actual === value_string;
     if (operator === 'not_equals') return actual !== value_string;
@@ -175,10 +203,24 @@ function evaluateRule(rule, site, inverters) {
   if (operator === 'greater_than') return actual > value;
   if (operator === 'equals') return actual === value;
   if (operator === 'not_equals') return actual !== value;
+
   if (operator === 'less_than_percent_of_expected') {
-    // Compare to expected: site.dc_capacity_kwp * value% 
-    const expected = site.dc_capacity_kwp || 1;
-    return actual < (expected * value / 100);
+    // Smart production check: expected power based on time-of-day irradiance curve
+    // expectedFraction = 0..1 (bell curve through the day)
+    // If it's basically night / very low irradiance, skip the check
+    if (expectedFraction < 0.1) return false;
+
+    const dcCapacity = site.dc_capacity_kwp || 1;
+    // Typical inverter efficiency ~0.97, losses ~0.85 (wiring, temp, soiling)
+    const systemEfficiency = 0.82;
+    const expectedPower = dcCapacity * expectedFraction * systemEfficiency;
+
+    // "value" in the rule is the percentage threshold (e.g. 40 means: actual < 40% of expected)
+    const threshold = (value / 100) * expectedPower;
+
+    // Use current_power_kw for this check (live metric)
+    const liveMetric = metric === 'current_power_kw' ? actual : (site.current_power_kw ?? 0);
+    return liveMetric < threshold;
   }
 
   return false;
