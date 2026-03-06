@@ -143,9 +143,12 @@ export default function Dashboard() {
               {alerts.slice(0, 1).map(a => a.message).join(' • ')}
             </div>
           </div>
-          <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-100 text-xs shrink-0">
-            לטיפול
-          </Button>
+          <Link to={createPageUrl('Faults')}>
+            <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-100 text-xs shrink-0 gap-1">
+              <ShieldAlert className="w-3.5 h-3.5" />
+              לטיפול
+            </Button>
+          </Link>
         </div>
       )}
 
