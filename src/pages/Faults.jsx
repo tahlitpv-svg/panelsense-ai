@@ -8,8 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Plus, Pencil, Trash2, X, Check, Mail, Phone, MessageSquare, FlaskConical } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Plus, Pencil, Trash2, X, Check, Mail, Phone, MessageSquare, FlaskConical, Bell, ShieldAlert } from 'lucide-react';
 import DetectionRulesEditor from '../components/faults/DetectionRulesEditor';
+import ActiveAlertsList from '../components/faults/ActiveAlertsList';
 
 function Toggle({ checked, onChange, label, icon: Icon }) {
   return (

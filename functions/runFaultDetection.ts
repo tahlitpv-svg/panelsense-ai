@@ -64,6 +64,7 @@ Deno.serve(async (req) => {
               type: ft.alert_type,
               severity: ft.severity,
               message: ft.description || ft.name,
+              fault_type_name: ft.name,
               is_resolved: false
             });
             log.push(`[${ft.name}] Alert created for site: ${site.name}`);
