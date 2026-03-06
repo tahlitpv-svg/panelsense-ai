@@ -171,6 +171,21 @@ export default function Faults() {
             <Textarea value={form.solution} onChange={e => set('solution', e.target.value)} placeholder="מה לעשות כשהתקלה מופיעה..." rows={2} />
           </div>
 
+          {/* Free-text detection notes */}
+          <div className="space-y-1">
+            <Label className="flex items-center gap-1.5">
+              <span>הערות זיהוי לאלגוריתם</span>
+              <span className="text-xs font-normal text-slate-400">(תיאור חופשי)</span>
+            </Label>
+            <Textarea
+              value={form.detection_notes}
+              onChange={e => set('detection_notes', e.target.value)}
+              placeholder={`תאר בשפה חופשית כיצד לזהות תקלה זו:\n• מה המאפיינים הייחודיים שלה?\n• באיזה שעות היא מופיעה בדרך כלל?\n• מה ההבדל בינה לבין תקלה אחרת?\n• דוגמאות מהשטח`}
+              rows={4}
+              className="text-sm resize-none"
+            />
+          </div>
+
           {/* Detection Rules */}
           <div className="border-t border-slate-200 pt-4">
             <div className="flex items-center gap-2 mb-3">
