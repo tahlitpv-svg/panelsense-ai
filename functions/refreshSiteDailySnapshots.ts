@@ -71,10 +71,13 @@ Deno.serve(async (req) => {
       return mapped;
     }
 
+    // Process sites in parallel batches of 5 to respect rate limits
+    const BATCH_SIZE = 5;
     let processed = 0;
-    for (const site of selected) {
+
+    async function processSite(site) {
       const stationId = site.solis_station_id;
-      if (!stationId) continue;
+      if (!stationId) return;
 
       const todayData = await fetchDayFromSolis(stationId, todayKey);
       const existingToday = await base44.asServiceRole.entities.SiteGraphSnapshot.filter({ station_id: stationId, date_key: todayKey });
@@ -83,7 +86,6 @@ Deno.serve(async (req) => {
       } else {
         await base44.asServiceRole.entities.SiteGraphSnapshot.create({ station_id: stationId, date_key: todayKey, data: todayData });
       }
-      processed++;
 
       if (updateYesterdayToo) {
         const yData = await fetchDayFromSolis(stationId, yesterdayKey);
@@ -94,9 +96,16 @@ Deno.serve(async (req) => {
           await base44.asServiceRole.entities.SiteGraphSnapshot.create({ station_id: stationId, date_key: yesterdayKey, data: yData });
         }
       }
+      processed++;
+    }
 
-      // Small delay between sites to avoid rate limits
-      await new Promise(r => setTimeout(r, 500));
+    for (let i = 0; i < selected.length; i += BATCH_SIZE) {
+      const batch = selected.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(site => processSite(site)));
+      // Small pause between batches to respect Solis rate limits
+      if (i + BATCH_SIZE < selected.length) {
+        await new Promise(r => setTimeout(r, 300));
+      }
     }
 
     return Response.json({ success: true, processed, totalSites: havingStation.length, selectedCount: selected.length, todayKey, updatedYesterday: updateYesterdayToo });
