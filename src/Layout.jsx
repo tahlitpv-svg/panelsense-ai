@@ -18,7 +18,8 @@ export default function Layout({ children, currentPageName }) {
     { name: 'Dashboard', label: 'דאשבורד', icon: LayoutDashboard },
     { name: 'Reports', label: 'דוחות', icon: FileText },
     { name: 'SiteManager', label: 'ניהול אתרים', icon: Settings },
-    { name: 'SystemSettings', label: 'הגדרות מערכת', icon: Sliders }
+    { name: 'SystemSettings', label: 'הגדרות מערכת', icon: Sliders },
+    { name: 'Faults', label: 'סוגי תקלות', icon: ShieldAlert }
   ];
 
   const navItems = user?.role === 'admin' 

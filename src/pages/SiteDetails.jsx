@@ -221,7 +221,7 @@ export default function SiteDetails() {
               <div className="grid grid-cols-1 gap-4 md:gap-6">
                 {inverters.map(inverter => (
                   <Card key={inverter.id} className="p-4 md:p-6 border border-slate-200 shadow-sm bg-white">
-                    <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-4">
+                    <div className="flex items-start justify-between mb-4 border-b border-slate-100 pb-4 gap-3 flex-wrap">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-slate-100 rounded-lg">
                           <Zap className="w-4 h-4 text-slate-500" />
@@ -231,9 +231,12 @@ export default function SiteDetails() {
                           <p className="text-xs text-slate-500">{inverter.model}</p>
                         </div>
                       </div>
-                      <Badge className={`${inverter.status === 'online' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'} border-0 text-xs`}>
-                        {inverter.status === 'online' ? 'מקוון' : 'תקלה'}
-                      </Badge>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <PhaseVoltageIndicator voltages={inverter.phase_voltages} />
+                        <Badge className={`${inverter.status === 'online' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'} border-0 text-xs`}>
+                          {inverter.status === 'online' ? 'מקוון' : 'תקלה'}
+                        </Badge>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
