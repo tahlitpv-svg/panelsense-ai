@@ -324,6 +324,9 @@ export default function Faults() {
           ))}
         </div>
       )}
+
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
