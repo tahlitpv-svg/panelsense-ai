@@ -20,6 +20,7 @@ import SiteProductionChart from "../components/site/SiteProductionChart";
 
 export default function SiteDetails() {
   const [activeTab, setActiveTab] = useState('overview');
+  const [tempVisible, setTempVisible] = useState({});
   const urlParams = new URLSearchParams(window.location.search);
   const siteId = urlParams.get('id');
 
