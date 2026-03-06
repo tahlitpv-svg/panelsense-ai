@@ -171,9 +171,11 @@ export default function ActiveAlertsList() {
           <p className="text-slate-500 font-medium">כל המערכות תקינות</p>
           <p className="text-slate-400 text-sm mt-1">אין התראות פעילות כרגע</p>
         </div>
+      ) : filteredAlerts.length === 0 ? (
+        <div className="text-center py-10 text-slate-400 text-sm">לא נמצאו התראות עבור "{searchQuery}"</div>
       ) : (
         <div className="space-y-3">
-          {alerts.map(alert => {
+          {filteredAlerts.map(alert => {
             const cfg = SEVERITY_CONFIG[alert.severity] || SEVERITY_CONFIG.warning;
             const Icon = cfg.icon;
             return (
