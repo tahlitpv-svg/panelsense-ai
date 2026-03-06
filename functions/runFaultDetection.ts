@@ -184,7 +184,7 @@ ${graphSummary}
 
         if (hasNotes && (!hasRules || faultDetected === false)) {
           // LLM check (always if has notes, or as secondary if rules didn't fire)
-          const llmResult = await evaluateWithLLM(ft, site, siteInverters, graphData, volatility);
+          const llmResult = await evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility);
           if (llmResult !== null) {
             // If both rules and LLM: OR logic (either one can trigger)
             if (llmResult.fault_detected) {
