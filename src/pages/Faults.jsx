@@ -60,7 +60,11 @@ const EMPTY_FORM = {
   notify_phone: false,
   email_template: '',
   whatsapp_template: '',
-  is_active: true
+  is_active: true,
+  detection_rules: [],
+  detection_logic: 'all',
+  consecutive_checks_required: 2,
+  check_only_during_daylight: true
 };
 
 export default function Faults() {
