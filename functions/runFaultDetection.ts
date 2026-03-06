@@ -33,13 +33,17 @@ Deno.serve(async (req) => {
       db.entities.Site.list(),
       db.entities.Inverter.list(),
       db.entities.Alert.filter({ is_resolved: false }),
-      db.entities.SiteGraphSnapshot.filter({ date_key: dateKey })
+      db.entities.SiteGraphSnapshot.list() // all historical snapshots for LLM context
     ]);
 
-    // Map snapshots by station_id
+    // Map snapshots by station_id -> date_key -> data (last 20 days)
     const snapshotsByStation = {};
+    const twentyDaysAgo = new Date(localDate);
+    twentyDaysAgo.setDate(twentyDaysAgo.getDate() - 20);
     for (const snap of allSnapshots) {
-      snapshotsByStation[snap.station_id] = snap.data || [];
+      if (snap.date_key < twentyDaysAgo.toISOString().slice(0, 10)) continue;
+      if (!snapshotsByStation[snap.station_id]) snapshotsByStation[snap.station_id] = {};
+      snapshotsByStation[snap.station_id][snap.date_key] = snap.data || [];
     }
 
     // Expected power fraction (bell curve)
