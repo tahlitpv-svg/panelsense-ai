@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
       await new Promise(r => setTimeout(r, 500));
     }
 
-    return Response.json({ success: true, processed, wave, totalSites: havingStation.length, selectedCount: selected.length, todayKey, updatedYesterday: updateYesterdayToo });
+    return Response.json({ success: true, processed, totalSites: havingStation.length, selectedCount: selected.length, todayKey, updatedYesterday: updateYesterdayToo });
   } catch (error) {
     return Response.json({ success: false, error: error?.message || String(error) }, { status: 500 });
   }
