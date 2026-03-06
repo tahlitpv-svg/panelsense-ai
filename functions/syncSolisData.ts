@@ -135,6 +135,16 @@ function extractMpptStrings(detail) {
   return strings;
 }
 
+function extractPhaseVoltages(detail) {
+  if (!detail) return {};
+  // Solis returns uAc1, uAc2, uAc3 (or u_ac1, u_ac2, u_ac3)
+  const useSnake = detail.hasOwnProperty('u_ac1');
+  const l1 = parseFloat(useSnake ? detail.u_ac1 : detail.uAc1) || 0;
+  const l2 = parseFloat(useSnake ? detail.u_ac2 : detail.uAc2) || 0;
+  const l3 = parseFloat(useSnake ? detail.u_ac3 : detail.uAc3) || 0;
+  return { l1, l2, l3 };
+}
+
 function mapInverterToEntity(inv, siteId, detail) {
   const stateMap = { 1: 'online', 2: 'offline', 3: 'warning' };
   const mpptStrings = extractMpptStrings(detail);
@@ -153,6 +163,7 @@ function mapInverterToEntity(inv, siteId, detail) {
     status: stateMap[inv.state] || 'offline',
     daily_yield_kwh: parseFloat(detail?.eToday ?? inv.eday) || 0,
     mppt_strings: mpptStrings,
+    phase_voltages: extractPhaseVoltages(detail),
     solis_inverter_id: inv.id,
     solis_sn: inv.sn
   };

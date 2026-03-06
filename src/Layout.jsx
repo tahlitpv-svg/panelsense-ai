@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { LayoutDashboard, FileText, Settings, ChevronLeft, Menu, Zap, Users, Sliders } from 'lucide-react';
+import { LayoutDashboard, FileText, Settings, ChevronLeft, Menu, Zap, Users, Sliders, ShieldAlert } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";

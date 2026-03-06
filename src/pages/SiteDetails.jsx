@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import MPPTTable from "../components/inverter/MPPTTable";
+import PhaseVoltageIndicator from "../components/inverter/PhaseVoltageIndicator";
 import EfficiencyGauge from "../components/inverter/EfficiencyGauge";
 import HistoricalInverterChart from "../components/inverter/HistoricalInverterChart";
 import ProductionAnalysis from "../components/site/ProductionAnalysis";
