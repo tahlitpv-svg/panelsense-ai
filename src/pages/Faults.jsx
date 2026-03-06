@@ -168,22 +168,10 @@ export default function Faults() {
           {/* Notifications */}
           <div className="border-t border-slate-200 pt-4 space-y-3">
             <div className="font-semibold text-slate-700 text-sm">התראות עתידיות</div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center gap-2">
-                <Switch checked={form.notify_email} onCheckedChange={v => set('notify_email', v)} />
-                <Mail className="w-4 h-4 text-slate-400" />
-                <Label>מייל</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={form.notify_whatsapp} onCheckedChange={v => set('notify_whatsapp', v)} />
-                <MessageSquare className="w-4 h-4 text-slate-400" />
-                <Label>ווצאפ</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={form.notify_phone} onCheckedChange={v => set('notify_phone', v)} />
-                <Phone className="w-4 h-4 text-slate-400" />
-                <Label>שיחת טלפון</Label>
-              </div>
+            <div className="flex flex-wrap gap-3">
+              <Toggle checked={form.notify_email} onChange={v => set('notify_email', v)} label="מייל" icon={Mail} />
+              <Toggle checked={form.notify_whatsapp} onChange={v => set('notify_whatsapp', v)} label="ווצאפ" icon={MessageSquare} />
+              <Toggle checked={form.notify_phone} onChange={v => set('notify_phone', v)} label="שיחת טלפון" icon={Phone} />
             </div>
             {form.notify_email && (
               <div className="space-y-1">
