@@ -139,9 +139,10 @@ export default function Faults() {
           <ActiveAlertsList />
         </TabsContent>
 
-        <TabsContent value="types" className="space-y-4">
+        <TabsContent value="types">
+          <div className="space-y-4">
 
-      {/* Form */}
+          {/* Form */}
       {showForm && (
         <Card className="p-6 border border-green-200 bg-green-50/30 shadow-sm space-y-4">
           <div className="flex items-center justify-between mb-2">
