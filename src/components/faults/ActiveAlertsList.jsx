@@ -71,6 +71,10 @@ export default function ActiveAlertsList() {
     }
   };
 
+  const filteredAlerts = searchQuery.trim()
+    ? alerts.filter(a => a.site_name?.toLowerCase().includes(searchQuery.toLowerCase()))
+    : alerts;
+
   const criticalCount = alerts.filter(a => a.severity === 'critical').length;
   const warningCount = alerts.filter(a => a.severity === 'warning').length;
 
