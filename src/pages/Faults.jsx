@@ -151,8 +151,7 @@ export default function Faults() {
               </Select>
             </div>
             <div className="space-y-1 flex items-center gap-2 pt-6">
-              <Switch checked={form.is_active} onCheckedChange={v => set('is_active', v)} />
-              <Label>פעיל</Label>
+              <Toggle checked={form.is_active} onChange={v => set('is_active', v)} label="פעיל" />
             </div>
           </div>
 
