@@ -29,6 +29,7 @@ export default function ActiveAlertsList() {
   const queryClient = useQueryClient();
   const [runningDetection, setRunningDetection] = useState(false);
   const [detectionResult, setDetectionResult] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data: alerts = [], isLoading, refetch } = useQuery({
     queryKey: ['activeAlerts'],
