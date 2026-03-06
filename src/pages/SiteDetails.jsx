@@ -259,6 +259,33 @@ export default function SiteDetails() {
                         inverterSn={inverter.solis_sn}
                       />
                     </div>
+
+                    {/* Temperature toggle */}
+                    <div className="mt-4 border-t border-slate-100 pt-4">
+                      <button
+                        onClick={() => setTempVisible(prev => ({ ...prev, [inverter.id]: !prev[inverter.id] }))}
+                        className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-orange-600 transition-colors"
+                      >
+                        <div className={`w-10 h-5 rounded-full transition-colors relative ${tempVisible[inverter.id] ? 'bg-orange-500' : 'bg-slate-200'}`}>
+                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${tempVisible[inverter.id] ? 'right-0.5' : 'left-0.5'}`} />
+                        </div>
+                        <Thermometer className="w-4 h-4" />
+                        גרף טמפרטורה
+                        {inverter.temperature_c != null && (
+                          <span className={`text-xs font-bold ${inverter.temperature_c > 75 ? 'text-red-600' : 'text-slate-400'}`}>
+                            {inverter.temperature_c}°C
+                          </span>
+                        )}
+                      </button>
+                      {tempVisible[inverter.id] && (
+                        <div className="mt-4">
+                          <TemperatureChart
+                            inverterId={inverter.solis_inverter_id}
+                            inverterSn={inverter.solis_sn}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </Card>
                 ))}
               </div>
