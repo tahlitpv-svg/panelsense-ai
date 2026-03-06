@@ -7,9 +7,28 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Plus, Pencil, Trash2, X, Check, Mail, Phone, MessageSquare } from 'lucide-react';
+
+function Toggle({ checked, onChange, label, icon: Icon }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all select-none ${
+        checked
+          ? 'bg-green-50 border-green-300 text-green-700'
+          : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+      }`}
+    >
+      <div className={`w-8 h-4 rounded-full relative transition-colors flex-shrink-0 ${checked ? 'bg-green-500' : 'bg-slate-200'}`}>
+        <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${checked ? 'right-0.5' : 'left-0.5'}`} />
+      </div>
+      {Icon && <Icon className="w-3.5 h-3.5" />}
+      <span>{label}</span>
+    </button>
+  );
+}
 
 const SEVERITY_COLORS = {
   info: 'bg-blue-100 text-blue-700',
