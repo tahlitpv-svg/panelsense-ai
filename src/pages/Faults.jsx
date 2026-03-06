@@ -53,6 +53,7 @@ const EMPTY_FORM = {
   name: '',
   description: '',
   solution: '',
+  detection_notes: '',
   severity: 'warning',
   alert_type: 'other',
   notify_email: true,
