@@ -9,13 +9,14 @@ Deno.serve(async (req) => {
     const localDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
     const localHour = localDate.getHours();
     const localMinute = localDate.getMinutes();
-    // Minutes since midnight (local)
     const minutesSinceMidnight = localHour * 60 + localMinute;
+
+    // Today's date key
+    const dateKey = localDate.toISOString().slice(0, 10);
 
     const log = [];
     const triggered = [];
 
-    // Load all active fault types that have detection rules
     const faultTypes = await db.entities.FaultType.list();
     const activeFaultTypes = faultTypes.filter(ft =>
       ft.is_active && ft.detection_rules && ft.detection_rules.length > 0
@@ -25,33 +26,85 @@ Deno.serve(async (req) => {
       return Response.json({ message: 'No active fault types with detection rules.', log });
     }
 
-    // Load all sites, inverters, and open alerts
+    // Check if any fault type uses power_volatility_index
+    const needsSnapshots = activeFaultTypes.some(ft =>
+      ft.detection_rules.some(r => r.metric === 'power_volatility_index')
+    );
+
+    // Load sites, inverters, open alerts
     const [sites, inverters, openAlerts] = await Promise.all([
       db.entities.Site.list(),
       db.entities.Inverter.list(),
       db.entities.Alert.filter({ is_resolved: false })
     ]);
 
-    // Build a map of site solar data context
-    // For "low production" checks, we calculate expected power at this hour
-    // Expected = dc_capacity_kwp * estimated_irradiance_factor
-    // We use a simple bell curve: peak at solar noon (13:00 local = 780 min), 0 before sunrise (6:00=360) and after sunset (19:30=1170)
-    function getExpectedPowerFraction(minutesSinceMidnight) {
-      const sunrise = 360;  // 6:00
-      const sunset = 1170;  // 19:30
-      const peak = 780;     // 13:00
-      if (minutesSinceMidnight <= sunrise || minutesSinceMidnight >= sunset) return 0;
-      // Normalized position in the day (0 to 1)
-      const range = sunset - sunrise;
-      const pos = (minutesSinceMidnight - sunrise) / range;
-      // Bell curve: sin(pos * PI)
+    // Load today's graph snapshots if needed (volatility detection)
+    let snapshotsByStation = {};
+    if (needsSnapshots) {
+      const snapshots = await db.entities.SiteGraphSnapshot.filter({ date_key: dateKey });
+      for (const snap of snapshots) {
+        snapshotsByStation[snap.station_id] = snap.data || [];
+      }
+    }
+
+    // Compute volatility index for each site (0..100)
+    // Algorithm: count direction reversals in the power curve, weighted by amplitude
+    function computeVolatilityIndex(data) {
+      if (!data || data.length < 5) return 0;
+
+      // Only look at daytime data (values > 0.5 kW to avoid noise at dawn/dusk)
+      const daytime = data.filter(d => d.value > 0.5);
+      if (daytime.length < 5) return 0;
+
+      const values = daytime.map(d => d.value);
+      const avg = values.reduce((a, b) => a + b, 0) / values.length;
+      if (avg < 1) return 0;
+
+      // Count direction reversals
+      let reversals = 0;
+      let prevDir = 0;
+      for (let i = 1; i < values.length; i++) {
+        const diff = values[i] - values[i - 1];
+        const dir = diff > 0.3 ? 1 : diff < -0.3 ? -1 : 0;
+        if (dir !== 0 && prevDir !== 0 && dir !== prevDir) {
+          reversals++;
+        }
+        if (dir !== 0) prevDir = dir;
+      }
+
+      // Standard deviation as % of mean
+      const variance = values.reduce((sum, v) => sum + Math.pow(v - avg, 2), 0) / values.length;
+      const stdDev = Math.sqrt(variance);
+      const cvPercent = (stdDev / avg) * 100;
+
+      // Combine: reversals (normalized to data length) and CV%
+      const reversalScore = Math.min(100, (reversals / (values.length - 1)) * 200);
+      const cvScore = Math.min(100, cvPercent * 2);
+
+      // Weighted: reversals matter more (thermal throttling = many direction changes)
+      return Math.round(reversalScore * 0.6 + cvScore * 0.4);
+    }
+
+    // Pre-compute volatility per site
+    const siteVolatility = {};
+    for (const site of sites) {
+      if (!needsSnapshots) break;
+      const stationId = site.solis_station_id;
+      const data = stationId ? snapshotsByStation[stationId] : null;
+      siteVolatility[site.id] = computeVolatilityIndex(data);
+    }
+
+    function getExpectedPowerFraction(minSinceMidnight) {
+      const sunrise = 360;
+      const sunset = 1170;
+      if (minSinceMidnight <= sunrise || minSinceMidnight >= sunset) return 0;
+      const pos = (minSinceMidnight - sunrise) / (sunset - sunrise);
       return Math.sin(pos * Math.PI);
     }
 
     const expectedFraction = getExpectedPowerFraction(minutesSinceMidnight);
 
     for (const ft of activeFaultTypes) {
-      // Daylight check
       if (ft.check_only_during_daylight && (localHour < 6 || localHour >= 20)) {
         log.push(`[${ft.name}] Skipped - outside daylight hours (${localHour}:00)`);
         continue;
@@ -59,17 +112,16 @@ Deno.serve(async (req) => {
 
       for (const site of sites) {
         const siteInverters = inverters.filter(inv => inv.site_id === site.id);
+        const volatility = siteVolatility[site.id] ?? 0;
 
-        // Evaluate rules for this site
         const ruleResults = ft.detection_rules.map(rule =>
-          evaluateRule(rule, site, siteInverters, expectedFraction)
+          evaluateRule(rule, site, siteInverters, expectedFraction, volatility)
         );
         const logic = ft.detection_logic || 'all';
         const faultDetected = logic === 'any'
           ? ruleResults.some(r => r)
           : ruleResults.every(r => r);
 
-        // Find existing open alert for this fault type + site
         const existingAlert = openAlerts.find(a =>
           a.site_id === site.id &&
           a.type === ft.alert_type &&
@@ -78,26 +130,31 @@ Deno.serve(async (req) => {
         );
 
         if (faultDetected) {
-          triggered.push({ fault_type: ft.name, site_name: site.name, site_id: site.id, severity: ft.severity });
-          log.push(`[${ft.name}] DETECTED on site: ${site.name}`);
+          triggered.push({ fault_type: ft.name, site_name: site.name, site_id: site.id, severity: ft.severity, volatility });
+          log.push(`[${ft.name}] DETECTED on site: ${site.name}${volatility > 0 ? ` (volatility: ${volatility})` : ''}`);
 
           if (!existingAlert) {
+            // Build meaningful message
+            let message = ft.description || ft.name;
+            if (ft.detection_rules.some(r => r.metric === 'power_volatility_index') && volatility > 0) {
+              message += ` (מדד תנודתיות: ${volatility}/100)`;
+            }
+
             await db.entities.Alert.create({
               site_id: site.id,
               site_name: site.name,
               type: ft.alert_type,
               severity: ft.severity,
-              message: ft.description || ft.name,
+              message,
               fault_type_name: ft.name,
               is_resolved: false
             });
             log.push(`[${ft.name}] Alert created for site: ${site.name}`);
 
-            // Send email if configured
             if (ft.notify_email) {
               try {
                 const template = ft.email_template ||
-                  `התראה: ${ft.name}\nאתר: ${site.name}\nזמן: ${now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}\n${ft.description || ''}`;
+                  `התראה: ${ft.name}\nאתר: ${site.name}\nזמן: ${now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}\n${message}`;
                 const body = template
                   .replace('{site_name}', site.name)
                   .replace('{fault_type}', ft.name)
@@ -120,7 +177,6 @@ Deno.serve(async (req) => {
           }
 
         } else {
-          // Fault NOT detected - if there was an open alert, auto-resolve (delete) it
           if (existingAlert) {
             await db.entities.Alert.delete(existingAlert.id);
             log.push(`[${ft.name}] Alert AUTO-RESOLVED and removed for site: ${site.name}`);
@@ -137,8 +193,16 @@ Deno.serve(async (req) => {
   }
 });
 
-function evaluateRule(rule, site, inverters, expectedFraction) {
+function evaluateRule(rule, site, inverters, expectedFraction, volatility) {
   const { metric, operator, value, value_string } = rule;
+
+  // Special metric: power volatility index (pre-computed)
+  if (metric === 'power_volatility_index') {
+    if (operator === 'greater_than') return volatility > value;
+    if (operator === 'less_than') return volatility < value;
+    if (operator === 'equals') return volatility === value;
+    return false;
+  }
 
   let actual = null;
 
@@ -191,34 +255,23 @@ function evaluateRule(rule, site, inverters, expectedFraction) {
 
   if (actual === null) return false;
 
-  // String comparisons
   if (typeof actual === 'string') {
     if (operator === 'equals') return actual === value_string;
     if (operator === 'not_equals') return actual !== value_string;
     return false;
   }
 
-  // Numeric comparisons
   if (operator === 'less_than') return actual < value;
   if (operator === 'greater_than') return actual > value;
   if (operator === 'equals') return actual === value;
   if (operator === 'not_equals') return actual !== value;
 
   if (operator === 'less_than_percent_of_expected') {
-    // Smart production check: expected power based on time-of-day irradiance curve
-    // expectedFraction = 0..1 (bell curve through the day)
-    // If it's basically night / very low irradiance, skip the check
     if (expectedFraction < 0.1) return false;
-
     const dcCapacity = site.dc_capacity_kwp || 1;
-    // Typical inverter efficiency ~0.97, losses ~0.85 (wiring, temp, soiling)
     const systemEfficiency = 0.82;
     const expectedPower = dcCapacity * expectedFraction * systemEfficiency;
-
-    // "value" in the rule is the percentage threshold (e.g. 40 means: actual < 40% of expected)
     const threshold = (value / 100) * expectedPower;
-
-    // Use current_power_kw for this check (live metric)
     const liveMetric = metric === 'current_power_kw' ? actual : (site.current_power_kw ?? 0);
     return liveMetric < threshold;
   }
