@@ -166,7 +166,8 @@ ${graphSummary}
 
       for (const site of sites) {
         const siteInverters = inverters.filter(inv => inv.site_id === site.id);
-        const graphData = site.solis_station_id ? snapshotsByStation[site.solis_station_id] : null;
+        const stationSnapshots = site.solis_station_id ? (snapshotsByStation[site.solis_station_id] || {}) : {};
+        const graphData = stationSnapshots[dateKey] || null; // today's data
         const volatility = computeVolatilityIndex(graphData);
 
         let faultDetected = false;
