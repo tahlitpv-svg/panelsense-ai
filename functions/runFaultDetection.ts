@@ -83,13 +83,34 @@ Deno.serve(async (req) => {
     }
 
     // LLM-based evaluation (for fault types WITH detection_notes)
-    async function evaluateWithLLM(ft, site, siteInverters, graphData, volatility) {
+    async function evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility) {
       if (!ft.detection_notes) return null; // no notes
 
-      // Build context for the LLM
-      const graphSummary = graphData && graphData.length > 0
-        ? `גרף ייצור יומי (${dateKey}): ${graphData.map(d => `${d.time}=${d.value}kW`).join(', ')}`
-        : 'אין נתוני גרף יומי';
+      // Build multi-day graph summary (last 20 days)
+      const sortedDates = Object.keys(stationSnapshots).sort();
+      const todayData = stationSnapshots[dateKey] || [];
+
+      // Today's full graph
+      const todayGraphSummary = todayData.length > 0
+        ? `גרף היום (${dateKey}): ${todayData.map(d => `${d.time}=${d.value}kW`).join(', ')}`
+        : `גרף היום (${dateKey}): אין נתונים`;
+
+      // Historical: daily total yield per day (last 20 days)
+      const historicalSummary = sortedDates
+        .filter(d => d !== dateKey)
+        .map(d => {
+          const dayData = stationSnapshots[d] || [];
+          const totalKwh = dayData.reduce((sum, p) => sum + (p.value || 0) * (5 / 60), 0); // assuming 5-min intervals
+          const maxKw = dayData.length > 0 ? Math.max(...dayData.map(p => p.value || 0)) : 0;
+          // Check for drops/flatlines within the day
+          const daytime = dayData.filter(p => p.value > 0.5);
+          let drops = 0;
+          for (let i = 1; i < daytime.length; i++) {
+            if (daytime[i - 1].value > 1 && daytime[i].value < daytime[i - 1].value * 0.4) drops++;
+          }
+          return `${d}: סה"כ ~${totalKwh.toFixed(1)} kWh, שיא ${maxKw.toFixed(1)} kW${drops > 0 ? `, ${drops} ירידות חדות` : ''}`;
+        })
+        .join('\n');
 
       const siteContext = {
         site_name: site.name,
@@ -99,7 +120,7 @@ Deno.serve(async (req) => {
         current_efficiency: site.current_efficiency,
         status: site.status,
         last_heartbeat: site.last_heartbeat,
-        volatility_index: volatility
+        volatility_index_today: volatility
       };
 
       const inverterContext = siteInverters.map(inv => ({
@@ -114,7 +135,7 @@ Deno.serve(async (req) => {
       }));
 
       const prompt = `אתה מומחה לניטור מערכות סולאריות. 
-      
+
 הוראות זיהוי התקלה "${ft.name}":
 ${ft.detection_notes}
 
@@ -124,11 +145,14 @@ ${JSON.stringify(siteContext, null, 2)}
 נתוני אינוורטרים:
 ${JSON.stringify(inverterContext, null, 2)}
 
-${graphSummary}
+היסטוריית ייצור 20 ימים אחרונים:
+${historicalSummary || 'אין נתונים היסטוריים'}
+
+${todayGraphSummary}
 
 מדד תנודתיות הספק היומי (0=יציב, 100=תנודתי מאוד): ${volatility}
 
-שאלה: האם יש סימנים לתקלה "${ft.name}" באתר זה לפי ההוראות שניתנו?
+שאלה: האם יש סימנים לתקלה "${ft.name}" באתר זה לפי ההוראות שניתנו? התייחס גם להיסטוריה של 20 הימים האחרונים וגם לגרף היום המלא.
 ענה אך ורק במבנה JSON: {"fault_detected": true/false, "reason": "הסבר קצר בעברית"}`;
 
       try {
