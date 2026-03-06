@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Plus, Trash2, Info } from 'lucide-react';
 
 const METRIC_LABELS = {
+  power_volatility_index: 'מדד תנודתיות הספק (0-100)',
   current_power_kw: 'הספק נוכחי (kW)',
   daily_yield_kwh: 'ייצור יומי (kWh)',
   current_efficiency: 'יעילות נוכחית (%)',
