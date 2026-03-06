@@ -114,14 +114,32 @@ export default function Faults() {
     <div className="space-y-6" dir="rtl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">סוגי תקלות</h1>
-          <p className="text-sm text-slate-500 mt-1">הגדרת סוגי תקלות, פתרונות והתראות עתידיות</p>
+          <h1 className="text-2xl font-bold text-slate-800">תקלות והתראות</h1>
+          <p className="text-sm text-slate-500 mt-1">ניטור פעיל, הגדרת סוגי תקלות וניהול התראות</p>
         </div>
         <Button onClick={openNew} className="bg-green-600 hover:bg-green-700 text-white gap-2">
           <Plus className="w-4 h-4" />
           הוסף תקלה
         </Button>
       </div>
+
+      <Tabs defaultValue="alerts" className="space-y-4">
+        <TabsList className="bg-white border border-slate-200 p-1 h-10 rounded-xl">
+          <TabsTrigger value="alerts" className="data-[state=active]:bg-red-50 data-[state=active]:text-red-700 gap-1.5 rounded-lg text-sm">
+            <Bell className="w-3.5 h-3.5" />
+            התראות פעילות
+          </TabsTrigger>
+          <TabsTrigger value="types" className="data-[state=active]:bg-green-50 data-[state=active]:text-green-700 gap-1.5 rounded-lg text-sm">
+            <ShieldAlert className="w-3.5 h-3.5" />
+            סוגי תקלות
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="alerts">
+          <ActiveAlertsList />
+        </TabsContent>
+
+        <TabsContent value="types" className="space-y-4">
 
       {/* Form */}
       {showForm && (
