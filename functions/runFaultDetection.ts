@@ -70,18 +70,26 @@ Deno.serve(async (req) => {
 
             // Send email if configured
             if (ft.notify_email) {
-              const template = ft.email_template ||
-                `התראה: ${ft.name}\nאתר: ${site.name}\nזמן: ${now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}\n${ft.description || ''}`;
-              const body = template
-                .replace('{site_name}', site.name)
-                .replace('{fault_type}', ft.name)
-                .replace('{timestamp}', now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' }));
+              try {
+                const template = ft.email_template ||
+                  `התראה: ${ft.name}\nאתר: ${site.name}\nזמן: ${now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}\n${ft.description || ''}`;
+                const body = template
+                  .replace('{site_name}', site.name)
+                  .replace('{fault_type}', ft.name)
+                  .replace('{timestamp}', now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' }));
 
-              await db.integrations.Core.SendEmail({
-                to: 'alerts@delkalenergy.com',
-                subject: `⚠️ תקלה: ${ft.name} - ${site.name}`,
-                body
-              });
+                // Get admin users to email
+                const adminUsers = await db.entities.User.filter({ role: 'admin' });
+                for (const admin of adminUsers) {
+                  await db.integrations.Core.SendEmail({
+                    to: admin.email,
+                    subject: `⚠️ תקלה: ${ft.name} - ${site.name}`,
+                    body
+                  });
+                }
+              } catch (emailErr) {
+                log.push(`[${ft.name}] Email send failed: ${emailErr.message}`);
+              }
             }
           } else {
             log.push(`[${ft.name}] Alert already open for site: ${site.name}, skipping`);
