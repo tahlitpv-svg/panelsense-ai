@@ -315,11 +315,22 @@ function evaluateRule(rule, site, inverters, expectedFraction, volatility) {
       actual = inverters.some(i => i.status === value_string) ? value_string : 'online'; break;
     }
     case 'mppt_string_voltage': {
-      const vArr = inverters.flatMap(i => (i.mppt_strings || []).map(s => s.voltage_v)).filter(v => v != null);
+      const vArr = inverters.flatMap(i => {
+        const strings = i.mppt_strings || [];
+        if (strings.length > 0) return strings.map(s => s.voltage_v).filter(v => v != null);
+        // No strings configured: estimate voltage = DC capacity (kWp) * 1500 V/kW
+        const dcKwp = site.dc_capacity_kwp || 0;
+        return dcKwp > 0 ? [dcKwp * 1500] : [];
+      });
       actual = vArr.length ? Math.min(...vArr) : null; break;
     }
     case 'mppt_string_current': {
-      const aArr = inverters.flatMap(i => (i.mppt_strings || []).map(s => s.current_a)).filter(v => v != null);
+      const aArr = inverters.flatMap(i => {
+        const strings = i.mppt_strings || [];
+        if (strings.length > 0) return strings.map(s => s.current_a).filter(v => v != null);
+        // No strings configured: skip, can't estimate current meaningfully
+        return [];
+      });
       actual = aArr.length ? Math.min(...aArr) : null; break;
     }
     case 'temperature_c': {
