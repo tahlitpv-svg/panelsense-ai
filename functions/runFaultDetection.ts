@@ -380,9 +380,18 @@ function evaluateRule(rule, site, inverters, expectedFraction, volatility, expec
   if (operator === 'equals') return actual === value;
   if (operator === 'not_equals') return actual !== value;
   if (operator === 'less_than_percent_of_expected') {
-    if (expectedFraction < 0.1) return false;
-    const expected = (site.dc_capacity_kwp || 1) * expectedFraction * 0.82;
-    return (site.current_power_kw ?? 0) < (value / 100) * expected;
+    // Use 20-day average specific yield. If not enough data (< 20 active days), skip.
+    if (expectedSpecificYield === null || expectedSpecificYield === undefined) return false;
+    if (expectedFraction < 0.1) return false; // not during daylight peak
+    // Expected power right now = (kWh/kWp/day average) * kWp * fraction_of_day_curve / peak_hours_equivalent
+    // Simplified: expectedSpecificYield is kWh/kWp/day, convert to expected kW at this moment
+    // Total daily expected = expectedSpecificYield * dcKwp
+    // Power at this moment = totalDaily * bellCurveFraction * normalization
+    // Bell curve integral over a day ≈ 2/π, so peak factor = π/2
+    const dcKwp = site.dc_capacity_kwp || 1;
+    const expectedPowerNow = expectedSpecificYield * dcKwp * expectedFraction * (Math.PI / 2) / 24;
+    if (expectedPowerNow < 0.5) return false; // too low to compare meaningfully
+    return (site.current_power_kw ?? 0) < (value / 100) * expectedPowerNow;
   }
   return false;
 }
