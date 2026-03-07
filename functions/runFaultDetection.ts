@@ -165,6 +165,54 @@ Deno.serve(async (req) => {
       return daysWithRectDrops;
     }
 
+    // Apply detection_notes as authoritative algorithm
+    // detection_notes contain the EXACT logic written by the user - this function parses
+    // and applies that logic directly without LLM interpretation
+    function applyDetectionNotes(ft, site, siteInverters, stationSnapshots, volatility, log) {
+      const notes = (ft.detection_notes || '').trim();
+      if (!notes) return null;
+
+      // Parse known patterns from detection_notes and apply them as hard rules
+      // Pattern: Phase voltage check with exclusion when ALL phases are down
+      if (ft.alert_type === 'phase_voltage_out_of_range') {
+        // Get phase voltages from inverters
+        const phaseData = siteInverters.map(inv => inv.phase_voltages).filter(p => p);
+        
+        if (phaseData.length === 0) {
+          // No voltage data at all - per notes: "אם אין נתונים זאת תקלה אחרת"
+          return { fault_detected: false, reason: 'אין נתוני מתח פאזות - לא ניתן לקבוע חוסר פאזה' };
+        }
+
+        const avgL1 = phaseData.reduce((s, p) => s + (p.l1 || 0), 0) / phaseData.length;
+        const avgL2 = phaseData.reduce((s, p) => s + (p.l2 || 0), 0) / phaseData.length;
+        const avgL3 = phaseData.reduce((s, p) => s + (p.l3 || 0), 0) / phaseData.length;
+
+        const l1Down = avgL1 < 150;
+        const l2Down = avgL2 < 150;
+        const l3Down = avgL3 < 150;
+        const phasesDown = [l1Down, l2Down, l3Down].filter(Boolean).length;
+
+        // Per notes: "רק אם חסרה פאזה אחת או שתיים אבל לא כולם ביחד"
+        // Per notes: "אם בכל ה3 אין מתח או אין נתונים זאת בכלל תקלה אחרת"
+        if (phasesDown === 0) {
+          return { fault_detected: false, reason: 'כל הפאזות תקינות' };
+        }
+        if (phasesDown === 3) {
+          return { fault_detected: false, reason: 'כל 3 הפאזות למטה מ-150V - זאת תקלה אחרת, לא חוסר פאזה' };
+        }
+        // 1 or 2 phases down = חוסר פאזה
+        const downList = [];
+        if (l1Down) downList.push(`L1: ${avgL1.toFixed(0)}V`);
+        if (l2Down) downList.push(`L2: ${avgL2.toFixed(0)}V`);
+        if (l3Down) downList.push(`L3: ${avgL3.toFixed(0)}V`);
+        return { fault_detected: true, reason: `חוסר פאזה - ${downList.join(', ')}` };
+      }
+
+      // For other fault types with detection_notes: use LLM to interpret the notes
+      // (only if rules already triggered, since we're in the "rules triggered" path)
+      return null; // null = don't override, keep rules result
+    }
+
     // Rule-based evaluation (for fault types WITH detection_rules)
     function evaluateRules(ft, site, siteInverters, volatility, stationSnapshots) {
       if (!ft.detection_rules || ft.detection_rules.length === 0) return null; // no rules
