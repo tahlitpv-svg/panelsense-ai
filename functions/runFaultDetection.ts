@@ -176,29 +176,6 @@ Deno.serve(async (req) => {
       const logic = ft.detection_logic || 'all';
       let triggered = logic === 'any' ? ruleResults.some(r => r) : ruleResults.every(r => r);
 
-      // Special logic for phase voltage faults: 
-      // If ALL 3 phase rules are triggered (all phases down), it's NOT a "missing phase" fault
-      // - it's a different issue (total disconnect / no data). Only flag if 1-2 phases are down.
-      if (triggered && ft.alert_type === 'phase_voltage_out_of_range') {
-        const phaseRules = ft.detection_rules.filter(r => 
-          r.metric === 'phase_voltage_l1' || r.metric === 'phase_voltage_l2' || r.metric === 'phase_voltage_l3'
-        );
-        if (phaseRules.length === 3) {
-          const phaseResults = phaseRules.map(rule => 
-            evaluateRule(rule, site, siteInverters, expectedFraction, volatility, expectedSpecificYield, cyclicDropDays)
-          );
-          const phasesDown = phaseResults.filter(r => r).length;
-          // Also check: if inverters have no data at all (all voltages null/0), skip
-          const hasAnyVoltageData = siteInverters.some(inv => {
-            const pv = inv.phase_voltages;
-            return pv && (pv.l1 > 0 || pv.l2 > 0 || pv.l3 > 0);
-          });
-          if (phasesDown === 3 || !hasAnyVoltageData) {
-            triggered = false; // All 3 down or no data = different fault, not missing phase
-          }
-        }
-      }
-
       return triggered;
     }
 
