@@ -202,12 +202,18 @@ Deno.serve(async (req) => {
         mppt_strings: inv.mppt_strings
       }));
 
+      const hasRefImages = ft.reference_images && ft.reference_images.length > 0;
+      const imageInstruction = hasRefImages
+        ? `\n\n📸 מצורפות תמונות לדוגמה של איך תקלה "${ft.name}" נראית בגרף. השתמש בתמונות כדי להבין את הדפוס הוויזואלי של התקלה, והשווה אותו לנתוני הגרף שלהלן.`
+        : '';
+
       const prompt = `אתה מומחה לניטור מערכות סולאריות.
 
 ⚠️ חשוב מאוד: תפקידך הוא לבדוק האם התקלה הספציפית "${ft.name}" קיימת לפי ההגדרה שניתנה. אל תמציא תקלות אחרות, אל תאבחן בעיות שלא ביקשו, ורק ענה true אם יש עדות ברורה לפי הקריטריונים שלהלן.
+${imageInstruction}
 
 הוראות זיהוי התקלה "${ft.name}":
-${ft.detection_notes}
+${ft.detection_notes || 'אין הוראות טקסט - השתמש בתמונות הלדוגמה המצורפות כדי להבין את דפוס התקלה'}
 
 נתוני האתר כרגע (${new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}):
 ${JSON.stringify(siteContext, null, 2)}
@@ -222,7 +228,7 @@ ${todayGraphSummary}
 
 מדד תנודתיות הספק היומי (0=יציב, 100=תנודתי מאוד): ${volatility}
 
-שאלה: האם יש סימנים לתקלה "${ft.name}" באתר זה לפי ההוראות שניתנו? התייחס גם להיסטוריה של 20 הימים האחרונים וגם לגרף היום המלא.
+שאלה: האם יש סימנים לתקלה "${ft.name}" באתר זה לפי ההוראות והתמונות שניתנו? התייחס גם להיסטוריה של 20 הימים האחרונים וגם לגרף היום המלא.
 ענה אך ורק במבנה JSON: {"fault_detected": true/false, "reason": "הסבר קצר בעברית"}`;
 
       try {
