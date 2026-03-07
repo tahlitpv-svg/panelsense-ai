@@ -367,9 +367,9 @@ function evaluateRule(rule, site, inverters, expectedFraction, volatility, expec
     if (operator === 'greater_than') return volatility > value;
     if (operator === 'less_than') return volatility < value;
     if (operator === 'less_than_percent_of_expected') {
-      // Interpret as: check if there's a recurring pattern of cyclic drops (fan fault)
-      // value = threshold (e.g. 70) - if cyclicDropDays >= 3 OR today's volatility > value, flag
-      return (cyclicDropDays || 0) >= 3 || volatility > value;
+      // Fan fault: check for recurring rectangular drop pattern in last 20 days
+      // Only flag if 3+ days show the rectangular pattern (not cloud zigzag)
+      return (cyclicDropDays || 0) >= 3;
     }
     return false;
   }
