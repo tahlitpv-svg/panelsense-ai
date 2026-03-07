@@ -183,7 +183,7 @@ ${todayGraphSummary}
       }
 
       const hasRules = ft.detection_rules && ft.detection_rules.length > 0;
-      const hasNotes = !!ft.detection_notes;
+      const hasNotes = false; // LLM disabled: enforce rule-based detection only
 
       if (!hasRules && !hasNotes) {
         log.push(`[${ft.name}] Skipped - no detection rules or notes defined`);
