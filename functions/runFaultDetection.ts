@@ -208,7 +208,7 @@ ${todayGraphSummary}
           }
         }
 
-        if (hasNotes && (!hasRules || faultDetected === false)) {
+        if (false && hasNotes && (!hasRules || faultDetected === false)) {
           // LLM check - only for evaluating THIS specific fault type based on its detection_notes
           // The LLM must NOT invent new fault types - it only judges if THIS fault type is detected
           const llmResult = await evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility);
