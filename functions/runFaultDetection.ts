@@ -300,15 +300,23 @@ ${todayGraphSummary}
           }
         }
 
-        if ((hasNotes || hasImages) && (!hasRules || faultDetected === false)) {
-          // LLM check - for evaluating THIS specific fault type based on detection_notes + reference images
-          const llmResult = await evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility);
-          if (llmResult !== null) {
-            if (llmResult.fault_detected) {
-              faultDetected = true;
-              faultReason = llmResult.reason;
+        // LLM check: only run if this fault type has NO rules (pure LLM detection)
+        // If it has rules AND the rules didn't trigger, skip LLM to avoid timeout
+        if ((hasNotes || hasImages) && !hasRules && !faultDetected) {
+          // For pure LLM fault types: only check sites with some anomaly signal
+          // (volatility > 30 or efficiency < 80) to avoid running LLM on all 80+ sites
+          const hasAnomaly = volatility > 30 || (site.current_efficiency ?? 100) < 80 || (site.current_power_kw ?? 0) < 0.1;
+          if (hasAnomaly) {
+            const llmResult = await evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility);
+            if (llmResult !== null) {
+              if (llmResult.fault_detected) {
+                faultDetected = true;
+                faultReason = llmResult.reason;
+              }
+              log.push(`[${ft.name}] LLM for ${site.name}: ${llmResult.fault_detected ? 'FAULT' : 'OK'} - ${llmResult.reason}`);
             }
-            log.push(`[${ft.name}] LLM for ${site.name}: ${llmResult.fault_detected ? 'FAULT' : 'OK'} - ${llmResult.reason}`);
+          } else {
+            log.push(`[${ft.name}] LLM skipped for ${site.name} - no anomaly signal`);
           }
         }
 
