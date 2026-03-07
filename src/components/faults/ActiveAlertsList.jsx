@@ -59,11 +59,11 @@ export default function ActiveAlertsList() {
 
   const deleteAllMutation = useMutation({
     mutationFn: async () => {
-      for (const alert of alerts) {
-        await base44.entities.Alert.delete(alert.id);
-      }
+      const ids = alerts.map(a => a.id);
+      if (ids.length === 0) return;
+      await Promise.allSettled(ids.map(id => base44.entities.Alert.delete(id)));
     },
-    onSuccess: () => queryClient.invalidateQueries(['activeAlerts'])
+    onSettled: () => queryClient.invalidateQueries(['activeAlerts'])
   });
 
   const runDetection = async () => {
@@ -132,8 +132,8 @@ export default function ActiveAlertsList() {
                 סגור הכל
               </Button>
               <Button variant="outline" size="sm" onClick={() => { if (window.confirm('למחוק את כל ההתראות לצמיתות?')) deleteAllMutation.mutate(); }} disabled={deleteAllMutation.isPending} className="gap-1.5 text-xs text-red-600 border-red-200 hover:bg-red-50">
-                <Trash2 className="w-3.5 h-3.5" />
-                מחק הכל
+                {deleteAllMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                {deleteAllMutation.isPending ? 'מוחק…' : 'מחק הכל'}
               </Button>
             </>
           )}
