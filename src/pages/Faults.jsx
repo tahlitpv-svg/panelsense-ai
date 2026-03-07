@@ -109,7 +109,26 @@ export default function Faults() {
     }
   };
 
+  const [uploading, setUploading] = useState(false);
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setUploading(true);
+    const urls = [];
+    for (const file of files) {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      urls.push(file_url);
+    }
+    setForm(f => ({ ...f, reference_images: [...(f.reference_images || []), ...urls] }));
+    setUploading(false);
+    e.target.value = '';
+  };
+
+  const removeImage = (idx) => {
+    setForm(f => ({ ...f, reference_images: (f.reference_images || []).filter((_, i) => i !== idx) }));
+  };
 
   return (
     <div className="space-y-6" dir="rtl">
