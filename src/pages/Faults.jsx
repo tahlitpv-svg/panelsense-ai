@@ -204,6 +204,33 @@ export default function Faults() {
             </div>
           </div>
 
+          {/* Check hours */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <Clock className="w-4 h-4 text-slate-400" />
+            <span className="text-sm font-medium text-slate-700">שעות בדיקה:</span>
+            <div className="flex items-center gap-2">
+              <Select value={String(form.check_hour_from ?? 6)} onValueChange={v => set('check_hour_from', Number(v))}>
+                <SelectTrigger className="w-20 h-8 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Array.from({length: 24}, (_, i) => (
+                    <SelectItem key={i} value={String(i)}>{String(i).padStart(2,'0')}:00</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-slate-400">עד</span>
+              <Select value={String(form.check_hour_to ?? 20)} onValueChange={v => set('check_hour_to', Number(v))}>
+                <SelectTrigger className="w-20 h-8 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Array.from({length: 24}, (_, i) => (
+                    <SelectItem key={i + 1} value={String(i + 1)}>{String(i + 1).padStart(2,'0')}:00</SelectItem>
+                  ))}
+                  <SelectItem value="24">00:00</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <span className="text-xs text-slate-400">(בדיקה תרוץ רק בטווח שעות זה)</span>
+          </div>
+
           <div className="space-y-1">
             <Label>תיאור התקלה</Label>
             <Textarea value={form.description} onChange={e => set('description', e.target.value)} placeholder="תאר את התקלה..." rows={2} />
