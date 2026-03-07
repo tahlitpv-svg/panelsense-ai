@@ -40,12 +40,11 @@ const EMPTY_RULE = {
   description: ''
 };
 
-export default function DetectionRulesEditor({ rules = [], logic = 'all', consecutiveChecks = 2, checkDaylight = true, onChange }) {
+export default function DetectionRulesEditor({ rules = [], logic = 'all', consecutiveChecks = 2, onChange }) {
 
-  const updateRules = (newRules) => onChange({ rules: newRules, logic, consecutiveChecks, checkDaylight });
-  const updateLogic = (v) => onChange({ rules, logic: v, consecutiveChecks, checkDaylight });
-  const updateConsecutive = (v) => onChange({ rules, logic, consecutiveChecks: Number(v), checkDaylight });
-  const updateDaylight = (v) => onChange({ rules, logic, consecutiveChecks, checkDaylight: v });
+  const updateRules = (newRules) => onChange({ rules: newRules, logic, consecutiveChecks });
+  const updateLogic = (v) => onChange({ rules, logic: v, consecutiveChecks });
+  const updateConsecutive = (v) => onChange({ rules, logic, consecutiveChecks: Number(v) });
 
   const addRule = () => updateRules([...rules, { ...EMPTY_RULE }]);
   const removeRule = (i) => updateRules(rules.filter((_, idx) => idx !== i));
