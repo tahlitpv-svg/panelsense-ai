@@ -176,6 +176,30 @@ Deno.serve(async (req) => {
       const logic = ft.detection_logic || 'all';
       let triggered = logic === 'any' ? ruleResults.some(r => r) : ruleResults.every(r => r);
 
+      // Apply detection_notes logic as hard rules (these override rule results)
+      // "חוסר פאזה": only if 1-2 phases are down, NOT all 3. If all 3 down or no data = different fault.
+      if (triggered && ft.alert_type === 'phase_voltage_out_of_range') {
+        const phaseMetrics = ['phase_voltage_l1', 'phase_voltage_l2', 'phase_voltage_l3'];
+        const phaseRules = ft.detection_rules.filter(r => phaseMetrics.includes(r.metric));
+        if (phaseRules.length >= 2) {
+          // Count how many phases are actually down per the rules
+          const phaseResults = phaseMetrics.map(metric => {
+            const rule = phaseRules.find(r => r.metric === metric);
+            if (!rule) return false;
+            return evaluateRule(rule, site, siteInverters, expectedFraction, volatility, expectedSpecificYield, cyclicDropDays);
+          });
+          const phasesDown = phaseResults.filter(r => r).length;
+          // Check if inverters have any voltage data at all
+          const hasAnyVoltageData = siteInverters.some(inv => {
+            const pv = inv.phase_voltages;
+            return pv && (pv.l1 > 0 || pv.l2 > 0 || pv.l3 > 0);
+          });
+          if (phasesDown === 3 || !hasAnyVoltageData) {
+            triggered = false; // All 3 down or no data = different fault per detection_notes
+          }
+        }
+      }
+
       return triggered;
     }
 
