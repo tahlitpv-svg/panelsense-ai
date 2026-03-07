@@ -294,14 +294,12 @@ export default function Faults() {
               rules={form.detection_rules || []}
               logic={form.detection_logic || 'all'}
               consecutiveChecks={form.consecutive_checks_required || 2}
-              checkDaylight={form.check_only_during_daylight !== false}
-              onChange={({ rules, logic, consecutiveChecks, checkDaylight }) => {
+              onChange={({ rules, logic, consecutiveChecks }) => {
                 setForm(f => ({
                   ...f,
                   detection_rules: rules,
                   detection_logic: logic,
-                  consecutive_checks_required: consecutiveChecks,
-                  check_only_during_daylight: checkDaylight
+                  consecutive_checks_required: consecutiveChecks
                 }));
               }}
             />
