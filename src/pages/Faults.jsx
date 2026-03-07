@@ -392,7 +392,11 @@ export default function Faults() {
                       ))}
                     </div>
                   )}
-                  <div className="flex items-center gap-3 mt-2">
+                  <div className="flex items-center gap-3 mt-2 flex-wrap">
+                    <div className="flex items-center gap-1 text-xs text-slate-500">
+                      <Clock className="w-3 h-3" />
+                      {String(ft.check_hour_from ?? 6).padStart(2,'0')}:00 - {String(ft.check_hour_to ?? 20).padStart(2,'0')}:00
+                    </div>
                     {ft.notify_email && <div className="flex items-center gap-1 text-xs text-slate-500"><Mail className="w-3 h-3" /> מייל</div>}
                     {ft.notify_whatsapp && <div className="flex items-center gap-1 text-xs text-slate-500"><MessageSquare className="w-3 h-3" /> ווצאפ</div>}
                     {ft.notify_phone && <div className="flex items-center gap-1 text-xs text-slate-500"><Phone className="w-3 h-3" /> טלפון</div>}
