@@ -57,6 +57,15 @@ export default function ActiveAlertsList() {
     onSuccess: () => queryClient.invalidateQueries(['activeAlerts'])
   });
 
+  const deleteAllMutation = useMutation({
+    mutationFn: async () => {
+      for (const alert of alerts) {
+        await base44.entities.Alert.delete(alert.id);
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries(['activeAlerts'])
+  });
+
   const runDetection = async () => {
     setRunningDetection(true);
     setDetectionResult(null);
