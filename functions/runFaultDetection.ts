@@ -150,9 +150,9 @@ Deno.serve(async (req) => {
       return logic === 'any' ? ruleResults.some(r => r) : ruleResults.every(r => r);
     }
 
-    // LLM-based evaluation (for fault types WITH detection_notes)
+    // LLM-based evaluation (for fault types WITH detection_notes or reference_images)
     async function evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility) {
-      if (!ft.detection_notes) return null; // no notes
+      if (!ft.detection_notes && (!ft.reference_images || ft.reference_images.length === 0)) return null;
 
       // Build multi-day graph summary (last 20 days)
       const sortedDates = Object.keys(stationSnapshots).sort();
