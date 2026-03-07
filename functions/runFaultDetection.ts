@@ -245,8 +245,10 @@ ${todayGraphSummary}
     }
 
     for (const ft of activeFaultTypes) {
-      if (!isDaylight(ft)) {
-        log.push(`[${ft.name}] Skipped - outside daylight hours`);
+      if (!isWithinCheckHours(ft)) {
+        const from = ft.check_hour_from ?? 6;
+        const to = ft.check_hour_to ?? 20;
+        log.push(`[${ft.name}] Skipped - outside check hours (${from}:00-${to}:00, current: ${localHour}:${String(localMinute).padStart(2,'0')})`);
         continue;
       }
 
