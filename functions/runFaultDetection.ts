@@ -335,13 +335,19 @@ ${todayGraphSummary}
   }
 });
 
-function evaluateRule(rule, site, inverters, expectedFraction, volatility, expectedSpecificYield) {
+function evaluateRule(rule, site, inverters, expectedFraction, volatility, expectedSpecificYield, cyclicDropDays) {
   const { metric, operator, value, value_string } = rule;
 
   if (metric === 'power_volatility_index') {
+    // For volatility: also check historical cyclic drop pattern (fan fault detection)
+    // If 3+ days out of last 20 show cyclic drops, AND today's volatility is elevated, flag it
     if (operator === 'greater_than') return volatility > value;
     if (operator === 'less_than') return volatility < value;
-    if (operator === 'less_than_percent_of_expected') return volatility > value; // treat as "volatility exceeds threshold"
+    if (operator === 'less_than_percent_of_expected') {
+      // Interpret as: check if there's a recurring pattern of cyclic drops (fan fault)
+      // value = threshold (e.g. 70) - if cyclicDropDays >= 3 OR today's volatility > value, flag
+      return (cyclicDropDays || 0) >= 3 || volatility > value;
+    }
     return false;
   }
 
