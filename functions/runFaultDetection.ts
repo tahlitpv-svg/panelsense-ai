@@ -98,11 +98,13 @@ Deno.serve(async (req) => {
       return Math.round(Math.min(100, (reversals / (values.length - 1)) * 200) * 0.6 + Math.min(100, cvPercent * 2) * 0.4);
     }
 
-    // Detect recurring production drop pattern (fan/temperature fault)
-    // Looks for days with cyclic drops: power drops >40% from peak then recovers, repeatedly
-    function countCyclicDropDays(stationSnapshots, todayKey) {
+    // Detect recurring "rectangular" production drop pattern (fan/temperature fault)
+    // Fan fault pattern: power drops ~40% from peak, stays LOW for ~10+ minutes (2+ data points 
+    // at 5-min intervals), then recovers back up. This is a "rectangle" shape.
+    // Cloud pattern: rapid spikes up/down (zigzag), drops are brief (1 data point) and irregular.
+    function countRectangularDropDays(stationSnapshots, todayKey) {
       const sortedDates = Object.keys(stationSnapshots).filter(d => d !== todayKey).sort().reverse().slice(0, 20);
-      let daysWithCyclicDrops = 0;
+      let daysWithRectDrops = 0;
       for (const d of sortedDates) {
         const dayData = stationSnapshots[d] || [];
         const daytime = dayData.filter(p => p.value > 0.5);
@@ -110,20 +112,31 @@ Deno.serve(async (req) => {
         const values = daytime.map(p => p.value);
         const peak = Math.max(...values);
         if (peak < 1) continue;
-        // Count significant drops (>40% from peak) followed by recovery
-        let drops = 0;
-        let inDrop = false;
-        for (let i = 1; i < values.length; i++) {
-          if (!inDrop && values[i] < peak * 0.6 && values[i - 1] > peak * 0.75) {
-            inDrop = true;
-          } else if (inDrop && values[i] > peak * 0.75) {
-            drops++;
-            inDrop = false;
+        
+        // Find rectangular drops: sustained low period (>=2 consecutive points at <65% of peak)
+        // preceded by high production (>75% of peak) and followed by recovery (>75% of peak)
+        let rectDrops = 0;
+        let i = 0;
+        while (i < values.length) {
+          // Look for entry into a drop: was high, now drops to <65% of peak
+          if (values[i] > peak * 0.75 && i + 1 < values.length && values[i + 1] < peak * 0.65) {
+            // Count how many consecutive points stay low (<65% of peak)
+            let lowStart = i + 1;
+            let j = lowStart;
+            while (j < values.length && values[j] < peak * 0.65) j++;
+            const lowDuration = j - lowStart; // number of data points at 5-min intervals
+            // Rectangular = stays low for 2+ points (10+ minutes) AND recovers
+            if (lowDuration >= 2 && j < values.length && values[j] > peak * 0.7) {
+              rectDrops++;
+            }
+            i = j; // skip past this drop
+          } else {
+            i++;
           }
         }
-        if (drops >= 2) daysWithCyclicDrops++; // at least 2 cyclic drops in a day
+        if (rectDrops >= 2) daysWithRectDrops++; // at least 2 rectangular drops in a day
       }
-      return daysWithCyclicDrops;
+      return daysWithRectDrops;
     }
 
     // Rule-based evaluation (for fault types WITH detection_rules)
