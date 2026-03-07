@@ -126,10 +126,16 @@ export default function ActiveAlertsList() {
             {runningDetection ? 'בודק...' : 'הרץ בדיקה עכשיו'}
           </Button>
           {alerts.length > 0 && (
-            <Button variant="outline" size="sm" onClick={() => resolveAllMutation.mutate()} disabled={resolveAllMutation.isPending} className="gap-1.5 text-xs text-green-700 border-green-200 hover:bg-green-50">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              סגור הכל
-            </Button>
+            <>
+              <Button variant="outline" size="sm" onClick={() => resolveAllMutation.mutate()} disabled={resolveAllMutation.isPending} className="gap-1.5 text-xs text-green-700 border-green-200 hover:bg-green-50">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                סגור הכל
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => { if (window.confirm('למחוק את כל ההתראות לצמיתות?')) deleteAllMutation.mutate(); }} disabled={deleteAllMutation.isPending} className="gap-1.5 text-xs text-red-600 border-red-200 hover:bg-red-50">
+                <Trash2 className="w-3.5 h-3.5" />
+                מחק הכל
+              </Button>
+            </>
           )}
         </div>
       </div>
