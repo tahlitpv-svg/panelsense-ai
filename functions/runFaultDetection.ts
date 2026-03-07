@@ -212,7 +212,7 @@ ${todayGraphSummary}
           // LLM check - only for evaluating THIS specific fault type based on its detection_notes
           // The LLM must NOT invent new fault types - it only judges if THIS fault type is detected
           const llmResult = await evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility);
-          if (llmResult !== null) {
+          if (false && llmResult !== null) {
             if (llmResult.fault_detected) {
               faultDetected = true;
               faultReason = llmResult.reason;
