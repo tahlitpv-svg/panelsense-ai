@@ -209,24 +209,23 @@ export default function Faults() {
             <Clock className="w-4 h-4 text-slate-400" />
             <span className="text-sm font-medium text-slate-700">שעות בדיקה:</span>
             <div className="flex items-center gap-2">
-              <Select value={String(form.check_hour_from ?? 6)} onValueChange={v => set('check_hour_from', Number(v))}>
-                <SelectTrigger className="w-20 h-8 text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Array.from({length: 24}, (_, i) => (
-                    <SelectItem key={i} value={String(i)}>{String(i).padStart(2,'0')}:00</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                type="number"
+                min={0}
+                max={23}
+                value={form.check_hour_from ?? 6}
+                onChange={e => set('check_hour_from', Math.min(23, Math.max(0, Number(e.target.value))))}
+                className="w-20 h-8 text-sm text-center"
+              />
               <span className="text-slate-400">עד</span>
-              <Select value={String(form.check_hour_to ?? 20)} onValueChange={v => set('check_hour_to', Number(v))}>
-                <SelectTrigger className="w-20 h-8 text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Array.from({length: 24}, (_, i) => (
-                    <SelectItem key={i + 1} value={String(i + 1)}>{String(i + 1).padStart(2,'0')}:00</SelectItem>
-                  ))}
-                  <SelectItem value="24">00:00</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input
+                type="number"
+                min={1}
+                max={24}
+                value={form.check_hour_to ?? 20}
+                onChange={e => set('check_hour_to', Math.min(24, Math.max(1, Number(e.target.value))))}
+                className="w-20 h-8 text-sm text-center"
+              />
             </div>
             <span className="text-xs text-slate-400">(בדיקה תרוץ רק בטווח שעות זה)</span>
           </div>
