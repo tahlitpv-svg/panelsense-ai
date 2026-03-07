@@ -157,7 +157,7 @@ export default function DetectionRulesEditor({ rules = [], logic = 'all', consec
 
       {/* Logic & settings */}
       {rules.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
           <div className="space-y-1">
             <Label className="text-xs text-slate-500">לוגיקת תנאים</Label>
             <Select value={logic} onValueChange={updateLogic}>
@@ -178,22 +178,6 @@ export default function DetectionRulesEditor({ rules = [], logic = 'all', consec
               value={consecutiveChecks}
               onChange={e => updateConsecutive(e.target.value)}
             />
-          </div>
-
-          <div className="space-y-1">
-            <Label className="text-xs text-slate-500">בדיקה בשעות יום בלבד</Label>
-            <button
-              type="button"
-              onClick={() => updateDaylight(!checkDaylight)}
-              className={`w-full h-8 flex items-center gap-2 px-3 rounded-md border text-xs font-medium transition-all ${
-                checkDaylight ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-slate-200 text-slate-400'
-              }`}
-            >
-              <div className={`w-7 h-3.5 rounded-full relative flex-shrink-0 ${checkDaylight ? 'bg-amber-400' : 'bg-slate-200'}`}>
-                <div className={`absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white shadow transition-all ${checkDaylight ? 'right-0.5' : 'left-0.5'}`} />
-              </div>
-              {checkDaylight ? '06:00–19:00 בלבד' : 'כל שעות היום'}
-            </button>
           </div>
         </div>
       )}
