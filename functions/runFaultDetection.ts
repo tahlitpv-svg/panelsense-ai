@@ -368,58 +368,90 @@ ${todayGraphSummary}
         // Collect sites that rules flagged for batch LLM verification later
         if (hasRules && hasNotes && faultDetected) {
           if (!ft._pendingLLMVerification) ft._pendingLLMVerification = [];
-          ft._pendingLLMVerification.push({ site, siteInverters, stationSnapshots, volatility, faultReason });
+          ft._pendingLLMVerification.push({ site, siteInverters, volatility, faultReason });
+          // Skip alert creation now - will handle after LLM batch verification
+          continue;
         }
 
-        const existingAlert = openAlerts.find(a =>
-          a.site_id === site.id &&
-          a.type === ft.alert_type &&
-          a.fault_type_name === ft.name &&
-          !a.is_resolved
-        );
+        // For faults without pending LLM: handle alerts immediately
+        await handleAlertResult(ft, site, faultDetected, faultReason, openAlerts, triggered, log, db, now);
+      }
 
-        if (faultDetected) {
-          triggered.push({ fault_type: ft.name, site_name: site.name, site_id: site.id, severity: ft.severity });
-          log.push(`[${ft.name}] DETECTED on site: ${site.name}`);
+      // Batch LLM verification: send ONE LLM call with all flagged sites for this fault type
+      if (ft._pendingLLMVerification && ft._pendingLLMVerification.length > 0) {
+        const pending = ft._pendingLLMVerification;
+        log.push(`[${ft.name}] Batch LLM verification for ${pending.length} sites...`);
 
-          if (!existingAlert) {
-            const message = faultReason || ft.description || ft.name;
-            await db.entities.Alert.create({
-              site_id: site.id,
-              site_name: site.name,
-              type: ft.alert_type,
-              severity: ft.severity,
-              message,
-              fault_type_name: ft.name,
-              is_resolved: false
-            });
-            log.push(`[${ft.name}] Alert created for site: ${site.name} - ${message}`);
+        // Build a single prompt with all sites' data
+        const siteSummaries = pending.map((p, idx) => {
+          const inv = p.siteInverters[0]; // primary inverter
+          const pv = inv?.phase_voltages || {};
+          return `אתר ${idx + 1}: "${p.site.name}" - L1=${pv.l1 ?? 'N/A'}V, L2=${pv.l2 ?? 'N/A'}V, L3=${pv.l3 ?? 'N/A'}V`;
+        }).join('\n');
 
-            if (ft.notify_email) {
-              try {
-                const body = `התראה: ${ft.name}\nאתר: ${site.name}\nסיבה: ${message}\nזמן: ${now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}`;
-                const adminUsers = await db.entities.User.filter({ role: 'admin' });
-                for (const admin of adminUsers) {
-                  await db.integrations.Core.SendEmail({
-                    to: admin.email,
-                    subject: `⚠️ תקלה: ${ft.name} - ${site.name}`,
-                    body
-                  });
+        const batchPrompt = `אתה מומחה לניטור מערכות סולאריות.
+
+הוראות הזיהוי (אלו החוקים הקבועים, פעל אך ורק לפיהם):
+${ft.detection_notes}
+
+להלן ${pending.length} אתרים שזוהו לפי חוקי מתח כבעלי פאזה מתחת ל-150V.
+בדוק כל אתר לפי ההוראות למעלה וקבע האם זו באמת תקלת "${ft.name}" או לא.
+
+${siteSummaries}
+
+ענה במבנה JSON:
+{
+  "results": [
+    {"site_index": 1, "fault_detected": true/false, "reason": "הסבר קצר"}
+  ]
+}`;
+
+        try {
+          const llmResult = await db.integrations.Core.InvokeLLM({
+            prompt: batchPrompt,
+            response_json_schema: {
+              type: 'object',
+              properties: {
+                results: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      site_index: { type: 'number' },
+                      fault_detected: { type: 'boolean' },
+                      reason: { type: 'string' }
+                    }
+                  }
                 }
-              } catch (emailErr) {
-                log.push(`[${ft.name}] Email failed: ${emailErr.message}`);
+              },
+              required: ['results']
+            }
+          });
+
+          // Process LLM results
+          for (let i = 0; i < pending.length; i++) {
+            const p = pending[i];
+            const llmSiteResult = (llmResult.results || []).find(r => r.site_index === i + 1);
+            let finalFault = true; // default to rules result if LLM didn't return for this site
+            let finalReason = p.faultReason;
+
+            if (llmSiteResult) {
+              finalFault = llmSiteResult.fault_detected;
+              if (finalFault) {
+                finalReason = llmSiteResult.reason;
+                log.push(`[${ft.name}] LLM CONFIRMED ${p.site.name}: ${llmSiteResult.reason}`);
+              } else {
+                log.push(`[${ft.name}] LLM OVERRULED ${p.site.name}: ${llmSiteResult.reason}`);
               }
             }
-          } else {
-            log.push(`[${ft.name}] Alert already open for site: ${site.name}`);
-          }
 
-        } else {
-          if (existingAlert) {
-            await db.entities.Alert.delete(existingAlert.id);
-            log.push(`[${ft.name}] Alert AUTO-RESOLVED for site: ${site.name}`);
-          } else {
-            log.push(`[${ft.name}] OK on site: ${site.name}`);
+            await handleAlertResult(ft, p.site, finalFault, finalReason, openAlerts, triggered, log, db, now);
+          }
+        } catch (llmErr) {
+          log.push(`[${ft.name}] Batch LLM failed: ${llmErr.message} - using rules results as fallback`);
+          // Fallback: use rules results without LLM verification
+          for (const p of pending) {
+            await handleAlertResult(ft, p.site, true, p.faultReason, openAlerts, triggered, log, db, now);
           }
         }
       }
