@@ -99,9 +99,9 @@ Deno.serve(async (req) => {
     }
 
     // Rule-based evaluation (for fault types WITH detection_rules)
-    function evaluateRules(ft, site, siteInverters, volatility) {
+    function evaluateRules(ft, site, siteInverters, volatility, expectedSpecificYield) {
       if (!ft.detection_rules || ft.detection_rules.length === 0) return null; // no rules
-      const ruleResults = ft.detection_rules.map(rule => evaluateRule(rule, site, siteInverters, expectedFraction, volatility));
+      const ruleResults = ft.detection_rules.map(rule => evaluateRule(rule, site, siteInverters, expectedFraction, volatility, expectedSpecificYield));
       const logic = ft.detection_logic || 'all';
       return logic === 'any' ? ruleResults.some(r => r) : ruleResults.every(r => r);
     }
