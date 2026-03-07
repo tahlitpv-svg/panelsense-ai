@@ -46,7 +46,31 @@ Deno.serve(async (req) => {
       snapshotsByStation[snap.station_id][snap.date_key] = snap.data || [];
     }
 
-    // Expected power fraction (bell curve)
+    // Compute daily yield (kWh) from snapshot data array (5-min intervals)
+    function computeDailyYield(data) {
+      if (!data || data.length < 2) return 0;
+      return data.reduce((sum, p) => sum + (p.value || 0) * (5 / 60), 0);
+    }
+
+    // Compute expected specific yield (kWh/kWp) from last 20 active days for a site
+    function computeExpectedSpecificYield(stationSnapshots, todayKey, dcKwp) {
+      if (!dcKwp || dcKwp <= 0) return null;
+      const sortedDates = Object.keys(stationSnapshots).filter(d => d !== todayKey).sort().reverse();
+      const activeDays = [];
+      for (const d of sortedDates) {
+        const dayData = stationSnapshots[d];
+        const yield_kwh = computeDailyYield(dayData);
+        if (yield_kwh > 0.5) { // at least 0.5 kWh to count as active day
+          activeDays.push(yield_kwh);
+        }
+        if (activeDays.length >= 20) break;
+      }
+      if (activeDays.length < 20) return null; // not enough data - cannot evaluate
+      const avgDailyKwh = activeDays.reduce((a, b) => a + b, 0) / activeDays.length;
+      return avgDailyKwh / dcKwp; // kWh per kWp per day
+    }
+
+    // Expected power fraction (bell curve) - still used for time-of-day normalization
     function getExpectedPowerFraction(min) {
       const sunrise = 360, sunset = 1170;
       if (min <= sunrise || min >= sunset) return 0;
