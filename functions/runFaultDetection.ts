@@ -414,9 +414,9 @@ function evaluateRule(rule, site, inverters, expectedFraction, volatility, expec
     if (operator === 'greater_than') return volatility > value;
     if (operator === 'less_than') return volatility < value;
     if (operator === 'less_than_percent_of_expected') {
-      // Fan fault: check for recurring rectangular drop pattern in last 20 days
-      // Only flag if 3+ days show the rectangular pattern (not cloud zigzag)
-      return (cyclicDropDays || 0) >= 3;
+      // Fan fault: check for recurring comb/derating drop pattern in last 20 days
+      // Require 7+ days with the pattern to avoid false positives from occasional cloud artifacts
+      return (cyclicDropDays || 0) >= 7;
     }
     return false;
   }
