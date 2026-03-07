@@ -284,6 +284,32 @@ ${todayGraphSummary}
       }
     }
 
+    // Build a descriptive reason string from site data (used as fallback if LLM doesn't run)
+    function buildFaultReason(ft, site, siteInverters, volatility, stationSnapshots, dateKey) {
+      const reasons = [];
+      if (ft.alert_type === 'inverter_fault') {
+        const temps = siteInverters.map(i => i.temperature_c).filter(v => v != null);
+        const maxTemp = temps.length ? Math.max(...temps) : null;
+        if (maxTemp !== null && maxTemp > 60) reasons.push(`טמפרטורה ${maxTemp}°C`);
+        if (volatility > 50) reasons.push(`תנודתיות ${volatility}`);
+        const cyclicDays = countRectangularDropDays(stationSnapshots, dateKey);
+        if (cyclicDays >= 7) reasons.push(`${cyclicDays} ימים עם דפוס מסרק (derating) מ-20 אחרונים`);
+      } else if (ft.alert_type === 'phase_voltage_out_of_range') {
+        const pv = siteInverters.map(i => i.phase_voltages).filter(p => p);
+        if (pv.length > 0) {
+          const avgL1 = pv.reduce((s, p) => s + (p.l1 || 0), 0) / pv.length;
+          const avgL2 = pv.reduce((s, p) => s + (p.l2 || 0), 0) / pv.length;
+          const avgL3 = pv.reduce((s, p) => s + (p.l3 || 0), 0) / pv.length;
+          const downPhases = [];
+          if (avgL1 < 150) downPhases.push(`L1: ${avgL1.toFixed(0)}V`);
+          if (avgL2 < 150) downPhases.push(`L2: ${avgL2.toFixed(0)}V`);
+          if (avgL3 < 150) downPhases.push(`L3: ${avgL3.toFixed(0)}V`);
+          if (downPhases.length > 0) reasons.push(`פאזות חסרות: ${downPhases.join(', ')}`);
+        }
+      }
+      return reasons.length > 0 ? reasons.join(', ') : 'זוהה לפי חוקי זיהוי';
+    }
+
     for (const ft of activeFaultTypes) {
       if (!isWithinCheckHours(ft)) {
         const from = ft.check_hour_from ?? 6;
