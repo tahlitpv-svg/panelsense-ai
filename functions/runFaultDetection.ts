@@ -223,9 +223,12 @@ ${todayGraphSummary}
         let faultDetected = false;
         let faultReason = '';
 
+        // Compute expected specific yield for this site (20-day average)
+        const expectedSpecificYield = computeExpectedSpecificYield(stationSnapshots, dateKey, site.dc_capacity_kwp);
+
         if (hasRules) {
           // Rule-based check first
-          const ruleResult = evaluateRules(ft, site, siteInverters, volatility);
+          const ruleResult = evaluateRules(ft, site, siteInverters, volatility, expectedSpecificYield);
           if (ruleResult !== null) {
             faultDetected = ruleResult;
             faultReason = faultDetected ? 'זוהה לפי חוקי זיהוי' : '';
