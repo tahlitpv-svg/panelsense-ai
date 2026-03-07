@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, AlertTriangle, AlertOctagon, Info, Loader2, Play, RefreshCw, Search } from "lucide-react";
+import { CheckCircle2, AlertTriangle, AlertOctagon, Info, Loader2, Play, RefreshCw, Search, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
