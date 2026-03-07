@@ -113,29 +113,37 @@ Deno.serve(async (req) => {
         const values = daytime.map(p => p.value);
         const peak = Math.max(...values);
         if (peak < 1) continue;
+
+        // First check: is this a "clean sun" day or a cloudy day?
+        // Cloudy days have lots of rapid zigzag fluctuations across the WHOLE day.
+        // Fan fault days have a smooth curve with specific rectangular drops.
+        // Calculate day-level volatility to filter out cloudy days.
+        const dayVolatility = computeVolatilityIndex(dayData);
+        
+        // If day has high overall volatility (>40), it's likely a cloudy day - skip it.
+        // Fan faults happen on clear days too, so we only count clear-day drops.
+        if (dayVolatility > 40) continue;
         
         // Find rectangular drops: sustained low period (>=2 consecutive points at <65% of peak)
         // preceded by high production (>75% of peak) and followed by recovery (>75% of peak)
         let rectDrops = 0;
         let i = 0;
         while (i < values.length) {
-          // Look for entry into a drop: was high, now drops to <65% of peak
           if (values[i] > peak * 0.75 && i + 1 < values.length && values[i + 1] < peak * 0.65) {
-            // Count how many consecutive points stay low (<65% of peak)
             let lowStart = i + 1;
             let j = lowStart;
             while (j < values.length && values[j] < peak * 0.65) j++;
-            const lowDuration = j - lowStart; // number of data points at 5-min intervals
-            // Rectangular = stays low for 2+ points (10+ minutes) AND recovers
+            const lowDuration = j - lowStart;
+            // Rectangular = stays low for 2+ points (10+ minutes) AND recovers back to >70% peak
             if (lowDuration >= 2 && j < values.length && values[j] > peak * 0.7) {
               rectDrops++;
             }
-            i = j; // skip past this drop
+            i = j;
           } else {
             i++;
           }
         }
-        if (rectDrops >= 2) daysWithRectDrops++; // at least 2 rectangular drops in a day
+        if (rectDrops >= 2) daysWithRectDrops++;
       }
       return daysWithRectDrops;
     }
