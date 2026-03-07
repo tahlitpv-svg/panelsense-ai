@@ -98,6 +98,34 @@ Deno.serve(async (req) => {
       return Math.round(Math.min(100, (reversals / (values.length - 1)) * 200) * 0.6 + Math.min(100, cvPercent * 2) * 0.4);
     }
 
+    // Detect recurring production drop pattern (fan/temperature fault)
+    // Looks for days with cyclic drops: power drops >40% from peak then recovers, repeatedly
+    function countCyclicDropDays(stationSnapshots, todayKey) {
+      const sortedDates = Object.keys(stationSnapshots).filter(d => d !== todayKey).sort().reverse().slice(0, 20);
+      let daysWithCyclicDrops = 0;
+      for (const d of sortedDates) {
+        const dayData = stationSnapshots[d] || [];
+        const daytime = dayData.filter(p => p.value > 0.5);
+        if (daytime.length < 10) continue;
+        const values = daytime.map(p => p.value);
+        const peak = Math.max(...values);
+        if (peak < 1) continue;
+        // Count significant drops (>40% from peak) followed by recovery
+        let drops = 0;
+        let inDrop = false;
+        for (let i = 1; i < values.length; i++) {
+          if (!inDrop && values[i] < peak * 0.6 && values[i - 1] > peak * 0.75) {
+            inDrop = true;
+          } else if (inDrop && values[i] > peak * 0.75) {
+            drops++;
+            inDrop = false;
+          }
+        }
+        if (drops >= 2) daysWithCyclicDrops++; // at least 2 cyclic drops in a day
+      }
+      return daysWithCyclicDrops;
+    }
+
     // Rule-based evaluation (for fault types WITH detection_rules)
     function evaluateRules(ft, site, siteInverters, volatility, stationSnapshots) {
       if (!ft.detection_rules || ft.detection_rules.length === 0) return null; // no rules
