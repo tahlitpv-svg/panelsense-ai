@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, X, Check, Mail, Phone, MessageSquare, FlaskConical, Bell, ShieldAlert } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Check, Mail, Phone, MessageSquare, FlaskConical, Bell, ShieldAlert, ImagePlus, XCircle } from 'lucide-react';
 import DetectionRulesEditor from '../components/faults/DetectionRulesEditor';
 import ActiveAlertsList from '../components/faults/ActiveAlertsList';
 
@@ -56,6 +56,7 @@ const EMPTY_FORM = {
   description: '',
   solution: '',
   detection_notes: '',
+  reference_images: [],
   severity: 'warning',
   alert_type: 'other',
   notify_email: true,
