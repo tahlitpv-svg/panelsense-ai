@@ -350,23 +350,44 @@ ${todayGraphSummary}
           }
         }
 
-        // LLM check: only run if this fault type has NO rules (pure LLM detection)
-        // If it has rules AND the rules didn't trigger, skip LLM to avoid timeout
-        if ((hasNotes || hasImages) && !hasRules && !faultDetected) {
-          // For pure LLM fault types: only check sites with some anomaly signal
-          // (volatility > 30 or efficiency < 80) to avoid running LLM on all 80+ sites
-          const hasAnomaly = volatility > 30 || (site.current_efficiency ?? 100) < 80 || (site.current_power_kw ?? 0) < 0.1;
-          if (hasAnomaly) {
-            const llmResult = await evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility);
-            if (llmResult !== null) {
-              if (llmResult.fault_detected) {
-                faultDetected = true;
-                faultReason = llmResult.reason;
+        // LLM verification: ALWAYS run when detection_notes exist, to validate rules result
+        // This ensures the detection_notes are the TRUE authority on fault detection.
+        // Case 1: Rules triggered + notes exist → LLM validates (can override to false)
+        // Case 2: No rules + notes exist → LLM is the sole detector
+        // Case 3: Rules triggered + no notes → keep rule result as-is
+        if (hasNotes || hasImages) {
+          const shouldRunLLM = hasRules 
+            ? faultDetected  // Rules exist & triggered → LLM validates
+            : true;          // No rules → LLM is sole detector
+          
+          if (shouldRunLLM) {
+            // For pure LLM (no rules): only check sites with anomaly signal to avoid running on all sites
+            const hasAnomaly = !hasRules 
+              ? (volatility > 30 || (site.current_efficiency ?? 100) < 80 || (site.current_power_kw ?? 0) < 0.1)
+              : true; // When validating rules, always run
+            
+            if (hasAnomaly) {
+              const llmResult = await evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility);
+              if (llmResult !== null) {
+                if (hasRules && faultDetected) {
+                  // Rules triggered, LLM validates: LLM can override to false
+                  if (!llmResult.fault_detected) {
+                    faultDetected = false;
+                    log.push(`[${ft.name}] LLM OVERRODE rules for ${site.name}: ${llmResult.reason}`);
+                  } else {
+                    faultReason = llmResult.reason; // Use LLM's more detailed reason
+                    log.push(`[${ft.name}] LLM CONFIRMED for ${site.name}: ${llmResult.reason}`);
+                  }
+                } else if (!hasRules) {
+                  // Pure LLM detection
+                  faultDetected = llmResult.fault_detected;
+                  faultReason = llmResult.reason;
+                  log.push(`[${ft.name}] LLM for ${site.name}: ${llmResult.fault_detected ? 'FAULT' : 'OK'} - ${llmResult.reason}`);
+                }
               }
-              log.push(`[${ft.name}] LLM for ${site.name}: ${llmResult.fault_detected ? 'FAULT' : 'OK'} - ${llmResult.reason}`);
+            } else {
+              log.push(`[${ft.name}] LLM skipped for ${site.name} - no anomaly signal`);
             }
-          } else {
-            log.push(`[${ft.name}] LLM skipped for ${site.name} - no anomaly signal`);
           }
         }
 
