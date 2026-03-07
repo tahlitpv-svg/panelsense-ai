@@ -253,10 +253,11 @@ ${todayGraphSummary}
       }
 
       const hasRules = ft.detection_rules && ft.detection_rules.length > 0;
-      const hasNotes = false; // LLM disabled: enforce rule-based detection only
+      const hasImages = ft.reference_images && ft.reference_images.length > 0;
+      const hasNotes = !!(ft.detection_notes && ft.detection_notes.trim());
 
-      if (!hasRules && !hasNotes) {
-        log.push(`[${ft.name}] Skipped - no detection rules or notes defined`);
+      if (!hasRules && !hasNotes && !hasImages) {
+        log.push(`[${ft.name}] Skipped - no detection rules, notes, or reference images defined`);
         continue;
       }
 
