@@ -319,7 +319,7 @@ ${todayGraphSummary}
               const reasons = [];
               if (maxTemp !== null && maxTemp > 60) reasons.push(`טמפרטורה ${maxTemp}°C`);
               if (volatility > 50) reasons.push(`תנודתיות ${volatility}`);
-              if (cyclicDays >= 3) reasons.push(`${cyclicDays} ימים עם נפילות מחזוריות מ-20 אחרונים`);
+              if (cyclicDays >= 7) reasons.push(`${cyclicDays} ימים עם דפוס מסרק (derating) מ-20 אחרונים`);
               faultReason = reasons.length > 0 ? reasons.join(', ') : 'זוהה לפי חוקי זיהוי';
             }
           }
