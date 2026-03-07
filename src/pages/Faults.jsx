@@ -227,6 +227,34 @@ export default function Faults() {
             />
           </div>
 
+          {/* Reference Images */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5">
+              <ImagePlus className="w-4 h-4 text-slate-400" />
+              <span>תמונות לדוגמה</span>
+              <span className="text-xs font-normal text-slate-400">(גרפים, צילומי מסך של התקלה)</span>
+            </Label>
+            <div className="flex flex-wrap gap-3">
+              {(form.reference_images || []).map((url, idx) => (
+                <div key={idx} className="relative group w-32 h-24 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                  <img src={url} alt={`תמונה ${idx + 1}`} className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(idx)}
+                    className="absolute top-1 left-1 bg-white/90 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                  >
+                    <XCircle className="w-4 h-4 text-red-500" />
+                  </button>
+                </div>
+              ))}
+              <label className="w-32 h-24 rounded-lg border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-green-400 hover:bg-green-50/50 transition-colors">
+                <ImagePlus className="w-5 h-5 text-slate-400" />
+                <span className="text-[11px] text-slate-400">{uploading ? 'מעלה...' : 'הוסף תמונה'}</span>
+                <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} disabled={uploading} />
+              </label>
+            </div>
+          </div>
+
           {/* Detection Rules */}
           <div className="border-t border-slate-200 pt-4">
             <div className="flex items-center gap-2 mb-3">
