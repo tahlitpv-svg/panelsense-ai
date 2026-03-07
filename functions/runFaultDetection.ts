@@ -99,10 +99,11 @@ Deno.serve(async (req) => {
       return Math.round(Math.min(100, (reversals / (values.length - 1)) * 200) * 0.6 + Math.min(100, cvPercent * 2) * 0.4);
     }
 
-    // Detect recurring "rectangular" production drop pattern (fan/temperature fault)
-    // Fan fault pattern: power drops ~40% from peak, stays LOW for ~10+ minutes (2+ data points 
-    // at 5-min intervals), then recovers back up. This is a "rectangle" shape.
-    // Cloud pattern: rapid spikes up/down (zigzag), drops are brief (1 data point) and irregular.
+    // Detect recurring "comb" production drop pattern (fan/temperature derating fault)
+    // Fan fault pattern: power drops to a CONSISTENT level (~50-70% of peak), stays there
+    // for 2-3 data points (10-15 min), then recovers fully. Repeats multiple times per day.
+    // The key differentiator from clouds: all drops land at the SAME value (derating level).
+    // Cloud pattern: drops to RANDOM different values each time.
     function countRectangularDropDays(stationSnapshots, todayKey) {
       const sortedDates = Object.keys(stationSnapshots).filter(d => d !== todayKey).sort().reverse().slice(0, 20);
       let daysWithRectDrops = 0;
@@ -112,38 +113,54 @@ Deno.serve(async (req) => {
         if (daytime.length < 10) continue;
         const values = daytime.map(p => p.value);
         const peak = Math.max(...values);
-        if (peak < 1) continue;
+        if (peak < 2) continue;
 
-        // First check: is this a "clean sun" day or a cloudy day?
-        // Cloudy days have lots of rapid zigzag fluctuations across the WHOLE day.
-        // Fan fault days have a smooth curve with specific rectangular drops.
-        // Calculate day-level volatility to filter out cloudy days.
-        const dayVolatility = computeVolatilityIndex(dayData);
-        
-        // If day has high overall volatility (>40), it's likely a cloudy day - skip it.
-        // Fan faults happen on clear days too, so we only count clear-day drops.
-        if (dayVolatility > 40) continue;
-        
-        // Find rectangular drops: sustained low period (>=2 consecutive points at <65% of peak)
-        // preceded by high production (>75% of peak) and followed by recovery (>75% of peak)
-        let rectDrops = 0;
+        // Find all drop events: high -> low -> recovery
+        const dropEvents = [];
         let i = 0;
         while (i < values.length) {
-          if (values[i] > peak * 0.75 && i + 1 < values.length && values[i + 1] < peak * 0.65) {
-            let lowStart = i + 1;
+          // Look for a drop: current point is high (>70% peak), next point drops to <65% peak
+          if (values[i] > peak * 0.70 && i + 1 < values.length && values[i + 1] < peak * 0.65) {
+            const lowStart = i + 1;
             let j = lowStart;
+            // Collect consecutive low points
             while (j < values.length && values[j] < peak * 0.65) j++;
             const lowDuration = j - lowStart;
-            // Rectangular = stays low for 2+ points (10+ minutes) AND recovers back to >70% peak
-            if (lowDuration >= 2 && j < values.length && values[j] > peak * 0.7) {
-              rectDrops++;
+            const lowValues = values.slice(lowStart, j);
+            const avgLow = lowValues.reduce((a, b) => a + b, 0) / lowValues.length;
+            const hasRecovery = j < values.length && values[j] > peak * 0.65;
+            
+            // "Comb" drop = stays low for 2+ points AND recovers
+            if (lowDuration >= 2 && hasRecovery) {
+              // Check consistency of low values (std dev should be small relative to avg)
+              const lowStd = Math.sqrt(lowValues.reduce((s, v) => s + Math.pow(v - avgLow, 2), 0) / lowValues.length);
+              const isConsistent = lowStd < avgLow * 0.15; // low values within 15% of each other
+              dropEvents.push({ avgLow, duration: lowDuration, consistent: isConsistent });
             }
             i = j;
           } else {
             i++;
           }
         }
-        if (rectDrops >= 2) daysWithRectDrops++;
+
+        // Need at least 2 drop events to be a "comb" pattern
+        if (dropEvents.length < 2) continue;
+
+        // Key check: do the drops land at a SIMILAR level? (derating = same value each time)
+        // vs clouds where each drop goes to a different random level
+        const consistentDrops = dropEvents.filter(e => e.consistent);
+        if (consistentDrops.length < 2) continue;
+
+        // Check if the average low values across drops are close to each other
+        const avgLows = consistentDrops.map(e => e.avgLow);
+        const meanOfLows = avgLows.reduce((a, b) => a + b, 0) / avgLows.length;
+        const stdOfLows = Math.sqrt(avgLows.reduce((s, v) => s + Math.pow(v - meanOfLows, 2), 0) / avgLows.length);
+        
+        // If the spread of drop levels is small (<20% of mean), they're landing at the same
+        // derating level = fan fault pattern. Clouds would have much higher spread.
+        if (stdOfLows < meanOfLows * 0.20 && consistentDrops.length >= 2) {
+          daysWithRectDrops++;
+        }
       }
       return daysWithRectDrops;
     }
