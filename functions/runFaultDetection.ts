@@ -284,6 +284,60 @@ ${todayGraphSummary}
       }
     }
 
+    // Handle alert creation/resolution for a single site+fault result
+    async function handleAlertResult(ft, site, faultDetected, faultReason, openAlerts, triggered, log, db, now) {
+      const existingAlert = openAlerts.find(a =>
+        a.site_id === site.id &&
+        a.type === ft.alert_type &&
+        a.fault_type_name === ft.name &&
+        !a.is_resolved
+      );
+
+      if (faultDetected) {
+        triggered.push({ fault_type: ft.name, site_name: site.name, site_id: site.id, severity: ft.severity });
+        log.push(`[${ft.name}] DETECTED on site: ${site.name}`);
+
+        if (!existingAlert) {
+          const message = faultReason || ft.description || ft.name;
+          await db.entities.Alert.create({
+            site_id: site.id,
+            site_name: site.name,
+            type: ft.alert_type,
+            severity: ft.severity,
+            message,
+            fault_type_name: ft.name,
+            is_resolved: false
+          });
+          log.push(`[${ft.name}] Alert created for site: ${site.name} - ${message}`);
+
+          if (ft.notify_email) {
+            try {
+              const body = `התראה: ${ft.name}\nאתר: ${site.name}\nסיבה: ${message}\nזמן: ${now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}`;
+              const adminUsers = await db.entities.User.filter({ role: 'admin' });
+              for (const admin of adminUsers) {
+                await db.integrations.Core.SendEmail({
+                  to: admin.email,
+                  subject: `⚠️ תקלה: ${ft.name} - ${site.name}`,
+                  body
+                });
+              }
+            } catch (emailErr) {
+              log.push(`[${ft.name}] Email failed: ${emailErr.message}`);
+            }
+          }
+        } else {
+          log.push(`[${ft.name}] Alert already open for site: ${site.name}`);
+        }
+      } else {
+        if (existingAlert) {
+          await db.entities.Alert.delete(existingAlert.id);
+          log.push(`[${ft.name}] Alert AUTO-RESOLVED for site: ${site.name}`);
+        } else {
+          log.push(`[${ft.name}] OK on site: ${site.name}`);
+        }
+      }
+    }
+
     // Build a descriptive reason string from site data (used as fallback if LLM doesn't run)
     function buildFaultReason(ft, site, siteInverters, volatility, stationSnapshots, dateKey) {
       const reasons = [];
