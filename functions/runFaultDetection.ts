@@ -22,10 +22,11 @@ Deno.serve(async (req) => {
       return Response.json({ message: 'No active fault types.', log });
     }
 
-    // Daylight check helper
-    function isDaylight(ft) {
-      if (!ft.check_only_during_daylight) return true;
-      return localHour >= 6 && localHour < 20;
+    // Check if current hour is within the fault type's active check window
+    function isWithinCheckHours(ft) {
+      const from = ft.check_hour_from ?? (ft.check_only_during_daylight ? 6 : 0);
+      const to = ft.check_hour_to ?? (ft.check_only_during_daylight ? 20 : 24);
+      return localHour >= from && localHour < to;
     }
 
     // Load all data in parallel
