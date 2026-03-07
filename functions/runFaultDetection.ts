@@ -168,8 +168,10 @@ Deno.serve(async (req) => {
     // Rule-based evaluation (for fault types WITH detection_rules)
     function evaluateRules(ft, site, siteInverters, volatility, stationSnapshots) {
       if (!ft.detection_rules || ft.detection_rules.length === 0) return null; // no rules
-      const expectedSpecificYield = computeExpectedSpecificYield(stationSnapshots, dateKey, site.dc_capacity_kwp);
-      const cyclicDropDays = countRectangularDropDays(stationSnapshots, dateKey);
+      const needsVolatility = ft.detection_rules.some(r => r.metric === 'power_volatility_index');
+      const needsExpectedYield = ft.detection_rules.some(r => r.operator === 'less_than_percent_of_expected' && r.metric !== 'power_volatility_index');
+      const expectedSpecificYield = needsExpectedYield ? computeExpectedSpecificYield(stationSnapshots, dateKey, site.dc_capacity_kwp) : null;
+      const cyclicDropDays = needsVolatility ? countRectangularDropDays(stationSnapshots, dateKey) : 0;
       const ruleResults = ft.detection_rules.map(rule => evaluateRule(rule, site, siteInverters, expectedFraction, volatility, expectedSpecificYield, cyclicDropDays));
       const logic = ft.detection_logic || 'all';
       let triggered = logic === 'any' ? ruleResults.some(r => r) : ruleResults.every(r => r);
@@ -204,6 +206,32 @@ Deno.serve(async (req) => {
     async function evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility) {
       if (!ft.detection_notes && (!ft.reference_images || ft.reference_images.length === 0)) return null;
 
+      // Build multi-day graph summary (last 20 days)
+      const sortedDates = Object.keys(stationSnapshots).sort();
+      const todayData = stationSnapshots[dateKey] || [];
+
+      // Today's full graph
+      const todayGraphSummary = todayData.length > 0
+        ? `גרף היום (${dateKey}): ${todayData.map(d => `${d.time}=${d.value}kW`).join(', ')}`
+        : `גרף היום (${dateKey}): אין נתונים`;
+
+      // Historical: daily total yield per day (last 20 days)
+      const historicalSummary = sortedDates
+        .filter(d => d !== dateKey)
+        .map(d => {
+          const dayData = stationSnapshots[d] || [];
+          const totalKwh = dayData.reduce((sum, p) => sum + (p.value || 0) * (5 / 60), 0); // assuming 5-min intervals
+          const maxKw = dayData.length > 0 ? Math.max(...dayData.map(p => p.value || 0)) : 0;
+          // Check for drops/flatlines within the day
+          const daytime = dayData.filter(p => p.value > 0.5);
+          let drops = 0;
+          for (let i = 1; i < daytime.length; i++) {
+            if (daytime[i - 1].value > 1 && daytime[i].value < daytime[i - 1].value * 0.4) drops++;
+          }
+          return `${d}: סה"כ ~${totalKwh.toFixed(1)} kWh, שיא ${maxKw.toFixed(1)} kW${drops > 0 ? `, ${drops} ירידות חדות` : ''}`;
+        })
+        .join('\n');
+
       const siteContext = {
         site_name: site.name,
         dc_capacity_kwp: site.dc_capacity_kwp,
@@ -226,23 +254,34 @@ Deno.serve(async (req) => {
         mppt_strings: inv.mppt_strings
       }));
 
-      // Keep prompt concise to save time - only include essential data
       const hasRefImages = ft.reference_images && ft.reference_images.length > 0;
+      const imageInstruction = hasRefImages
+        ? `\n\n📸 מצורפות תמונות לדוגמה של איך תקלה "${ft.name}" נראית בגרף. השתמש בתמונות כדי להבין את הדפוס הוויזואלי של התקלה, והשווה אותו לנתוני הגרף שלהלן.`
+        : '';
 
-      const prompt = `אתה מומחה לניטור מערכות סולאריות. בדוק האם התקלה "${ft.name}" קיימת באתר זה.
+      const prompt = `אתה מומחה לניטור מערכות סולאריות.
 
-⚠️ עקוב בדיוק אחרי הוראות הזיהוי. אם ההוראות אומרות שמצב מסוים הוא לא התקלה הזו - ענה false.
+⚠️ חשוב מאוד: תפקידך הוא לבדוק האם התקלה הספציפית "${ft.name}" קיימת לפי ההגדרה שניתנה. אל תמציא תקלות אחרות, אל תאבחן בעיות שלא ביקשו, ורק ענה true אם יש עדות ברורה לפי הקריטריונים שלהלן.
+${imageInstruction}
 
-הוראות זיהוי:
-${ft.detection_notes || 'השתמש בתמונות המצורפות'}
+הוראות זיהוי התקלה "${ft.name}":
+${ft.detection_notes || 'אין הוראות טקסט - השתמש בתמונות הלדוגמה המצורפות כדי להבין את דפוס התקלה'}
 
-נתוני אתר:
-${JSON.stringify(siteContext)}
+נתוני האתר כרגע (${new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}):
+${JSON.stringify(siteContext, null, 2)}
 
-אינוורטרים:
-${JSON.stringify(inverterContext)}
+נתוני אינוורטרים:
+${JSON.stringify(inverterContext, null, 2)}
 
-ענה JSON: {"fault_detected": true/false, "reason": "הסבר קצר"}`;
+היסטוריית ייצור 20 ימים אחרונים:
+${historicalSummary || 'אין נתונים היסטוריים'}
+
+${todayGraphSummary}
+
+מדד תנודתיות הספק היומי (0=יציב, 100=תנודתי מאוד): ${volatility}
+
+שאלה: האם יש סימנים לתקלה "${ft.name}" באתר זה לפי ההוראות והתמונות שניתנו? התייחס גם להיסטוריה של 20 הימים האחרונים וגם לגרף היום המלא.
+ענה אך ורק במבנה JSON: {"fault_detected": true/false, "reason": "הסבר קצר בעברית"}`;
 
       try {
         const llmParams = {
@@ -300,57 +339,53 @@ ${JSON.stringify(inverterContext)}
           if (ruleResult !== null) {
             faultDetected = ruleResult;
             if (faultDetected) {
-              // Build detailed reason
-              const cyclicDays = countRectangularDropDays(stationSnapshots, dateKey);
-              const temps = siteInverters.map(i => i.temperature_c).filter(v => v != null);
-              const maxTemp = temps.length ? Math.max(...temps) : null;
+              // Build detailed reason based on fault type
               const reasons = [];
-              if (maxTemp !== null && maxTemp > 60) reasons.push(`טמפרטורה ${maxTemp}°C`);
-              if (volatility > 50) reasons.push(`תנודתיות ${volatility}`);
-              if (cyclicDays >= 7) reasons.push(`${cyclicDays} ימים עם דפוס מסרק (derating) מ-20 אחרונים`);
+              if (ft.alert_type === 'inverter_fault') {
+                // Fan fault - show comb pattern info
+                const temps = siteInverters.map(i => i.temperature_c).filter(v => v != null);
+                const maxTemp = temps.length ? Math.max(...temps) : null;
+                if (maxTemp !== null && maxTemp > 60) reasons.push(`טמפרטורה ${maxTemp}°C`);
+                if (volatility > 50) reasons.push(`תנודתיות ${volatility}`);
+                // cyclicDropDays already computed inside evaluateRules, recompute here for reason text
+                const cyclicDays = countRectangularDropDays(stationSnapshots, dateKey);
+                if (cyclicDays >= 7) reasons.push(`${cyclicDays} ימים עם דפוס מסרק (derating) מ-20 אחרונים`);
+              } else if (ft.alert_type === 'phase_voltage_out_of_range') {
+                // Phase fault - show which phases are down
+                const pv = siteInverters.map(i => i.phase_voltages).filter(p => p);
+                if (pv.length > 0) {
+                  const avgL1 = pv.reduce((s, p) => s + (p.l1 || 0), 0) / pv.length;
+                  const avgL2 = pv.reduce((s, p) => s + (p.l2 || 0), 0) / pv.length;
+                  const avgL3 = pv.reduce((s, p) => s + (p.l3 || 0), 0) / pv.length;
+                  const downPhases = [];
+                  if (avgL1 < 150) downPhases.push(`L1: ${avgL1.toFixed(0)}V`);
+                  if (avgL2 < 150) downPhases.push(`L2: ${avgL2.toFixed(0)}V`);
+                  if (avgL3 < 150) downPhases.push(`L3: ${avgL3.toFixed(0)}V`);
+                  if (downPhases.length > 0) reasons.push(`פאזות חסרות: ${downPhases.join(', ')}`);
+                }
+              }
               faultReason = reasons.length > 0 ? reasons.join(', ') : 'זוהה לפי חוקי זיהוי';
             }
           }
         }
 
-        // LLM verification: ALWAYS run when detection_notes exist, to validate rules result
-        // This ensures the detection_notes are the TRUE authority on fault detection.
-        // Case 1: Rules triggered + notes exist → LLM validates (can override to false)
-        // Case 2: No rules + notes exist → LLM is the sole detector
-        // Case 3: Rules triggered + no notes → keep rule result as-is
-        if (hasNotes || hasImages) {
-          const shouldRunLLM = hasRules 
-            ? faultDetected  // Rules exist & triggered → LLM validates
-            : true;          // No rules → LLM is sole detector
-          
-          if (shouldRunLLM) {
-            // For pure LLM (no rules): only check sites with anomaly signal to avoid running on all sites
-            const hasAnomaly = !hasRules 
-              ? (volatility > 30 || (site.current_efficiency ?? 100) < 80 || (site.current_power_kw ?? 0) < 0.1)
-              : true; // When validating rules, always run
-            
-            if (hasAnomaly) {
-              const llmResult = await evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility);
-              if (llmResult !== null) {
-                if (hasRules && faultDetected) {
-                  // Rules triggered, LLM validates: LLM can override to false
-                  if (!llmResult.fault_detected) {
-                    faultDetected = false;
-                    log.push(`[${ft.name}] LLM OVERRODE rules for ${site.name}: ${llmResult.reason}`);
-                  } else {
-                    faultReason = llmResult.reason; // Use LLM's more detailed reason
-                    log.push(`[${ft.name}] LLM CONFIRMED for ${site.name}: ${llmResult.reason}`);
-                  }
-                } else if (!hasRules) {
-                  // Pure LLM detection
-                  faultDetected = llmResult.fault_detected;
-                  faultReason = llmResult.reason;
-                  log.push(`[${ft.name}] LLM for ${site.name}: ${llmResult.fault_detected ? 'FAULT' : 'OK'} - ${llmResult.reason}`);
-                }
+        // LLM check: only run if this fault type has NO rules (pure LLM detection)
+        // If it has rules AND the rules didn't trigger, skip LLM to avoid timeout
+        if ((hasNotes || hasImages) && !hasRules && !faultDetected) {
+          // For pure LLM fault types: only check sites with some anomaly signal
+          // (volatility > 30 or efficiency < 80) to avoid running LLM on all 80+ sites
+          const hasAnomaly = volatility > 30 || (site.current_efficiency ?? 100) < 80 || (site.current_power_kw ?? 0) < 0.1;
+          if (hasAnomaly) {
+            const llmResult = await evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility);
+            if (llmResult !== null) {
+              if (llmResult.fault_detected) {
+                faultDetected = true;
+                faultReason = llmResult.reason;
               }
-            } else {
-              log.push(`[${ft.name}] LLM skipped for ${site.name} - no anomaly signal`);
+              log.push(`[${ft.name}] LLM for ${site.name}: ${llmResult.fault_detected ? 'FAULT' : 'OK'} - ${llmResult.reason}`);
             }
+          } else {
+            log.push(`[${ft.name}] LLM skipped for ${site.name} - no anomaly signal`);
           }
         }
 
