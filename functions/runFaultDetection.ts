@@ -99,9 +99,8 @@ Deno.serve(async (req) => {
     }
 
     // Rule-based evaluation (for fault types WITH detection_rules)
-    function evaluateRules(ft, site, siteInverters, volatility, stationSnapshots) {
+    function evaluateRules(ft, site, siteInverters, volatility, expectedSpecificYield) {
       if (!ft.detection_rules || ft.detection_rules.length === 0) return null; // no rules
-      const expectedSpecificYield = computeExpectedSpecificYield(stationSnapshots, dateKey, site.dc_capacity_kwp);
       const ruleResults = ft.detection_rules.map(rule => evaluateRule(rule, site, siteInverters, expectedFraction, volatility, expectedSpecificYield));
       const logic = ft.detection_logic || 'all';
       return logic === 'any' ? ruleResults.some(r => r) : ruleResults.every(r => r);
@@ -224,9 +223,12 @@ ${todayGraphSummary}
         let faultDetected = false;
         let faultReason = '';
 
+        // Compute expected specific yield for this site (20-day average)
+        const expectedSpecificYield = computeExpectedSpecificYield(stationSnapshots, dateKey, site.dc_capacity_kwp);
+
         if (hasRules) {
           // Rule-based check first
-          const ruleResult = evaluateRules(ft, site, siteInverters, volatility, stationSnapshots);
+          const ruleResult = evaluateRules(ft, site, siteInverters, volatility, expectedSpecificYield);
           if (ruleResult !== null) {
             faultDetected = ruleResult;
             faultReason = faultDetected ? 'זוהה לפי חוקי זיהוי' : '';
@@ -378,22 +380,9 @@ function evaluateRule(rule, site, inverters, expectedFraction, volatility, expec
   if (operator === 'equals') return actual === value;
   if (operator === 'not_equals') return actual !== value;
   if (operator === 'less_than_percent_of_expected') {
-    // For power_volatility_index: compare volatility against value directly
-    if (metric === 'power_volatility_index') {
-      return volatility > value;
-    }
-    // For production metrics: use 20-day average specific yield
-    // If we don't have 20 active days, we CANNOT evaluate - return false (no alert)
-    if (expectedSpecificYield === null) return false;
-    // expectedSpecificYield = avg daily kWh per kWp from last 20 active days
-    // Compare today's yield per kWp against % of expected
-    const todaySpecificYield = (site.daily_yield_kwh ?? 0) / (site.dc_capacity_kwp || 1);
-    // Only evaluate after enough production hours (after 10:00)
     if (expectedFraction < 0.1) return false;
-    // Scale expected by time-of-day fraction (how much of the day has passed)
-    const fractionOfDayDone = expectedFraction; // 0-1 based on bell curve
-    const expectedTodaySoFar = expectedSpecificYield * fractionOfDayDone;
-    return todaySpecificYield < (value / 100) * expectedTodaySoFar;
+    const expected = (site.dc_capacity_kwp || 1) * expectedFraction * 0.82;
+    return (site.current_power_kw ?? 0) < (value / 100) * expected;
   }
   return false;
 }
