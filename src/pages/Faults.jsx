@@ -354,6 +354,15 @@ export default function Faults() {
                       </span>
                     </div>
                   )}
+                  {ft.reference_images?.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {ft.reference_images.map((url, i) => (
+                        <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block w-20 h-14 rounded-md overflow-hidden border border-slate-200 hover:border-green-400 transition-colors">
+                          <img src={url} alt={`דוגמה ${i + 1}`} className="w-full h-full object-cover" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex items-center gap-3 mt-2">
                     {ft.notify_email && <div className="flex items-center gap-1 text-xs text-slate-500"><Mail className="w-3 h-3" /> מייל</div>}
                     {ft.notify_whatsapp && <div className="flex items-center gap-1 text-xs text-slate-500"><MessageSquare className="w-3 h-3" /> ווצאפ</div>}
