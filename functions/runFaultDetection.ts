@@ -130,7 +130,8 @@ Deno.serve(async (req) => {
     function evaluateRules(ft, site, siteInverters, volatility, stationSnapshots) {
       if (!ft.detection_rules || ft.detection_rules.length === 0) return null; // no rules
       const expectedSpecificYield = computeExpectedSpecificYield(stationSnapshots, dateKey, site.dc_capacity_kwp);
-      const ruleResults = ft.detection_rules.map(rule => evaluateRule(rule, site, siteInverters, expectedFraction, volatility, expectedSpecificYield));
+      const cyclicDropDays = countCyclicDropDays(stationSnapshots, dateKey);
+      const ruleResults = ft.detection_rules.map(rule => evaluateRule(rule, site, siteInverters, expectedFraction, volatility, expectedSpecificYield, cyclicDropDays));
       const logic = ft.detection_logic || 'all';
       return logic === 'any' ? ruleResults.some(r => r) : ruleResults.every(r => r);
     }
