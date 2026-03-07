@@ -232,7 +232,7 @@ ${todayGraphSummary}
 ענה אך ורק במבנה JSON: {"fault_detected": true/false, "reason": "הסבר קצר בעברית"}`;
 
       try {
-        const result = await db.integrations.Core.InvokeLLM({
+        const llmParams = {
           prompt,
           response_json_schema: {
             type: 'object',
@@ -242,7 +242,12 @@ ${todayGraphSummary}
             },
             required: ['fault_detected', 'reason']
           }
-        });
+        };
+        // Attach reference images if available so LLM can visually compare patterns
+        if (hasRefImages) {
+          llmParams.file_urls = ft.reference_images;
+        }
+        const result = await db.integrations.Core.InvokeLLM(llmParams);
         return result;
       } catch (llmErr) {
         log.push(`[${ft.name}] LLM error for ${site.name}: ${llmErr.message}`);
