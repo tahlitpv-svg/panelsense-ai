@@ -337,57 +337,53 @@ ${todayGraphSummary}
           if (ruleResult !== null) {
             faultDetected = ruleResult;
             if (faultDetected) {
-              // Build detailed reason
-              const cyclicDays = countRectangularDropDays(stationSnapshots, dateKey);
-              const temps = siteInverters.map(i => i.temperature_c).filter(v => v != null);
-              const maxTemp = temps.length ? Math.max(...temps) : null;
+              // Build detailed reason based on fault type
               const reasons = [];
-              if (maxTemp !== null && maxTemp > 60) reasons.push(`טמפרטורה ${maxTemp}°C`);
-              if (volatility > 50) reasons.push(`תנודתיות ${volatility}`);
-              if (cyclicDays >= 7) reasons.push(`${cyclicDays} ימים עם דפוס מסרק (derating) מ-20 אחרונים`);
+              if (ft.alert_type === 'inverter_fault') {
+                // Fan fault - show comb pattern info
+                const temps = siteInverters.map(i => i.temperature_c).filter(v => v != null);
+                const maxTemp = temps.length ? Math.max(...temps) : null;
+                if (maxTemp !== null && maxTemp > 60) reasons.push(`טמפרטורה ${maxTemp}°C`);
+                if (volatility > 50) reasons.push(`תנודתיות ${volatility}`);
+                // cyclicDropDays already computed inside evaluateRules, recompute here for reason text
+                const cyclicDays = countRectangularDropDays(stationSnapshots, dateKey);
+                if (cyclicDays >= 7) reasons.push(`${cyclicDays} ימים עם דפוס מסרק (derating) מ-20 אחרונים`);
+              } else if (ft.alert_type === 'phase_voltage_out_of_range') {
+                // Phase fault - show which phases are down
+                const pv = siteInverters.map(i => i.phase_voltages).filter(p => p);
+                if (pv.length > 0) {
+                  const avgL1 = pv.reduce((s, p) => s + (p.l1 || 0), 0) / pv.length;
+                  const avgL2 = pv.reduce((s, p) => s + (p.l2 || 0), 0) / pv.length;
+                  const avgL3 = pv.reduce((s, p) => s + (p.l3 || 0), 0) / pv.length;
+                  const downPhases = [];
+                  if (avgL1 < 150) downPhases.push(`L1: ${avgL1.toFixed(0)}V`);
+                  if (avgL2 < 150) downPhases.push(`L2: ${avgL2.toFixed(0)}V`);
+                  if (avgL3 < 150) downPhases.push(`L3: ${avgL3.toFixed(0)}V`);
+                  if (downPhases.length > 0) reasons.push(`פאזות חסרות: ${downPhases.join(', ')}`);
+                }
+              }
               faultReason = reasons.length > 0 ? reasons.join(', ') : 'זוהה לפי חוקי זיהוי';
             }
           }
         }
 
-        // LLM verification: ALWAYS run when detection_notes exist, to validate rules result
-        // This ensures the detection_notes are the TRUE authority on fault detection.
-        // Case 1: Rules triggered + notes exist → LLM validates (can override to false)
-        // Case 2: No rules + notes exist → LLM is the sole detector
-        // Case 3: Rules triggered + no notes → keep rule result as-is
-        if (hasNotes || hasImages) {
-          const shouldRunLLM = hasRules 
-            ? faultDetected  // Rules exist & triggered → LLM validates
-            : true;          // No rules → LLM is sole detector
-          
-          if (shouldRunLLM) {
-            // For pure LLM (no rules): only check sites with anomaly signal to avoid running on all sites
-            const hasAnomaly = !hasRules 
-              ? (volatility > 30 || (site.current_efficiency ?? 100) < 80 || (site.current_power_kw ?? 0) < 0.1)
-              : true; // When validating rules, always run
-            
-            if (hasAnomaly) {
-              const llmResult = await evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility);
-              if (llmResult !== null) {
-                if (hasRules && faultDetected) {
-                  // Rules triggered, LLM validates: LLM can override to false
-                  if (!llmResult.fault_detected) {
-                    faultDetected = false;
-                    log.push(`[${ft.name}] LLM OVERRODE rules for ${site.name}: ${llmResult.reason}`);
-                  } else {
-                    faultReason = llmResult.reason; // Use LLM's more detailed reason
-                    log.push(`[${ft.name}] LLM CONFIRMED for ${site.name}: ${llmResult.reason}`);
-                  }
-                } else if (!hasRules) {
-                  // Pure LLM detection
-                  faultDetected = llmResult.fault_detected;
-                  faultReason = llmResult.reason;
-                  log.push(`[${ft.name}] LLM for ${site.name}: ${llmResult.fault_detected ? 'FAULT' : 'OK'} - ${llmResult.reason}`);
-                }
+        // LLM check: only run if this fault type has NO rules (pure LLM detection)
+        // If it has rules AND the rules didn't trigger, skip LLM to avoid timeout
+        if ((hasNotes || hasImages) && !hasRules && !faultDetected) {
+          // For pure LLM fault types: only check sites with some anomaly signal
+          // (volatility > 30 or efficiency < 80) to avoid running LLM on all 80+ sites
+          const hasAnomaly = volatility > 30 || (site.current_efficiency ?? 100) < 80 || (site.current_power_kw ?? 0) < 0.1;
+          if (hasAnomaly) {
+            const llmResult = await evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility);
+            if (llmResult !== null) {
+              if (llmResult.fault_detected) {
+                faultDetected = true;
+                faultReason = llmResult.reason;
               }
-            } else {
-              log.push(`[${ft.name}] LLM skipped for ${site.name} - no anomaly signal`);
+              log.push(`[${ft.name}] LLM for ${site.name}: ${llmResult.fault_detected ? 'FAULT' : 'OK'} - ${llmResult.reason}`);
             }
+          } else {
+            log.push(`[${ft.name}] LLM skipped for ${site.name} - no anomaly signal`);
           }
         }
 
