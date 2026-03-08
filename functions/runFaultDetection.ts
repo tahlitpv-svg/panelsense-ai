@@ -375,16 +375,43 @@ ${todayGraphSummary}
           });
           log.push(`[${ft.name}] Alert created for site: ${site.name} - ${message}`);
 
-          // Send notifications to site owner only (email + WhatsApp)
-          const alertBody = `התראה: ${ft.name}\nאתר: ${site.name}\nסיבה: ${message}\nזמן: ${now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}`;
+          // Send notifications to site owner only
+          const timeStr = now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' });
+          const severityIcon = ft.severity === 'critical' ? '🔴' : ft.severity === 'warning' ? '🟡' : 'ℹ️';
+          const severityText = ft.severity === 'critical' ? 'קריטית' : ft.severity === 'warning' ? 'אזהרה' : 'מידע';
+          const solutionText = ft.solution ? `\n\n💡 *פתרון מוצע:*\n${ft.solution}` : '';
+
+          // WhatsApp formatted message
+          const whatsappMsg = `━━━━━━━━━━━━━━━━━━━━━
+⚡ *Panel Sense AI* ⚡
+━━━━━━━━━━━━━━━━━━━━━
+
+${severityIcon} *התראת תקלה - ${severityText}*
+
+📍 *אתר:* ${site.name}
+👤 *לקוח:* ${site.contact_name || '---'}
+⚠️ *סוג תקלה:* ${ft.name}
+
+📋 *פירוט:*
+${message}${solutionText}
+
+🕐 *זמן זיהוי:* ${timeStr}
+
+━━━━━━━━━━━━━━━━━━━━━
+_נא לטפל בתקלה בהקדם._
+_הודעת תזכורת תישלח תוך 24 שעות_
+_אם התקלה לא תטופל._
+━━━━━━━━━━━━━━━━━━━━━
+🌐 *Panel Sense AI* - ניטור חכם למערכות סולאריות`;
 
           // Email to site owner
           if (ft.notify_email && site.contact_email) {
             try {
+              const emailBody = `התראת תקלה - ${severityText}\n\nאתר: ${site.name}\nלקוח: ${site.contact_name || '---'}\nסוג תקלה: ${ft.name}\nפירוט: ${message}${ft.solution ? '\nפתרון מוצע: ' + ft.solution : ''}\nזמן זיהוי: ${timeStr}\n\nנא לטפל בתקלה בהקדם.\n\nPanel Sense AI - ניטור חכם למערכות סולאריות`;
               await db.integrations.Core.SendEmail({
                 to: site.contact_email,
-                subject: `⚠️ תקלה: ${ft.name} - ${site.name}`,
-                body: alertBody
+                subject: `${severityIcon} התראת תקלה: ${ft.name} - ${site.name}`,
+                body: emailBody
               });
               log.push(`[${ft.name}] Email sent to site owner ${site.contact_email} for: ${site.name}`);
             } catch (emailErr) {
@@ -403,7 +430,7 @@ ${todayGraphSummary}
                 const params = new URLSearchParams({
                   To: toFormatted,
                   From: 'whatsapp:+14155238886',
-                  Body: `⚠️ ${alertBody}`,
+                  Body: whatsappMsg,
                 });
                 const waRes = await fetch(url, {
                   method: 'POST',
