@@ -9,7 +9,7 @@ import { Plus, Pencil, Trash2, X, Loader2, Save, Droplets, MapPin, Search } from
 import { motion, AnimatePresence } from "framer-motion";
 
 const emptyForm = {
-  name: "", owner: "delkal_energy", dc_capacity_kwp: "", ac_capacity_kw: "",
+  name: "", owner: "delkal_energy", contact_phone: "", dc_capacity_kwp: "", ac_capacity_kw: "",
   inverter_type: "", panel_type: "", azimuth_deg: "", tilt_deg: "",
   mounting_type: "roof", latitude: "", longitude: "", region_tag: "center",
   tariff_per_kwh: "0.48", initial_investment: "", installation_date: "",
@@ -65,6 +65,7 @@ export default function SiteManager() {
   const openEdit = (site) => {
     setForm({
       name: site.name || "", owner: site.owner || "delkal_energy",
+      contact_phone: site.contact_phone || "",
       dc_capacity_kwp: site.dc_capacity_kwp?.toString() || "",
       ac_capacity_kw: site.ac_capacity_kw?.toString() || "",
       inverter_type: site.inverter_type || "", panel_type: site.panel_type || "",
@@ -175,6 +176,7 @@ export default function SiteManager() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
               <Field label="שם האתר" field="name" placeholder="שם האתר" />
+              <Field label="טלפון לוואטסאפ" field="contact_phone" type="tel" placeholder="+972501234567" />
               <div className="space-y-1">
                 <Label className="text-xs font-medium text-slate-500">בעלות</Label>
                 <Select value={form.owner} onValueChange={v => setForm({ ...form, owner: v })}>

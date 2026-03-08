@@ -18,6 +18,7 @@ export default function SiteConfiguration({ site }) {
   const [config, setConfig] = useState({
     name: site.name || '',
     owner: site.owner || 'delkal_energy',
+    contact_phone: site.contact_phone || '',
     dc_capacity_kwp: site.dc_capacity_kwp || 0,
     ac_capacity_kw: site.ac_capacity_kw || 0,
     inverter_type: site.inverter_type || '',
@@ -106,6 +107,7 @@ export default function SiteConfiguration({ site }) {
           { value: 'delkal_energy', label: 'דלקל אנרגיה' },
           { value: 'external_client', label: 'לקוח חיצוני' }
         ]},
+        { key: 'contact_phone', label: 'טלפון לוואטסאפ', type: 'tel', placeholder: '+972501234567' },
         { key: 'installation_date', label: 'תאריך התקנה', type: 'date' }
       ]
     },
