@@ -228,7 +228,7 @@ Deno.serve(async (req) => {
           const phaseResults = phaseMetrics.map(metric => {
             const rule = phaseRules.find(r => r.metric === metric);
             if (!rule) return false;
-            return evaluateRule(rule, site, siteInverters, expectedFraction, volatility, expectedSpecificYield, cyclicDropDays);
+            return evaluateRule(rule, site, siteInverters, expectedFraction, volatility, expectedSpecificYield, cyclicDropDays, midDayDrops);
           });
           const phasesDown = phaseResults.filter(r => r).length;
           // Check if inverters have any voltage data at all
