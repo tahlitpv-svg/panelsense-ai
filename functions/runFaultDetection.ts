@@ -394,12 +394,7 @@ ${todayGraphSummary}
           log.push(`[${ft.name}] Alert already open for site: ${site.name}`);
         }
       } else {
-        if (existingAlert) {
-          await db.entities.Alert.delete(existingAlert.id);
-          log.push(`[${ft.name}] Alert AUTO-RESOLVED for site: ${site.name}`);
-        } else {
-          log.push(`[${ft.name}] OK on site: ${site.name}`);
-        }
+        log.push(`[${ft.name}] OK on site: ${site.name}`);
       }
     }
 

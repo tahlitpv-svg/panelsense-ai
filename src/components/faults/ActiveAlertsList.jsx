@@ -222,11 +222,11 @@ export default function ActiveAlertsList() {
                       <Button variant="outline" size="sm" className="text-xs h-7 px-2">לאתר</Button>
                     </Link>
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={() => resolveMutation.mutate(alert.id)}
                       disabled={resolveMutation.isPending}
-                      className="text-green-700 hover:bg-green-100 h-7 px-2 text-xs gap-1"
+                      className="text-slate-600 hover:text-green-700 hover:bg-green-50 hover:border-green-200 h-7 px-2 text-xs gap-1 border-slate-300"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       סגור
