@@ -549,7 +549,103 @@ _אם התקלה לא תטופל._
       }
     }
 
-    return Response.json({ success: true, checked: activeFaultTypes.length, sites: sites.length, triggered, log });
+    // === 24-HOUR REMINDER: resend WhatsApp for unresolved alerts older than 24h ===
+    const remindersSent = [];
+    for (const alert of openAlerts) {
+      const alertAge = (now.getTime() - new Date(alert.created_date).getTime()) / (1000 * 60 * 60);
+      if (alertAge < 24) continue; // not yet 24h old
+
+      // Check if reminder was already sent (use updated_date as marker - if updated within last 23h, skip)
+      const lastUpdate = new Date(alert.updated_date || alert.created_date);
+      const hoursSinceLastNotification = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60);
+      if (hoursSinceLastNotification < 24) continue; // already reminded recently
+
+      const alertSite = sites.find(s => s.id === alert.site_id);
+      if (!alertSite || !alertSite.contact_phone) continue;
+
+      const ft = faultTypes.find(f => f.name === alert.fault_type_name);
+      if (!ft || !ft.notify_whatsapp) continue;
+
+      const timeStr = now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' });
+      const createdStr = new Date(alert.created_date).toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' });
+      const hoursOpen = Math.round(alertAge);
+      const severityIcon = alert.severity === 'critical' ? '🔴' : alert.severity === 'warning' ? '🟡' : 'ℹ️';
+      const severityText = alert.severity === 'critical' ? 'קריטית' : alert.severity === 'warning' ? 'אזהרה' : 'מידע';
+
+      const reminderMsg = `━━━━━━━━━━━━━━━━━━━━━
+⚡ *Panel Sense AI* ⚡
+━━━━━━━━━━━━━━━━━━━━━
+
+🔔 *תזכורת לתיקון* 🔔
+
+${severityIcon} *התראה ${severityText} - טרם טופלה*
+
+📍 *אתר:* ${alertSite.name}
+👤 *לקוח:* ${alertSite.contact_name || '---'}
+⚠️ *סוג תקלה:* ${alert.fault_type_name}
+
+📋 *פירוט:*
+${alert.message}
+
+⏰ *זמן זיהוי מקורי:* ${createdStr}
+⏳ *זמן פתוח:* ${hoursOpen} שעות
+
+━━━━━━━━━━━━━━━━━━━━━
+⚠️ *התקלה עדיין לא טופלה!*
+_נא לטפל בדחיפות._
+━━━━━━━━━━━━━━━━━━━━━
+🌐 *Panel Sense AI* - ניטור חכם למערכות סולאריות`;
+
+      try {
+        const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
+        const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
+        if (accountSid && authToken) {
+          const toFormatted = alertSite.contact_phone.startsWith('whatsapp:') ? alertSite.contact_phone : `whatsapp:${alertSite.contact_phone}`;
+          const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+          const params = new URLSearchParams({
+            To: toFormatted,
+            From: 'whatsapp:+14155238886',
+            Body: reminderMsg,
+          });
+          const waRes = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Basic ' + btoa(`${accountSid}:${authToken}`),
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: params.toString(),
+          });
+          if (waRes.ok) {
+            // Update alert's updated_date to track when reminder was sent
+            await db.entities.Alert.update(alert.id, { message: alert.message });
+            remindersSent.push({ alert_id: alert.id, site: alertSite.name, fault: alert.fault_type_name });
+            log.push(`[REMINDER] WhatsApp reminder sent to ${alertSite.contact_phone} for: ${alertSite.name} - ${alert.fault_type_name} (open ${hoursOpen}h)`);
+          } else {
+            const waErr = await waRes.json();
+            log.push(`[REMINDER] WhatsApp failed for ${alertSite.name}: ${waErr.message || JSON.stringify(waErr)}`);
+          }
+        }
+      } catch (waErr) {
+        log.push(`[REMINDER] WhatsApp error: ${waErr.message}`);
+      }
+
+      // Also send reminder email
+      if (ft.notify_email && alertSite.contact_email) {
+        try {
+          const emailBody = `תזכורת לתיקון\n\nאתר: ${alertSite.name}\nלקוח: ${alertSite.contact_name || '---'}\nסוג תקלה: ${alert.fault_type_name}\nפירוט: ${alert.message}\nזמן זיהוי: ${createdStr}\nזמן פתוח: ${hoursOpen} שעות\n\nהתקלה עדיין לא טופלה - נא לטפל בדחיפות.\n\nPanel Sense AI - ניטור חכם למערכות סולאריות`;
+          await db.integrations.Core.SendEmail({
+            to: alertSite.contact_email,
+            subject: `🔔 תזכורת לתיקון: ${alert.fault_type_name} - ${alertSite.name} (${hoursOpen} שעות)`,
+            body: emailBody
+          });
+          log.push(`[REMINDER] Email sent to ${alertSite.contact_email} for: ${alertSite.name}`);
+        } catch (emailErr) {
+          log.push(`[REMINDER] Email failed: ${emailErr.message}`);
+        }
+      }
+    }
+
+    return Response.json({ success: true, checked: activeFaultTypes.length, sites: sites.length, triggered, reminders: remindersSent, log });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
