@@ -312,7 +312,6 @@ ${todayGraphSummary}
     async function handleAlertResult(ft, site, faultDetected, faultReason, openAlerts, triggered, log, db, now) {
       const existingAlert = openAlerts.find(a =>
         a.site_id === site.id &&
-        a.type === ft.alert_type &&
         a.fault_type_name === ft.name &&
         !a.is_resolved
       );
