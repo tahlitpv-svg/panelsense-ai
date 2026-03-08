@@ -210,9 +210,11 @@ Deno.serve(async (req) => {
       if (!ft.detection_rules || ft.detection_rules.length === 0) return null; // no rules
       const needsVolatility = ft.detection_rules.some(r => r.metric === 'power_volatility_index');
       const needsExpectedYield = ft.detection_rules.some(r => r.operator === 'less_than_percent_of_expected' && r.metric !== 'power_volatility_index');
+      const needsMidDayDrop = ft.detection_rules.some(r => r.metric === 'mid_day_power_drop_count');
       const expectedSpecificYield = needsExpectedYield ? computeExpectedSpecificYield(stationSnapshots, dateKey, site.dc_capacity_kwp) : null;
       const cyclicDropDays = needsVolatility ? countRectangularDropDays(stationSnapshots, dateKey) : 0;
-      const ruleResults = ft.detection_rules.map(rule => evaluateRule(rule, site, siteInverters, expectedFraction, volatility, expectedSpecificYield, cyclicDropDays));
+      const midDayDrops = needsMidDayDrop ? countMidDayPowerDrops(stationSnapshots[dateKey] || null) : 0;
+      const ruleResults = ft.detection_rules.map(rule => evaluateRule(rule, site, siteInverters, expectedFraction, volatility, expectedSpecificYield, cyclicDropDays, midDayDrops));
       const logic = ft.detection_logic || 'all';
       let triggered = logic === 'any' ? ruleResults.some(r => r) : ruleResults.every(r => r);
 
