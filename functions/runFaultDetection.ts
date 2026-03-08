@@ -390,6 +390,40 @@ ${todayGraphSummary}
               log.push(`[${ft.name}] Email failed: ${emailErr.message}`);
             }
           }
+
+          // Send WhatsApp notification if enabled and site has a phone number
+          if (ft.notify_whatsapp && site.contact_phone) {
+            try {
+              const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
+              const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
+              if (accountSid && authToken) {
+                const whatsappBody = `⚠️ התראה: ${ft.name}\nאתר: ${site.name}\nסיבה: ${message}\nזמן: ${now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}`;
+                const toFormatted = site.contact_phone.startsWith('whatsapp:') ? site.contact_phone : `whatsapp:${site.contact_phone}`;
+                const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+                const params = new URLSearchParams({
+                  To: toFormatted,
+                  From: 'whatsapp:+14155238886',
+                  Body: whatsappBody,
+                });
+                const waRes = await fetch(url, {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': 'Basic ' + btoa(`${accountSid}:${authToken}`),
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                  },
+                  body: params.toString(),
+                });
+                if (waRes.ok) {
+                  log.push(`[${ft.name}] WhatsApp sent to ${site.contact_phone} for site: ${site.name}`);
+                } else {
+                  const waErr = await waRes.json();
+                  log.push(`[${ft.name}] WhatsApp failed for ${site.name}: ${waErr.message || JSON.stringify(waErr)}`);
+                }
+              }
+            } catch (waErr) {
+              log.push(`[${ft.name}] WhatsApp error: ${waErr.message}`);
+            }
+          }
         } else {
           log.push(`[${ft.name}] Alert already open for site: ${site.name}`);
         }
