@@ -165,6 +165,46 @@ Deno.serve(async (req) => {
       return daysWithRectDrops;
     }
 
+    // Detect mid-day power drops to zero in today's graph
+    // A "mid-day drop" = power was above threshold, then drops to near-zero, while surrounded by active production
+    function countMidDayPowerDrops(graphData) {
+      if (!graphData || graphData.length < 10) return 0;
+      
+      // Focus on daytime hours (08:00-17:00)
+      const daytimeData = graphData.filter(p => {
+        if (!p.time) return false;
+        const parts = p.time.split(':');
+        const hour = parseInt(parts[0]);
+        return hour >= 8 && hour <= 17;
+      });
+      
+      if (daytimeData.length < 5) return 0;
+      
+      const values = daytimeData.map(p => p.value || 0);
+      const peak = Math.max(...values);
+      if (peak < 2) return 0; // not enough production to evaluate
+      
+      let dropCount = 0;
+      
+      for (let i = 1; i < values.length - 1; i++) {
+        // A drop: previous point was producing (>20% peak), current is near zero (<5% peak or <0.5kW)
+        const wasProducing = values[i - 1] > peak * 0.20;
+        const isNearZero = values[i] < Math.max(peak * 0.05, 0.5);
+        
+        if (wasProducing && isNearZero) {
+          // Check: was there production AFTER this drop? (recovery or more production later)
+          const hasProductionAfter = values.slice(i + 1).some(v => v > peak * 0.20);
+          if (hasProductionAfter) {
+            dropCount++;
+            // Skip consecutive zero points (count as one drop event)
+            while (i < values.length - 1 && values[i + 1] < Math.max(peak * 0.05, 0.5)) i++;
+          }
+        }
+      }
+      
+      return dropCount;
+    }
+
     // Rule-based evaluation (for fault types WITH detection_rules)
     function evaluateRules(ft, site, siteInverters, volatility, stationSnapshots) {
       if (!ft.detection_rules || ft.detection_rules.length === 0) return null; // no rules
