@@ -52,14 +52,15 @@ export default function Layout({ children, currentPageName }) {
         {/* Logo */}
         <div className="p-4 h-16 flex items-center border-b border-slate-100">
           <div className={cn("flex items-center gap-3 overflow-hidden", !sidebarOpen && "justify-center w-full")}>
-            <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-lg"
-              style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', boxShadow: '0 4px 10px rgba(22,163,74,0.2)' }}>
-              <span className="text-white font-black text-lg leading-none">D</span>
-            </div>
+            <img 
+              src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6996c82e2d9ffee94ec1d06d/3c09ddb08_file_000000001d3871fda61e9907e2495b87.png" 
+              alt="Panel Sense AI" 
+              className="shrink-0 w-9 h-9 rounded-lg object-cover"
+            />
             {sidebarOpen && (
               <div>
-                <div className="font-bold text-slate-900 text-sm leading-tight">Delkal</div>
-                <div className="text-[10px] font-bold text-green-600 uppercase tracking-wider">Energy Control</div>
+                <div className="font-bold text-slate-900 text-sm leading-tight">Panel Sense</div>
+                <div className="text-[10px] font-bold text-cyan-600 uppercase tracking-wider">AI</div>
               </div>
             )}
           </div>
@@ -109,10 +110,11 @@ export default function Layout({ children, currentPageName }) {
         <header className="h-14 md:h-16 sticky top-0 z-40 border-b border-slate-200 px-4 md:px-8 flex items-center justify-between bg-white/95 backdrop-blur-md">
           <div className="flex items-center gap-2 md:gap-3">
             {/* Mobile logo */}
-            <div className="flex md:hidden items-center justify-center w-8 h-8 rounded-lg"
-              style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)' }}>
-              <span className="text-white font-black text-base leading-none">D</span>
-            </div>
+            <img 
+              src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6996c82e2d9ffee94ec1d06d/3c09ddb08_file_000000001d3871fda61e9907e2495b87.png" 
+              alt="Panel Sense AI" 
+              className="flex md:hidden w-8 h-8 rounded-lg object-cover"
+            />
             <span className="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-700">
               LIVE
             </span>
@@ -120,11 +122,11 @@ export default function Layout({ children, currentPageName }) {
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2 text-sm text-slate-600 font-medium">
-              <Zap className="w-4 h-4 text-green-500" />
-              <span>Fleet Control Tower</span>
+              <Zap className="w-4 h-4 text-cyan-500" />
+              <span>Panel Sense AI</span>
             </div>
-            <div className="h-8 w-8 rounded-full overflow-hidden border-2 border-green-200 shadow-sm">
-              <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=Delkal`} alt="User" />
+            <div className="h-8 w-8 rounded-full overflow-hidden border-2 border-cyan-200 shadow-sm">
+              <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=PanelSense`} alt="User" />
             </div>
           </div>
         </header>
