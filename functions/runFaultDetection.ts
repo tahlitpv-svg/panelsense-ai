@@ -413,6 +413,9 @@ ${todayGraphSummary}
         if (volatility > 50) reasons.push(`תנודתיות ${volatility}`);
         const cyclicDays = countRectangularDropDays(stationSnapshots, dateKey);
         if (cyclicDays >= 7) reasons.push(`${cyclicDays} ימים עם דפוס מסרק (derating) מ-20 אחרונים`);
+      } else if (ft.alert_type === 'mid_day_power_drop') {
+        const drops = countMidDayPowerDrops(stationSnapshots[dateKey] || null);
+        if (drops > 0) reasons.push(`${drops} נפילות חדות לאפס באמצע היום`);
       } else if (ft.alert_type === 'phase_voltage_out_of_range') {
         const pv = siteInverters.map(i => i.phase_voltages).filter(p => p);
         if (pv.length > 0) {
@@ -561,8 +564,7 @@ function evaluateRule(rule, site, inverters, expectedFraction, volatility, expec
       actual = tArr.length ? Math.max(...tArr) : null; break;
     }
     case 'mid_day_power_drop_count': {
-      actual = midDayDrops || 0;
-      break;
+      actual = midDayDrops || 0; break;
     }
     default: return false;
   }
