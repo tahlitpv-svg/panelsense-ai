@@ -495,7 +495,7 @@ ${todayGraphSummary}
   }
 });
 
-function evaluateRule(rule, site, inverters, expectedFraction, volatility, expectedSpecificYield, cyclicDropDays) {
+function evaluateRule(rule, site, inverters, expectedFraction, volatility, expectedSpecificYield, cyclicDropDays, midDayDrops) {
   const { metric, operator, value, value_string } = rule;
 
   if (metric === 'power_volatility_index') {
