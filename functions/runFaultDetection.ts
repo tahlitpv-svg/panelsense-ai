@@ -560,6 +560,10 @@ function evaluateRule(rule, site, inverters, expectedFraction, volatility, expec
       const tArr = inverters.map(i => i.temperature_c).filter(v => v != null);
       actual = tArr.length ? Math.max(...tArr) : null; break;
     }
+    case 'mid_day_power_drop_count': {
+      actual = midDayDrops || 0;
+      break;
+    }
     default: return false;
   }
 
