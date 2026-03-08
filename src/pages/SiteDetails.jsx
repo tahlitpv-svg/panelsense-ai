@@ -235,8 +235,12 @@ export default function SiteDetails() {
                       </div>
                       <div className="flex items-center gap-3 flex-wrap">
                         <PhaseVoltageIndicator voltages={inverter.phase_voltages} />
-                        <Badge className={`${inverter.status === 'online' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'} border-0 text-xs`}>
-                          {inverter.status === 'online' ? 'מקוון' : 'תקלה'}
+                        <Badge className={`${
+                          inverter.status === 'online' ? 'bg-emerald-100 text-emerald-700' : 
+                          inverter.status === 'warning' ? 'bg-amber-100 text-amber-700' : 
+                          'bg-slate-100 text-slate-500'
+                        } border-0 text-xs`}>
+                          {inverter.status === 'online' ? 'מקוון' : inverter.status === 'warning' ? 'אזהרה' : 'לא מקוון'}
                         </Badge>
                       </div>
                     </div>
