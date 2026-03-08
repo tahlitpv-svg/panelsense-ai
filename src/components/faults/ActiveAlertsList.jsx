@@ -22,6 +22,8 @@ const TYPE_LABELS = {
   inverter_fault: 'תקלת ממיר',
   string_mismatch: 'חוסר התאמת סטרינג',
   phase_voltage_out_of_range: 'מתח פאזה חריג',
+  communication_fault: 'תקלת תקשורת',
+  mid_day_power_drop: 'נפילת מתח באמצע היום',
   other: 'אחר'
 };
 
