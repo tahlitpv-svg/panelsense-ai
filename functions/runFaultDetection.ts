@@ -375,35 +375,35 @@ ${todayGraphSummary}
           });
           log.push(`[${ft.name}] Alert created for site: ${site.name} - ${message}`);
 
-          if (ft.notify_email) {
+          // Send notifications to site owner only (email + WhatsApp)
+          const alertBody = `התראה: ${ft.name}\nאתר: ${site.name}\nסיבה: ${message}\nזמן: ${now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}`;
+
+          // Email to site owner
+          if (ft.notify_email && site.contact_email) {
             try {
-              const body = `התראה: ${ft.name}\nאתר: ${site.name}\nסיבה: ${message}\nזמן: ${now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}`;
-              const adminUsers = await db.entities.User.filter({ role: 'admin' });
-              for (const admin of adminUsers) {
-                await db.integrations.Core.SendEmail({
-                  to: admin.email,
-                  subject: `⚠️ תקלה: ${ft.name} - ${site.name}`,
-                  body
-                });
-              }
+              await db.integrations.Core.SendEmail({
+                to: site.contact_email,
+                subject: `⚠️ תקלה: ${ft.name} - ${site.name}`,
+                body: alertBody
+              });
+              log.push(`[${ft.name}] Email sent to site owner ${site.contact_email} for: ${site.name}`);
             } catch (emailErr) {
-              log.push(`[${ft.name}] Email failed: ${emailErr.message}`);
+              log.push(`[${ft.name}] Email failed for ${site.name}: ${emailErr.message}`);
             }
           }
 
-          // Send WhatsApp notification if enabled and site has a phone number
+          // WhatsApp to site owner
           if (ft.notify_whatsapp && site.contact_phone) {
             try {
               const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
               const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
               if (accountSid && authToken) {
-                const whatsappBody = `⚠️ התראה: ${ft.name}\nאתר: ${site.name}\nסיבה: ${message}\nזמן: ${now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}`;
                 const toFormatted = site.contact_phone.startsWith('whatsapp:') ? site.contact_phone : `whatsapp:${site.contact_phone}`;
                 const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
                 const params = new URLSearchParams({
                   To: toFormatted,
                   From: 'whatsapp:+14155238886',
-                  Body: whatsappBody,
+                  Body: `⚠️ ${alertBody}`,
                 });
                 const waRes = await fetch(url, {
                   method: 'POST',
@@ -414,7 +414,7 @@ ${todayGraphSummary}
                   body: params.toString(),
                 });
                 if (waRes.ok) {
-                  log.push(`[${ft.name}] WhatsApp sent to ${site.contact_phone} for site: ${site.name}`);
+                  log.push(`[${ft.name}] WhatsApp sent to ${site.contact_phone} for: ${site.name}`);
                 } else {
                   const waErr = await waRes.json();
                   log.push(`[${ft.name}] WhatsApp failed for ${site.name}: ${waErr.message || JSON.stringify(waErr)}`);
