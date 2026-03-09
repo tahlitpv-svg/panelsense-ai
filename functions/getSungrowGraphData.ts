@@ -95,8 +95,21 @@ Deno.serve(async (req) => {
     for (const baseUrl of candidates) {
       if (result) break;
 
-      // Try both: web portal session (WEB_APP_KEY) and openapi session (user's key)
+      // Try OAuth2 first if available, then web portal, then openapi
       const sessions = [];
+
+      // OAuth2 session (highest priority)
+      if (cfg.auth_method === 'oauth2' && cfg.oauth_access_token) {
+        const oauthBaseUrl = cfg.oauth_base_url || baseUrl;
+        sessions.push({ 
+          token: cfg.oauth_access_token, 
+          user_id: cfg.oauth_user_id || '', 
+          appkey: cfg.app_key, 
+          access_key: cfg.app_secret, 
+          label: 'oauth2' 
+        });
+        console.log(`[getSungrowGraph] Using OAuth2 token`);
+      }
 
       const webSess = await sungrowWebPortalLogin(cfg, baseUrl);
       if (webSess) sessions.push({ ...webSess, appkey: WEB_APP_KEY, access_key: WEB_APP_KEY, label: 'web' });
