@@ -419,6 +419,7 @@ export default function ApiConnectionsTab() {
               conn={conn}
               onTest={handleTest}
               onDelete={id => deleteMutation.mutate(id)}
+              onEdit={conn => { setEditingConn(conn); setShowAdd(false); }}
               isTestingId={testingId}
             />
           ))}
