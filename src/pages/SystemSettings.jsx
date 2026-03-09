@@ -85,33 +85,52 @@ export default function SystemSettings() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">הגדרות מערכת</h1>
-          <p className="text-slate-500 mt-1">ניהול הנחות יסוד ופרמטרים גלובליים עבור כל האתרים</p>
+          <p className="text-slate-500 mt-1">ניהול הנחות יסוד, פרמטרים גלובליים וחיבורי API</p>
         </div>
-        <Button 
-          onClick={handleSave} 
-          disabled={saveMutation.isPending}
-          className="bg-green-600 hover:bg-green-700 gap-2"
-        >
-          {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          שמור שינויים
-        </Button>
       </div>
 
-      <Card className="border-slate-200 shadow-sm">
-        <CardHeader>
-          <CardTitle>הנחות יסוד גלובליות</CardTitle>
-          <CardDescription>
-            הערכים כאן ישמשו כברירת מחדל לחישובי ייצור בכל המערכות, אלא אם הוגדר אחרת ברמת האתר.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AssumptionsSettings
-            monthlyProductionPercentages={settings.monthly_production_percentages}
-            orientationKwhPerKwp={settings.orientation_kwh_per_kwp}
-            onChange={handleChange}
-          />
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="assumptions" dir="rtl">
+        <TabsList className="mb-4">
+          <TabsTrigger value="assumptions" className="gap-2">
+            <BarChart2 className="w-4 h-4" /> הנחות יסוד
+          </TabsTrigger>
+          <TabsTrigger value="api" className="gap-2">
+            <Zap className="w-4 h-4" /> חיבורי API
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="assumptions">
+          <div className="flex justify-end mb-4">
+            <Button 
+              onClick={handleSave} 
+              disabled={saveMutation.isPending}
+              className="bg-green-600 hover:bg-green-700 gap-2"
+            >
+              {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              שמור שינויים
+            </Button>
+          </div>
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader>
+              <CardTitle>הנחות יסוד גלובליות</CardTitle>
+              <CardDescription>
+                הערכים כאן ישמשו כברירת מחדל לחישובי ייצור בכל המערכות, אלא אם הוגדר אחרת ברמת האתר.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AssumptionsSettings
+                monthlyProductionPercentages={settings.monthly_production_percentages}
+                orientationKwhPerKwp={settings.orientation_kwh_per_kwp}
+                onChange={handleChange}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="api">
+          <ApiConnectionsTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
