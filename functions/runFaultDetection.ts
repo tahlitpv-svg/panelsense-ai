@@ -625,7 +625,9 @@ _אם התקלה לא תטופל._
         }
         continue;
       }
-      if (site.status !== 'warning' && site.status !== 'offline') continue;
+      // Only handle OFFLINE via SOLIS_STATUS path.
+      // WARNING sites are handled by the regular rule-based detection above - do NOT double-process them here.
+      if (site.status !== 'offline') continue;
 
       // Skip if already has an open alert (from rules or previous Solis check)
       const existingAlert = openAlerts.find(a => a.site_id === site.id && !a.is_resolved);
