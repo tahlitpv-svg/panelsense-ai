@@ -35,7 +35,7 @@ export default function PanelLayoutEditor() {
   });
 
   const [panels, setPanels] = useState([]);
-  const [selectedPanel, setSelectedPanel] = useState(null);
+  const [selectedPanels, setSelectedPanels] = useState([]);
   const [activeString, setActiveString] = useState('');
   const [dragging, setDragging] = useState(null);
   const [zoom, setZoom] = useState(1);
@@ -122,21 +122,47 @@ export default function PanelLayoutEditor() {
     const panel = panels.find(p => p.id === panelId);
     if (!panel) return;
     const scale = backgroundImage ? imageScale : zoom;
-    setDragging({
-      id: panelId,
-      offsetX: (e.clientX - rect.left) / scale - panel.x,
-      offsetY: (e.clientY - rect.top) / scale - panel.y
+    
+    let newSelected = selectedPanels;
+    if (e.shiftKey) {
+      if (selectedPanels.includes(panelId)) {
+        newSelected = selectedPanels.filter(id => id !== panelId);
+      } else {
+        newSelected = [...selectedPanels, panelId];
+      }
+    } else {
+      if (!selectedPanels.includes(panelId)) {
+        newSelected = [panelId];
+      }
+    }
+    setSelectedPanels(newSelected);
+
+    const offsets = newSelected.map(id => {
+      const p = panels.find(x => x.id === id);
+      return {
+        id,
+        offsetX: (e.clientX - rect.left) / scale - p.x,
+        offsetY: (e.clientY - rect.top) / scale - p.y
+      };
     });
-    setSelectedPanel(panelId);
+
+    setDragging({ offsets });
   };
 
   const handleMouseMove = useCallback((e) => {
     if (!dragging || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const scale = backgroundImage ? imageScale : zoom;
-    const x = snapToGrid((e.clientX - rect.left) / scale - dragging.offsetX);
-    const y = snapToGrid((e.clientY - rect.top) / scale - dragging.offsetY);
-    setPanels(prev => prev.map(p => p.id === dragging.id ? { ...p, x: Math.max(0, x), y: Math.max(0, y) } : p));
+    
+    setPanels(prev => prev.map(p => {
+      const dragItem = dragging.offsets.find(d => d.id === p.id);
+      if (dragItem) {
+        const x = snapToGrid((e.clientX - rect.left) / scale - dragItem.offsetX);
+        const y = snapToGrid((e.clientY - rect.top) / scale - dragItem.offsetY);
+        return { ...p, x: Math.max(0, x), y: Math.max(0, y) };
+      }
+      return p;
+    }));
   }, [dragging, zoom, backgroundImage, imageScale]);
 
   const handleMouseUp = useCallback((e) => {
@@ -162,12 +188,23 @@ export default function PanelLayoutEditor() {
     const panel = panels.find(p => p.id === panelId);
     if (!panel) return;
     const scale = backgroundImage ? imageScale : zoom;
-    setDragging({
-      id: panelId,
-      offsetX: (touch.clientX - rect.left) / scale - panel.x,
-      offsetY: (touch.clientY - rect.top) / scale - panel.y
+    
+    let newSelected = selectedPanels;
+    if (!selectedPanels.includes(panelId)) {
+      newSelected = [panelId];
+      setSelectedPanels(newSelected);
+    }
+    
+    const offsets = newSelected.map(id => {
+      const p = panels.find(x => x.id === id);
+      return {
+        id,
+        offsetX: (touch.clientX - rect.left) / scale - p.x,
+        offsetY: (touch.clientY - rect.top) / scale - p.y
+      };
     });
-    setSelectedPanel(panelId);
+    
+    setDragging({ offsets });
   };
 
   const handleTouchMove = useCallback((e) => {
@@ -176,9 +213,16 @@ export default function PanelLayoutEditor() {
     const touch = e.touches[0];
     const rect = canvasRef.current.getBoundingClientRect();
     const scale = backgroundImage ? imageScale : zoom;
-    const x = snapToGrid((touch.clientX - rect.left) / scale - dragging.offsetX);
-    const y = snapToGrid((touch.clientY - rect.top) / scale - dragging.offsetY);
-    setPanels(prev => prev.map(p => p.id === dragging.id ? { ...p, x: Math.max(0, x), y: Math.max(0, y) } : p));
+    
+    setPanels(prev => prev.map(p => {
+      const dragItem = dragging.offsets.find(d => d.id === p.id);
+      if (dragItem) {
+        const x = snapToGrid((touch.clientX - rect.left) / scale - dragItem.offsetX);
+        const y = snapToGrid((touch.clientY - rect.top) / scale - dragItem.offsetY);
+        return { ...p, x: Math.max(0, x), y: Math.max(0, y) };
+      }
+      return p;
+    }));
   }, [dragging, zoom, backgroundImage, imageScale]);
 
   useEffect(() => {
@@ -190,14 +234,21 @@ export default function PanelLayoutEditor() {
 
   // Rotate selected panel
   const rotatePanel = () => {
-    if (!selectedPanel) return;
-    rotatePanelId(selectedPanel);
+    if (selectedPanels.length === 0) return;
+    setPanels(prev => prev.map(p => {
+      if (!selectedPanels.includes(p.id)) return p;
+      return { 
+        ...p, 
+        rotation: p.rotation === 0 ? 90 : 0, 
+        width: p.height, 
+        height: p.width 
+      };
+    }));
   };
 
   const rotatePanelId = (id) => {
     setPanels(prev => prev.map(p => {
       if (p.id !== id) return p;
-      // Also physically swap width and height so visual container updates
       return { 
         ...p, 
         rotation: p.rotation === 0 ? 90 : 0, 
@@ -209,20 +260,26 @@ export default function PanelLayoutEditor() {
 
   // Delete selected panel
   const deletePanel = () => {
-    if (!selectedPanel) return;
-    setPanels(prev => prev.filter(p => p.id !== selectedPanel));
-    setSelectedPanel(null);
+    if (selectedPanels.length === 0) return;
+    setPanels(prev => prev.filter(p => !selectedPanels.includes(p.id)));
+    setSelectedPanels([]);
   };
 
   // Change string assignment
   const reassignString = (newStringId) => {
-    if (!selectedPanel) return;
-    const sc = strings.find(s => s.string_id === newStringId);
-    const existingCount = panels.filter(p => p.string_id === newStringId).length;
-    setPanels(prev => prev.map(p => {
-      if (p.id !== selectedPanel) return p;
-      return { ...p, string_id: newStringId, panel_index: existingCount + 1 };
-    }));
+    if (selectedPanels.length === 0) return;
+    let existingCount = panels.filter(p => p.string_id === newStringId).length;
+    setPanels(prev => {
+      const updated = [...prev];
+      selectedPanels.forEach(id => {
+        const idx = updated.findIndex(p => p.id === id);
+        if (idx !== -1) {
+          updated[idx] = { ...updated[idx], string_id: newStringId, panel_index: existingCount + 1 };
+          existingCount++;
+        }
+      });
+      return updated;
+    });
   };
 
   // Handle blueprint upload
@@ -359,7 +416,7 @@ export default function PanelLayoutEditor() {
                 onClick={() => {
                   if (window.confirm('האם למחוק את כל הפנלים מהשרטוט?')) {
                     setPanels([]);
-                    setSelectedPanel(null);
+                    setSelectedPanels([]);
                   }
                 }}
               >
@@ -390,50 +447,50 @@ export default function PanelLayoutEditor() {
           <div className="flex-1 overflow-auto relative" style={{ background: backgroundImage ? 'transparent' : 'linear-gradient(135deg, #f5f5f5 0%, #e5e5e5 100%)' }}>
             <input type="file" ref={blueprintInputRef} className="hidden" accept="image/*" onChange={handleBlueprintUpload} />
             <div
-             ref={canvasRef}
-             className="relative cursor-crosshair m-auto"
-             style={{
-               width: backgroundImage ? 1200 * imageScale : 1200 * zoom,
-               height: backgroundImage ? 800 * imageScale : 800 * zoom,
-               backgroundImage: backgroundImage 
-                 ? `url('${backgroundImage}')` 
-                 : `radial-gradient(circle, #e2e8f0 1px, transparent 1px)`,
-               backgroundSize: 'cover',
-               backgroundPosition: 'center',
-               backgroundRepeat: 'no-repeat',
-               position: 'relative'
-             }}
-             onClick={() => setSelectedPanel(null)}
-             onTouchEnd={() => { setDragging(null); }}
-             onDragOver={(e) => {
-               if (backgroundImage) {
-                 e.preventDefault();
-                 e.dataTransfer.dropEffect = 'copy';
-               }
-             }}
-             onDrop={(e) => {
-               if (!backgroundImage) return;
-               e.preventDefault();
-               const stringId = e.dataTransfer.getData('stringId');
-               if (!stringId) return;
+            ref={canvasRef}
+            className="relative cursor-crosshair m-auto"
+            style={{
+              width: backgroundImage ? 1200 * imageScale : 1200 * zoom,
+              height: backgroundImage ? 800 * imageScale : 800 * zoom,
+              backgroundImage: backgroundImage 
+                ? `url('${backgroundImage}')` 
+                : `radial-gradient(circle, #e2e8f0 1px, transparent 1px)`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+              position: 'relative'
+            }}
+            onClick={() => setSelectedPanels([])}
+            onTouchEnd={() => { setDragging(null); }}
+            onDragOver={(e) => {
+              if (backgroundImage) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+              }
+            }}
+            onDrop={(e) => {
+              if (!backgroundImage) return;
+              e.preventDefault();
+              const stringId = e.dataTransfer.getData('stringId');
+              if (!stringId) return;
 
-               const rect = canvasRef.current.getBoundingClientRect();
-               const x = snapToGrid((e.clientX - rect.left) / imageScale);
-               const y = snapToGrid((e.clientY - rect.top) / imageScale);
+              const rect = canvasRef.current.getBoundingClientRect();
+              const x = snapToGrid((e.clientX - rect.left) / imageScale);
+              const y = snapToGrid((e.clientY - rect.top) / imageScale);
 
-               const newPanel = {
-                 id: `${stringId}_p${Date.now()}`,
-                 x,
-                 y,
-                 width: PANEL_W,
-                 height: PANEL_H,
-                 string_id: stringId,
-                 panel_index: panels.filter(p => p.string_id === stringId).length + 1,
-                 rotation: 0
-               };
-               setPanels(prev => [...prev, newPanel]);
-               setSelectedPanel(newPanel.id);
-             }}
+              const newPanel = {
+                id: `${stringId}_p${Date.now()}`,
+                x,
+                y,
+                width: PANEL_W,
+                height: PANEL_H,
+                string_id: stringId,
+                panel_index: panels.filter(p => p.string_id === stringId).length + 1,
+                rotation: 0
+              };
+              setPanels(prev => [...prev, newPanel]);
+              setSelectedPanels([newPanel.id]);
+            }}
             >
              {backgroundImage && (
                <div 
@@ -456,7 +513,7 @@ export default function PanelLayoutEditor() {
                }}
              />
              {panels.map(panel => {
-              const isSelected = selectedPanel === panel.id;
+              const isSelected = selectedPanels.includes(panel.id);
               const color = stringColors[panel.string_id] || '#94a3b8';
               return (
                 <div
@@ -480,7 +537,11 @@ export default function PanelLayoutEditor() {
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setSelectedPanel(panel.id);
+                    if (e.shiftKey) {
+                      setSelectedPanels(prev => prev.includes(panel.id) ? prev.filter(id => id !== panel.id) : [...prev, panel.id]);
+                    } else {
+                      setSelectedPanels([panel.id]);
+                    }
                   }}
                 >
                   <span className="text-[8px] font-bold leading-none" style={{ color, fontSize: Math.max(7, 9 * (backgroundImage ? imageScale : zoom)) }}>
@@ -498,23 +559,30 @@ export default function PanelLayoutEditor() {
 
         {/* Right Sidebar - Properties */}
         <Card className="p-4 border border-slate-200 bg-white w-full lg:w-64 shrink-0 overflow-y-auto space-y-4">
-          {selectedPanel && (() => {
-            const panel = panels.find(p => p.id === selectedPanel);
+          {selectedPanels.length > 0 && (() => {
+            const panel = panels.find(p => p.id === selectedPanels[0]);
             if (!panel) return null;
             return (
               <div className="space-y-4">
                 <div>
-                  <h3 className="font-bold text-sm text-slate-700 mb-2">פנל נבחר</h3>
-                  <div className="text-xs text-slate-500 space-y-1">
-                    <div>סטרינג: <span className="font-medium text-slate-700">{panel.string_id}</span></div>
-                    <div>מספר פנל: <span className="font-medium text-slate-700">{panel.panel_index}</span></div>
+                  <h3 className="font-bold text-sm text-slate-700 mb-2">
+                    {selectedPanels.length > 1 ? `נבחרו ${selectedPanels.length} פנלים` : 'פנל נבחר'}
+                  </h3>
+                  {selectedPanels.length === 1 && (
+                    <div className="text-xs text-slate-500 space-y-1">
+                      <div>סטרינג: <span className="font-medium text-slate-700">{panel.string_id}</span></div>
+                      <div>מספר פנל: <span className="font-medium text-slate-700">{panel.panel_index}</span></div>
+                    </div>
+                  )}
+                  <div className="text-[10px] text-slate-400 mt-2">
+                    (ניתן לבחור מספר פנלים ע"י לחיצה עם Shift)
                   </div>
                 </div>
                 <div>
                   <label className="text-xs text-slate-500 mb-1 block">שייך לסטרינג:</label>
-                  <Select value={panel.string_id} onValueChange={reassignString}>
+                  <Select value={selectedPanels.length === 1 ? panel.string_id : undefined} onValueChange={reassignString}>
                     <SelectTrigger className="h-8 text-xs">
-                      <SelectValue />
+                      <SelectValue placeholder={selectedPanels.length > 1 ? 'בחר סטרינג...' : ''} />
                     </SelectTrigger>
                     <SelectContent>
                       {strings.map(s => (
@@ -535,7 +603,7 @@ export default function PanelLayoutEditor() {
             );
           })()}
 
-          {!selectedPanel && (
+          {selectedPanels.length === 0 && (
             <div>
               <h3 className="font-bold text-sm text-slate-700 mb-2">מקרא</h3>
               <div className="space-y-1">
