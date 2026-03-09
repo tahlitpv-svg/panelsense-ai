@@ -131,7 +131,9 @@ export default function PanelLayoutEditor() {
     setPanels(prev => prev.map(p => p.id === dragging.id ? { ...p, x: Math.max(0, x), y: Math.max(0, y) } : p));
   }, [dragging, zoom]);
 
-  const handleMouseUp = useCallback(() => {
+  const handleMouseUp = useCallback((e) => {
+    // If we only clicked without dragging, we should still ensure the panel is selected
+    // but the mousedown already handles selection. We just clear dragging state.
     setDragging(null);
   }, []);
 
