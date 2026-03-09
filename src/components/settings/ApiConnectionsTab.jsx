@@ -393,6 +393,13 @@ export default function ApiConnectionsTab() {
           onCancel={() => setShowAdd(false)}
         />
       )}
+      {editingConn && (
+        <EditConnectionForm
+          conn={editingConn}
+          onSave={(id, data) => updateMutation.mutate({ id, data })}
+          onCancel={() => setEditingConn(null)}
+        />
+      )}
 
       {isLoading ? (
         <div className="text-center py-12 text-slate-400">טוען חיבורים...</div>
