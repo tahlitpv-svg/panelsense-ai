@@ -75,6 +75,8 @@ export default function ImportSitesPanel({ conn, onClose }) {
           region_tag: detectRegion(site.latitude),
           solis_station_id: site.solis_station_id || null,
           solis_sno: site.solis_sno || null,
+          sungrow_station_id: site.sungrow_station_id || null,
+          sungrow_connection_id: site.sungrow_station_id ? connectionId : null,
           status: 'online'
         });
         success++;
