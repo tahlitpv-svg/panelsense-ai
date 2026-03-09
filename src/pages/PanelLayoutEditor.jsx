@@ -531,8 +531,8 @@ export default function PanelLayoutEditor() {
               </div>
             </div>
           )}
-        </Card>
-      </div>
-    </div>
-  );
-}
+          </Card>
+          </div>
+          </div>
+          );
+          }
