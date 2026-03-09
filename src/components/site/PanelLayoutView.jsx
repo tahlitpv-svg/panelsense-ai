@@ -140,7 +140,10 @@ export default function PanelLayoutView({ site, inverters }) {
           }}
         >
           {layout.panels.map(p => {
-            const panel = p.width > p.height ? { ...p, width: p.height, height: p.width } : p;
+            const isHorizontal = p.width > p.height;
+            // For view mode we still need to respect rotation if it exists, or the original width/height from the saved layout
+            // Let's use the explicit width and height from the database, but if they want it visual we can swap it manually
+            const panel = { ...p, width: isHorizontal ? p.height : p.width, height: isHorizontal ? p.width : p.height };
             const data = panelData[panel.id] || { watts: 0, string_id: panel.string_id };
             const color = getPanelColor(data.watts, maxWatts);
             return (
