@@ -193,18 +193,38 @@ Deno.serve(async (req) => {
           totalUpdated++;
           console.log(`[syncSungrow] Updated site ${site.name}: power=${currentPower}kW daily=${dailyYield}kWh cap=${updateData.dc_capacity_kwp || site.dc_capacity_kwp}kWp`);
 
-          // Save daily snapshot for historical chart (accumulate over time)
-          if (dailyYield > 0) {
-            const todayKey = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+          // Save daily snapshot for historical chart + power curve accumulation
+          {
+            const now = new Date();
+            const todayKey = now.toISOString().slice(0, 10); // YYYY-MM-DD
             const snapStationId = `sg_${psId}`;
+            const timeLabel = now.toISOString().slice(11, 16); // HH:MM UTC
             try {
               const existingSnaps = await db.entities.SiteGraphSnapshot.filter({ station_id: snapStationId, date_key: todayKey });
-              const snapData = { station_id: snapStationId, date_key: todayKey, daily_yield_kwh: dailyYield, data: [] };
               if (existingSnaps.length > 0) {
-                await db.entities.SiteGraphSnapshot.update(existingSnaps[0].id, { daily_yield_kwh: dailyYield });
+                const snap = existingSnaps[0];
+                const existingData = snap.data || [];
+                // Append current power reading (only if power > 0 or we have existing data points)
+                if (currentPower > 0 || existingData.length > 0) {
+                  // Avoid duplicate time entries - remove same-minute entry if exists
+                  const filtered = existingData.filter(p => p.time !== timeLabel);
+                  filtered.push({ time: timeLabel, value: parseFloat(currentPower.toFixed(3)) });
+                  filtered.sort((a, b) => a.time.localeCompare(b.time));
+                  await db.entities.SiteGraphSnapshot.update(snap.id, {
+                    daily_yield_kwh: dailyYield,
+                    data: filtered
+                  });
+                }
               } else {
-                await db.entities.SiteGraphSnapshot.create(snapData);
+                const dataPoints = currentPower > 0 ? [{ time: timeLabel, value: parseFloat(currentPower.toFixed(3)) }] : [];
+                await db.entities.SiteGraphSnapshot.create({
+                  station_id: snapStationId,
+                  date_key: todayKey,
+                  daily_yield_kwh: dailyYield,
+                  data: dataPoints
+                });
               }
+              console.log(`[syncSungrow] Snapshot saved for ${psId}: daily=${dailyYield}kWh power=${currentPower}kW at ${timeLabel}`);
             } catch(e) {
               console.log(`[syncSungrow] Snapshot save error for ${psId}: ${e.message}`);
             }
