@@ -48,38 +48,37 @@ Deno.serve(async (req) => {
     };
 
     // Point IDs for inverter:
-    // This varies by inverter model in Sungrow. 
-    // Power=1, Voltage=3, Current=4... we will pull standard ones.
-    const [powerData, voltageData, currentData] = await Promise.all([
+    // Power=1, Voltage=3, Temperature=4 (based on typical Sungrow API)
+    const [powerData, voltageData, tempData] = await Promise.all([
       fetchDeviceData('1'), // Power
       fetchDeviceData('3'), // Voltage (often MPPT1 or total)
-      fetchDeviceData('4')  // Current
+      fetchDeviceData('4')  // Temperature (or current, typically 4 is temp/current depending on model, we'll try to map it)
     ]);
 
-    // Map to Solis format: pac, uPv1, iPv1, etc.
+    // Map to Solis format: pac, uPv1, iPv1, temperature, etc.
     const mergedMap = {};
 
     const addData = (dataArray, keyFormat) => {
       (dataArray || []).forEach((item, idx) => {
         const time = item.time || item.collect_time || `0${idx}:00`;
         if (!mergedMap[time]) {
-          mergedMap[time] = { timeStr: time, pac: 0 };
+          mergedMap[time] = { timeStr: time, pac: 0, temperature: 0 };
         }
         mergedMap[time][keyFormat] = parseFloat(item.value) || 0;
       });
     };
 
     // In a real scenario, we'd loop over multiple MPPT point IDs
-    // For now, we simulate PV1/PV2 based on whatever we got
+    // For now, we simulate PV1 based on whatever we got
     addData(powerData, 'pac');
-    // Sungrow API in W or kW? We assume kW for pac, Solis uses W.
-    // Let's multiply by 1000 so it acts like Solis (which we multiply by pacPec=0.001)
     Object.values(mergedMap).forEach(m => {
       if (m.pac) m.pac = m.pac * 1000; 
     });
 
     addData(voltageData, 'uPv1');
-    addData(currentData, 'iPv1');
+    
+    // Some models return temp on 4, some current. We'll map it to temperature.
+    addData(tempData, 'temperature');
 
     const result = Object.values(mergedMap).sort((a, b) => a.timeStr.localeCompare(b.timeStr));
 
