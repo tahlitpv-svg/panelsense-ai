@@ -549,9 +549,9 @@ _אם התקלה לא תטופל._
       }
     }
 
-    // === SOLIS STATUS: Auto-resolve alerts for sites back online, create alerts for warning/offline ===
+    // === SOLIS STATUS: For sites with warning/offline from Solis that have no open alert, match to a FaultType via LLM ===
     for (const site of sites) {
-      // Auto-resolve Solis status alerts for sites that came back online
+      // Auto-resolve Solis-status alerts if site came back online
       if (site.status === 'online') {
         const solisAlert = openAlerts.find(a =>
           a.site_id === site.id &&
@@ -560,53 +560,125 @@ _אם התקלה לא תטופל._
         );
         if (solisAlert) {
           await db.entities.Alert.update(solisAlert.id, { is_resolved: true, resolved_date: now.toISOString() });
-          log.push(`[SOLIS_STATUS] Auto-resolved alert for ${site.name} (back online)`);
+          log.push(`[SOLIS_STATUS] Auto-resolved for ${site.name} (back online)`);
         }
         continue;
       }
       if (site.status !== 'warning' && site.status !== 'offline') continue;
-      
-      const existingStatusAlert = openAlerts.find(a =>
-        a.site_id === site.id &&
-        !a.is_resolved
-      );
-      
-      if (existingStatusAlert) {
-        log.push(`[SOLIS_STATUS] ${site.name} (${site.status}) - alert already open`);
+
+      // Skip if already has an open alert (from rules or previous Solis check)
+      const existingAlert = openAlerts.find(a => a.site_id === site.id && !a.is_resolved);
+      if (existingAlert) {
+        log.push(`[SOLIS_STATUS] ${site.name} (${site.status}) - alert already open: ${existingAlert.fault_type_name}`);
         continue;
       }
 
-      const statusMessage = site.status === 'warning'
-        ? `אתר "${site.name}" מדווח סטטוס אזהרה ממערכת Solis`
-        : `אתר "${site.name}" מדווח כלא מקוון (offline) ממערכת Solis`;
-      
-      const alertType = site.status === 'offline' ? 'communication_fault' : 'other';
-      const severity = site.status === 'offline' ? 'critical' : 'warning';
+      // Use LLM to match the site condition to the best matching active FaultType
+      const siteInverters = inverters.filter(inv => inv.site_id === site.id);
+      const stationSnapshots = site.solis_station_id ? (snapshotsByStation[site.solis_station_id] || {}) : {};
 
+      const faultTypeSummaries = activeFaultTypes.map(ft => ({
+        name: ft.name,
+        alert_type: ft.alert_type,
+        severity: ft.severity,
+        description: ft.description || '',
+        detection_notes: ft.detection_notes || ''
+      }));
+
+      const siteContext = {
+        name: site.name,
+        status: site.status,
+        current_power_kw: site.current_power_kw,
+        daily_yield_kwh: site.daily_yield_kwh,
+        current_efficiency: site.current_efficiency,
+        last_heartbeat: site.last_heartbeat,
+        dc_capacity_kwp: site.dc_capacity_kwp
+      };
+
+      const inverterContext = siteInverters.map(inv => ({
+        name: inv.name,
+        status: inv.status,
+        temperature_c: inv.temperature_c,
+        current_ac_power_kw: inv.current_ac_power_kw,
+        phase_voltages: inv.phase_voltages,
+        mppt_strings: inv.mppt_strings
+      }));
+
+      let matchedFt = null;
+      let matchReason = '';
+
+      try {
+        const matchResult = await db.integrations.Core.InvokeLLM({
+          prompt: `אתה מומחה לניטור מערכות סולאריות.
+
+אתר "${site.name}" מדווח סטטוס "${site.status}" ממערכת Solis.
+
+נתוני האתר:
+${JSON.stringify(siteContext, null, 2)}
+
+נתוני אינוורטרים:
+${JSON.stringify(inverterContext, null, 2)}
+
+רשימת סוגי התקלות המוגדרים במערכת:
+${JSON.stringify(faultTypeSummaries, null, 2)}
+
+המשימה: קבע איזה סוג תקלה מהרשימה לעיל מתאים ביותר לסטטוס "${site.status}" של האתר הזה.
+- אם מדובר ב-offline / אין heartbeat / אין תקשורת - בחר סוג תקלת תקשורת
+- אם מדובר ב-warning עם הספק נמוך - בחר תקלת ייצור נמוך
+- אם אינך בטוח, בחר את הסוג הכי קרוב שנראה הגיוני
+- אם אין אף סוג מתאים, החזר null
+
+ענה אך ורק במבנה JSON: {"fault_type_name": "שם סוג התקלה מהרשימה או null", "reason": "הסבר קצר בעברית"}`,
+          response_json_schema: {
+            type: 'object',
+            properties: {
+              fault_type_name: { type: ['string', 'null'] },
+              reason: { type: 'string' }
+            },
+            required: ['fault_type_name', 'reason']
+          }
+        });
+
+        if (matchResult?.fault_type_name) {
+          matchedFt = activeFaultTypes.find(ft => ft.name === matchResult.fault_type_name);
+          matchReason = matchResult.reason;
+          log.push(`[SOLIS_STATUS] LLM matched ${site.name} (${site.status}) → ${matchResult.fault_type_name}: ${matchReason}`);
+        } else {
+          log.push(`[SOLIS_STATUS] LLM found no matching fault type for ${site.name} (${site.status}): ${matchResult?.reason}`);
+        }
+      } catch (e) {
+        log.push(`[SOLIS_STATUS] LLM error for ${site.name}: ${e.message}`);
+      }
+
+      if (!matchedFt) continue;
+
+      // Create alert using the matched FaultType
+      const message = matchReason || matchedFt.description || matchedFt.name;
       await db.entities.Alert.create({
         site_id: site.id,
         site_name: site.name,
-        type: alertType,
-        severity: severity,
-        message: statusMessage,
-        fault_type_name: `סטטוס Solis: ${site.status}`,
+        type: matchedFt.alert_type,
+        severity: matchedFt.severity,
+        message,
+        fault_type_name: matchedFt.name,
         is_resolved: false
       });
-      
-      triggered.push({ fault_type: `סטטוס Solis: ${site.status}`, site_name: site.name, site_id: site.id, severity });
-      log.push(`[SOLIS_STATUS] Alert created for ${site.name} (${site.status})`);
 
-      // Send notifications
+      triggered.push({ fault_type: matchedFt.name, site_name: site.name, site_id: site.id, severity: matchedFt.severity });
+      log.push(`[SOLIS_STATUS] Alert created for ${site.name} → ${matchedFt.name}`);
+
+      // Send notifications using the matched FaultType's settings
       const timeStr = now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' });
-      const severityIcon = severity === 'critical' ? '🔴' : '🟡';
-      const severityText = severity === 'critical' ? 'קריטית' : 'אזהרה';
+      const severityIcon = matchedFt.severity === 'critical' ? '🔴' : matchedFt.severity === 'warning' ? '🟡' : 'ℹ️';
+      const severityText = matchedFt.severity === 'critical' ? 'קריטית' : matchedFt.severity === 'warning' ? 'אזהרה' : 'מידע';
+      const solutionText = matchedFt.solution ? `\n\n💡 *פתרון מוצע:*\n${matchedFt.solution}` : '';
 
-      if (site.contact_email) {
+      if (matchedFt.notify_email && site.contact_email) {
         try {
           await db.integrations.Core.SendEmail({
             to: site.contact_email,
-            subject: `${severityIcon} התראת סטטוס: ${site.name} - ${site.status}`,
-            body: `התראת סטטוס - ${severityText}\n\nאתר: ${site.name}\nסטטוס: ${site.status}\nפירוט: ${statusMessage}\nזמן: ${timeStr}\n\nPanel Sense AI`
+            subject: `${severityIcon} התראת תקלה: ${matchedFt.name} - ${site.name}`,
+            body: `התראת תקלה - ${severityText}\n\nאתר: ${site.name}\nלקוח: ${site.contact_name || '---'}\nסוג תקלה: ${matchedFt.name}\nפירוט: ${message}${matchedFt.solution ? '\nפתרון מוצע: ' + matchedFt.solution : ''}\nזמן זיהוי: ${timeStr}\n\nPanel Sense AI`
           });
           log.push(`[SOLIS_STATUS] Email sent to ${site.contact_email} for: ${site.name}`);
         } catch (e) {
@@ -614,12 +686,12 @@ _אם התקלה לא תטופל._
         }
       }
 
-      if (site.contact_phone) {
+      if (matchedFt.notify_whatsapp && site.contact_phone) {
         try {
           const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
           const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
           if (accountSid && authToken) {
-            const whatsappMsg = `━━━━━━━━━━━━━━━━━━━━━\n⚡ *Panel Sense AI* ⚡\n━━━━━━━━━━━━━━━━━━━━━\n\n${severityIcon} *התראת סטטוס - ${severityText}*\n\n📍 *אתר:* ${site.name}\n👤 *לקוח:* ${site.contact_name || '---'}\n\n📋 *פירוט:*\n${statusMessage}\n\n🕐 *זמן זיהוי:* ${timeStr}\n\n━━━━━━━━━━━━━━━━━━━━━\n🌐 *Panel Sense AI*`;
+            const whatsappMsg = `━━━━━━━━━━━━━━━━━━━━━\n⚡ *Panel Sense AI* ⚡\n━━━━━━━━━━━━━━━━━━━━━\n\n${severityIcon} *התראת תקלה - ${severityText}*\n\n📍 *אתר:* ${site.name}\n👤 *לקוח:* ${site.contact_name || '---'}\n⚠️ *סוג תקלה:* ${matchedFt.name}\n\n📋 *פירוט:*\n${message}${solutionText}\n\n🕐 *זמן זיהוי:* ${timeStr}\n\n━━━━━━━━━━━━━━━━━━━━━\n🌐 *Panel Sense AI*`;
             const toFormatted = site.contact_phone.startsWith('whatsapp:') ? site.contact_phone : `whatsapp:${site.contact_phone}`;
             const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
             const params = new URLSearchParams({ To: toFormatted, From: 'whatsapp:+14155238886', Body: whatsappMsg });
