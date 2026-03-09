@@ -148,10 +148,14 @@ function ConnectionCard({ conn, onTest, onDelete, onEdit, isTestingId }) {
             ))}
           </div>
           {conn.notes && <div className="text-xs text-slate-500 mt-3 italic">{conn.notes}</div>}
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-2 mt-4 flex-wrap">
             <Button size="sm" onClick={() => onTest(conn.id)} disabled={isTesting} className="gap-1 bg-green-600 hover:bg-green-700">
               <RefreshCw className={`w-3 h-3 ${isTesting ? 'animate-spin' : ''}`} />
               בדוק חיבור
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowImport(v => !v)} className="gap-1 border-blue-300 text-blue-700 hover:bg-blue-50">
+              <Download className="w-3 h-3" />
+              ייבא מערכות
             </Button>
             <Button size="sm" variant="outline" onClick={() => onEdit(conn)} className="gap-1">
               <Pencil className="w-3 h-3" />
@@ -162,6 +166,11 @@ function ConnectionCard({ conn, onTest, onDelete, onEdit, isTestingId }) {
               מחק
             </Button>
           </div>
+          {showImport && (
+            <div className="mt-4">
+              <ImportSitesPanel conn={conn} onClose={() => setShowImport(false)} />
+            </div>
+          )}
         </CardContent>
       )}
     </Card>
