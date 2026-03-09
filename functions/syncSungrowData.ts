@@ -110,8 +110,9 @@ Deno.serve(async (req) => {
 
     for (const conn of connections) {
       try {
-        const { token, user_id, base_url } = await sungrowLogin(conn.config);
-        console.log(`[syncSungrow] Logged in to ${base_url} for connection ${conn.id}`);
+        let loginResult = await sungrowLogin(conn.config);
+        let { token, user_id, base_url, auth_method } = loginResult;
+        console.log(`[syncSungrow] Authenticated to ${base_url} via ${auth_method} for connection ${conn.id}`);
 
         // Fetch station list
         const listRes = await sungrowPost(base_url, '/openapi/getPowerStationList', conn.config, token, user_id, {
