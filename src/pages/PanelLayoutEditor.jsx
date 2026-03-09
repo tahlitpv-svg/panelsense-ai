@@ -456,7 +456,7 @@ export default function PanelLayoutEditor() {
                  pointerEvents: 'none'
                }}
              />
-            {panels.map(panel => {
+             {panels.map(panel => {
               const isSelected = selectedPanel === panel.id;
               const color = stringColors[panel.string_id] || '#94a3b8';
               return (
