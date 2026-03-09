@@ -9,7 +9,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { format, subDays, subMonths, subYears, getDaysInMonth } from "date-fns";
 
-export default function SiteProductionChart({ stationId }) {
+export default function SiteProductionChart({ stationId, sungrowStationId, sungrowConnectionId }) {
+  const isSungrow = !stationId && !!sungrowStationId;
   const [timeframe, setTimeframe] = useState('today');
   // offset: 0 = current, -1 = one back, etc.
   const [offset, setOffset] = useState(0);
