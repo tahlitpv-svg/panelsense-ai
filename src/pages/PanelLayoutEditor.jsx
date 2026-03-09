@@ -120,12 +120,19 @@ export default function PanelLayoutEditor() {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       
       const res = await base44.integrations.Core.InvokeLLM({
-        prompt: `Analyze this solar panel layout plan. The image shows solar panels organized into strings (often indicated by colored lines or text).
-        Please extract the layout into a JSON array of panels.
-        Assume a canvas of 1200x800. Estimate the relative x, y coordinates (0 to 1200 for x, 0 to 800 for y) of each panel.
-        A standard panel is width 40, height 60 (vertical) or width 60, height 40 (horizontal).
-        Identify the string_id for each panel based on the colored lines or labels.
-        Return the panels array.`,
+        prompt: `Analyze this solar panel layout blueprint. Extract the exact grid positions of each panel based on rows and columns.
+        Return panels organized in a clean grid format.
+        Instructions:
+        1. Identify each distinct string (e.g., S1, S2, S3, S4, S5) from the blueprint labels or color groups
+        2. For each panel within a string, identify its row and column position (1-based)
+        3. Arrange panels in a regular grid with consistent spacing:
+           - Panel dimensions: width 50, height 70 pixels (standard vertical orientation)
+           - Horizontal spacing between panels in same row: 10 pixels
+           - Vertical spacing between rows: 10 pixels
+           - Start position: x=50, y=50
+        4. Calculate coordinates based on column and row: x = 50 + (col-1)*60, y = 50 + (row-1)*80
+        5. Each panel should have: x, y, width, height (50x70 for vertical, 70x50 for horizontal), string_id, rotation (0 for vertical, 90 for horizontal)
+        Return only the panels array with correct grid positioning.`,
         file_urls: [file_url],
         response_json_schema: {
           type: "object",
