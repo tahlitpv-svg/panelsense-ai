@@ -141,15 +141,17 @@ async function testSolis(config) {
       body
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.code === '0') {
-        return { success: true, message: `חיבור Solis הצליח! נמצאו ${data?.data?.page?.total || 0} תחנות.` };
-      } else {
-        return { success: false, message: `שגיאת Solis: ${data?.msg || JSON.stringify(data)}` };
-      }
+    const text = await res.text();
+    console.log(`[testSolis] status=${res.status} body=${text.substring(0, 300)}`);
+    if (!res.ok) {
+      return { success: false, message: `HTTP ${res.status}: ${text.substring(0, 200)}` };
+    }
+    let data;
+    try { data = JSON.parse(text); } catch(e) { return { success: false, message: `תגובה לא תקינה: ${text.substring(0, 200)}` }; }
+    if (data?.code === '0') {
+      return { success: true, message: `חיבור Solis הצליח! נמצאו ${data?.data?.page?.total || 0} תחנות.` };
     } else {
-      return { success: false, message: `HTTP ${res.status}: ${res.statusText}` };
+      return { success: false, message: `שגיאת Solis: ${data?.msg || JSON.stringify(data)}` };
     }
   } catch (e) {
     return { success: false, message: `שגיאת רשת: ${e.message}` };
