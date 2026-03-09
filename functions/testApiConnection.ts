@@ -115,7 +115,7 @@ async function testSungrow(config) {
 async function testSolis(config) {
   const apiKeyId = config?.key_id || Deno.env.get('SOLIS_API_KEY_ID');
   const apiKeySecret = config?.key_secret || Deno.env.get('SOLIS_API_KEY_SECRET');
-  const apiUrl = config?.api_url || Deno.env.get('SOLIS_API_URL') || 'https://www.soliscloud.com:13333';
+  const apiUrl = (config?.api_url || Deno.env.get('SOLIS_API_URL') || 'https://www.soliscloud.com:13333').replace(/\/$/, '');
 
   if (!apiKeyId || !apiKeySecret) {
     return { success: false, message: 'חסרים מפתחות Solis API' };
