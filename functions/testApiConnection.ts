@@ -123,11 +123,11 @@ async function testSolis(config) {
 
   try {
     const body = JSON.stringify({ pageNo: 1, pageSize: 1 });
-    const contentMd5 = await computeMd5Base64(body);
+    const contentMd5 = computeMd5Base64(body);
     const date = new Date().toUTCString();
     const path = '/v1/api/stationList';
     const stringToSign = `POST\n${contentMd5}\napplication/json\n${date}\n${path}`;
-    const hmac = await computeHmacSha1(apiKeySecret, stringToSign);
+    const hmac = computeHmacSha1(apiKeySecret, stringToSign);
     const auth = `API ${apiKeyId}:${hmac}`;
 
     const res = await fetch(`${apiUrl}${path}`, {
