@@ -139,18 +139,27 @@ Deno.serve(async (req) => {
 
           const detail = detailRes?.result_data || {};
 
-          // Also try getPsKpi for live energy metrics
-          const kpiRes = await sungrowPost(base_url, '/openapi/getPsKpi', conn.config, token, user_id, { ps_id: psId });
-          const kpi = kpiRes?.result_data || {};
-          console.log(`[syncSungrow] ps_id=${psId} station_keys=${JSON.stringify(Object.keys(station))} kpi_keys=${JSON.stringify(Object.keys(kpi))}`);
-          console.log(`[syncSungrow] ps_id=${psId} station_sample=${JSON.stringify(station)} kpi_sample=${JSON.stringify(kpi)}`);
+          // Sungrow returns values as objects: {"unit": "kWh", "value": "537.6"} or plain numbers
+          // This helper extracts the numeric value and converts to our standard units
+          function parseField(field, targetUnit = null) {
+            if (!field && field !== 0) return 0;
+            if (typeof field === 'object' && field !== null && 'value' in field) {
+              const num = parseFloat(field.value) || 0;
+              const unit = (field.unit || '').toLowerCase();
+              // Convert to kW / kWh
+              if (unit === 'w') return num / 1000;         // W → kW
+              if (unit === 'mwh') return num * 1000;       // MWh → kWh
+              if (unit === 'gwh') return num * 1000000;    // GWh → kWh (lifetime)
+              return num;                                   // already kW or kWh
+            }
+            return parseFloat(field) || 0;
+          }
 
-          // Map Sungrow fields - check station list data, detail, and kpi
-          const currentPower = parseFloat(kpi.curr_power ?? detail.curr_power ?? station.curr_power ?? station.real_health_state_power ?? 0) || 0;
-          const dailyYield = parseFloat(kpi.today_energy ?? detail.today_energy ?? station.today_energy ?? 0) || 0;
-          const monthlyYield = parseFloat(kpi.month_energy ?? detail.month_energy ?? station.month_energy ?? 0) || 0;
-          const yearlyYield = parseFloat(kpi.year_energy ?? detail.year_energy ?? station.year_energy ?? 0) || 0;
-          const lifetimeYield = parseFloat(kpi.total_energy ?? detail.total_energy ?? station.total_energy ?? 0) || 0;
+          const currentPower = parseField(station.curr_power);   // W → kW
+          const dailyYield = parseField(station.today_energy);   // kWh or MWh → kWh
+          const monthlyYield = parseField(station.month_energy); // kWh or MWh → kWh
+          const yearlyYield = parseField(station.year_energy);   // kWh or MWh → kWh
+          const lifetimeYield = parseField(station.total_energy); // MWh/GWh → kWh
 
           const healthState = detail.ps_health_state ?? station.ps_health_state;
           let status = 'online';
