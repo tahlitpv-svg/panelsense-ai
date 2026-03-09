@@ -351,23 +351,39 @@ export default function PanelLayoutEditor() {
                 <ZoomIn className="w-4 h-4" />
               </Button>
             </div>
-            {backgroundImage && (
-              <Button variant="outline" size="sm" className="text-xs gap-1" onClick={clearBlueprint}>
-                <Trash2 className="w-3 h-3" />
-                הסר
-              </Button>
-            )}
-            {!backgroundImage && (
+            <div className="flex gap-2">
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="text-xs gap-1"
-                onClick={() => blueprintInputRef.current?.click()}
+                className="text-xs gap-1 text-red-600 hover:bg-red-50" 
+                onClick={() => {
+                  if (window.confirm('האם למחוק את כל הפנלים מהשרטוט?')) {
+                    setPanels([]);
+                    setSelectedPanel(null);
+                  }
+                }}
               >
-                <Upload className="w-3 h-3" />
-                העלה blueprint
+                <Trash2 className="w-3 h-3" />
+                מחק כל הפנלים
               </Button>
-            )}
+              {backgroundImage && (
+                <Button variant="outline" size="sm" className="text-xs gap-1" onClick={clearBlueprint}>
+                  <Trash2 className="w-3 h-3" />
+                  הסר רקע
+                </Button>
+              )}
+              {!backgroundImage && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-xs gap-1"
+                  onClick={() => blueprintInputRef.current?.click()}
+                >
+                  <Upload className="w-3 h-3" />
+                  העלה רקע
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Canvas area */}
