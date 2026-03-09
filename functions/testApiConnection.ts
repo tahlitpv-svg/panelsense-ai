@@ -6,8 +6,15 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { connection_id } = await req.json();
+    const body = await req.json();
+    const { connection_id, provider: directProvider } = body;
     const db = base44.asServiceRole;
+
+    // Special case: test system Solis keys (no DB record needed)
+    if (directProvider === 'solis_system') {
+      const result = await testSolis({});
+      return Response.json({ success: result.success, message: result.message });
+    }
 
     const connections = await db.entities.ApiConnection.filter({ id: connection_id });
     const conn = connections[0];
@@ -23,7 +30,6 @@ Deno.serve(async (req) => {
       testResult = { success: false, message: 'ספק זה עדיין לא נתמך לבדיקה אוטומטית' };
     }
 
-    // Update connection status
     await db.entities.ApiConnection.update(conn.id, {
       status: testResult.success ? 'connected' : 'error',
       last_tested: new Date().toISOString(),
@@ -41,7 +47,12 @@ async function testSungrow(config) {
     return { success: false, message: 'חסרים פרטי חיבור: app_key, app_secret, user_account, user_password' };
   }
 
-  const baseUrl = config.base_url || 'https://gateway.isolarcloud.com.hk';
+  const baseUrl = (config.base_url || 'https://gateway.isolarcloud.com.hk').replace(/\/$/, '');
+
+  // Validate that the base_url looks like an API gateway (not the web portal)
+  if (baseUrl.includes('web3.') || baseUrl.includes('isolarcloud.com') && !baseUrl.includes('gateway')) {
+    return { success: false, message: `ה-Base URL "${baseUrl}" נראה כמו פורטל Web ולא API Gateway. השתמש ב: https://gateway.isolarcloud.eu (לאירופה) או https://gateway.isolarcloud.com.hk (אסיה/גלובלי)` };
+  }
 
   try {
     const res = await fetch(`${baseUrl}/openapi/login`, {
@@ -60,8 +71,15 @@ async function testSungrow(config) {
       })
     });
 
-    const data = await res.json();
-    
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      const preview = text.substring(0, 150).replace(/\n/g, ' ');
+      return { success: false, message: `השרת החזיר תגובה שאינה JSON — כנראה שה-Base URL שגוי. וודא שמשתמשים ב-https://gateway.isolarcloud.eu ולא בכתובת הפורטל. תגובה: ${preview}` };
+    }
+
     if (data?.result_code === '1' || data?.result_data?.token) {
       return { success: true, message: 'חיבור לـSunGrow iSolarCloud הצליח!' };
     } else {
