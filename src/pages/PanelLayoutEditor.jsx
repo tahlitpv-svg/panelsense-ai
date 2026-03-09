@@ -444,10 +444,10 @@ export default function PanelLayoutEditor() {
                     isSelected ? 'ring-2 ring-offset-1 ring-blue-500 shadow-lg z-10' : 'shadow-sm'
                   }`}
                   style={{
-                    left: panel.x * zoom,
-                    top: panel.y * zoom,
-                    width: panel.width * zoom,
-                    height: panel.height * zoom,
+                    left: panel.x * (backgroundImage ? imageScale : zoom),
+                    top: panel.y * (backgroundImage ? imageScale : zoom),
+                    width: panel.width * (backgroundImage ? imageScale : zoom),
+                    height: panel.height * (backgroundImage ? imageScale : zoom),
                     backgroundColor: color + '33',
                     borderColor: color,
                   }}
