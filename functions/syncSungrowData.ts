@@ -179,7 +179,8 @@ Deno.serve(async (req) => {
 
           // Only set capacity if not already set
           if (!site.dc_capacity_kwp || site.dc_capacity_kwp === 0) {
-            const cap = parseFloat(detail.design_capacity ?? station.design_capacity ?? 0);
+            const capField = detail.design_capacity ?? station.design_capacity ?? station.total_capcity;
+            const cap = parseField(capField);
             if (cap > 0) updateData.dc_capacity_kwp = cap;
           }
 
