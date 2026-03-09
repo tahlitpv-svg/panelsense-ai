@@ -165,6 +165,45 @@ Deno.serve(async (req) => {
       return daysWithRectDrops;
     }
 
+    // Detect inverter AC clipping: flat graph at a consistent level below AC capacity for 1+ hour at peak
+    // This indicates thermal derating / fan fault - inverter is capping output to protect itself
+    function detectAcClipping(graphData, acCapacityKw) {
+      if (!graphData || graphData.length < 12 || !acCapacityKw || acCapacityKw <= 0) return 0;
+      
+      // Focus on peak hours (10:00-15:00)
+      const peakData = graphData.filter(p => {
+        if (!p.time) return false;
+        const h = parseInt(p.time.split(':')[0]);
+        return h >= 10 && h <= 15;
+      });
+      if (peakData.length < 12) return 0;
+      
+      const values = peakData.map(p => p.value || 0);
+      const maxValue = Math.max(...values);
+      if (maxValue < acCapacityKw * 0.5) return 0; // system not producing enough to evaluate
+      
+      // Find the longest run where power is "flat" = within 3% of a consistent level AND below AC capacity
+      // "Flat" means all values in a window are within 3% of their own mean
+      const WINDOW_POINTS = 12; // 1 hour at 5-min intervals
+      let maxFlatRunPercent = 0;
+      
+      for (let start = 0; start <= values.length - WINDOW_POINTS; start++) {
+        const window = values.slice(start, start + WINDOW_POINTS);
+        const avg = window.reduce((a, b) => a + b, 0) / window.length;
+        if (avg < acCapacityKw * 0.5) continue; // too low to be clipping
+        if (avg >= acCapacityKw * 0.98) continue; // at or above AC capacity = normal operation
+        
+        const maxDev = Math.max(...window.map(v => Math.abs(v - avg) / avg));
+        if (maxDev < 0.03) { // flat within 3%
+          const percentOfAc = (avg / acCapacityKw) * 100;
+          if (percentOfAc < 98 && percentOfAc > 50) {
+            maxFlatRunPercent = Math.max(maxFlatRunPercent, percentOfAc);
+          }
+        }
+      }
+      return Math.round(maxFlatRunPercent);
+    }
+
     // Detect mid-day power drops to zero in today's graph
     // A "mid-day drop" = power was above threshold, then drops to near-zero, while surrounded by active production
     function countMidDayPowerDrops(graphData) {
