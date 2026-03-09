@@ -103,6 +103,7 @@ async function fetchSungrowSites(config) {
 
   let token = null;
   let workingBase = null;
+  let loginResult = null;
 
   for (const baseUrl of candidates) {
     try {
