@@ -51,9 +51,18 @@ export default function PanelLayoutView({ site, inverters }) {
 
       // Find matching MPPT - try exact match or partial match
       let mppt = null;
-      const possibleIds = [sc.string_id, sc.string_id?.replace('S', 'PV'), `PV${sc.string_id?.replace(/\D/g, '')}`];
+      const possibleIds = [sc.inverter_port, sc.string_id, sc.string_id?.replace('S', 'PV'), `PV${sc.string_id?.replace(/\D/g, '')}`].filter(Boolean);
       for (const pid of possibleIds) {
         if (mpptMap[pid]) { mppt = mpptMap[pid]; break; }
+      }
+      
+      // Try partial match if not found (e.g. user typed "PV6", api has "PV6 (MPPT3 Str2)")
+      if (!mppt && sc.inverter_port) {
+        const partialMatch = Object.keys(mpptMap).find(k => 
+          k.toLowerCase().startsWith(sc.inverter_port.toLowerCase() + ' ') || 
+          k.toLowerCase() === sc.inverter_port.toLowerCase()
+        );
+        if (partialMatch) mppt = mpptMap[partialMatch];
       }
 
       // Total string power in watts (V * A)

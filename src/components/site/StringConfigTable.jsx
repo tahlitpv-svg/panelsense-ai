@@ -50,6 +50,7 @@ export default function StringConfigTable({ strings, panelWatt, panelVoltage, pa
     const nextNum = (strings || []).length + 1;
     const newString = {
       string_id: `S${nextNum}`,
+      inverter_port: `PV${nextNum}`,
       num_panels: 0,
       orientation: 'south',
       expected_voltage: 0,
@@ -147,6 +148,12 @@ export default function StringConfigTable({ strings, panelWatt, panelVoltage, pa
                     onChange={(e) => updateString(idx, 'string_id', e.target.value)}
                     className="w-20 h-8 text-sm font-bold border-slate-200"
                   />
+                  <Input
+                    value={s.inverter_port || ''}
+                    onChange={(e) => updateString(idx, 'inverter_port', e.target.value)}
+                    placeholder="יציאה (PV1)"
+                    className="w-20 h-8 text-sm border-slate-200"
+                  />
                   <Button variant="ghost" size="icon" onClick={() => removeString(idx)} className="w-7 h-7 text-red-400 hover:text-red-600 hover:bg-red-50">
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
@@ -199,6 +206,7 @@ export default function StringConfigTable({ strings, panelWatt, panelVoltage, pa
               <thead>
                 <tr className="border-b border-slate-200">
                   <th className="text-right py-2 px-2 text-xs font-medium text-slate-500">מזהה</th>
+                  <th className="text-right py-2 px-2 text-xs font-medium text-slate-500">יציאה בממיר</th>
                   <th className="text-right py-2 px-2 text-xs font-medium text-slate-500">פאנלים</th>
                   <th className="text-right py-2 px-2 text-xs font-medium text-slate-500">כיוון</th>
                   <th className="text-right py-2 px-2 text-xs font-medium text-slate-500">מתח צפוי (V)</th>
@@ -215,6 +223,14 @@ export default function StringConfigTable({ strings, panelWatt, panelVoltage, pa
                         value={s.string_id || ''}
                         onChange={(e) => updateString(idx, 'string_id', e.target.value)}
                         className="h-8 w-20 text-sm font-bold border-slate-200"
+                      />
+                    </td>
+                    <td className="py-2 px-2">
+                      <Input
+                        value={s.inverter_port || ''}
+                        onChange={(e) => updateString(idx, 'inverter_port', e.target.value)}
+                        placeholder="PV1"
+                        className="h-8 w-20 text-sm border-slate-200"
                       />
                     </td>
                     <td className="py-2 px-2">
