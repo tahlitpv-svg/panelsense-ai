@@ -42,52 +42,73 @@ Deno.serve(async (req) => {
   }
 });
 
+async function trySungrowLogin(baseUrl, config) {
+  const url = baseUrl.replace(/\/$/, '');
+  const res = await fetch(`${url}/openapi/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-access-key': config.app_key,
+      'sys_code': '901',
+      'lang': '_en_US'
+    },
+    body: JSON.stringify({
+      appkey: config.app_key,
+      user_account: config.user_account,
+      user_password: config.user_password,
+      login_type: '0'
+    })
+  });
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch (e) { return { success: false, message: null, html: true }; }
+  return { success: data?.result_code === '1' || !!data?.result_data?.token, message: data?.result_msg || data?.msg || null, data };
+}
+
 async function testSungrow(config) {
   if (!config?.app_key || !config?.app_secret || !config?.user_account || !config?.user_password) {
-    return { success: false, message: 'חסרים פרטי חיבור: app_key, app_secret, user_account, user_password' };
+    return { success: false, message: 'חסרים פרטי חיבור: App Key, App Secret, User Account, User Password' };
   }
 
-  const baseUrl = (config.base_url || 'https://gateway.isolarcloud.com.hk').replace(/\/$/, '');
-
-  // Validate that the base_url looks like an API gateway (not the web portal)
-  if (baseUrl.includes('web3.') || baseUrl.includes('isolarcloud.com') && !baseUrl.includes('gateway')) {
-    return { success: false, message: `ה-Base URL "${baseUrl}" נראה כמו פורטל Web ולא API Gateway. השתמש ב: https://gateway.isolarcloud.eu (לאירופה) או https://gateway.isolarcloud.com.hk (אסיה/גלובלי)` };
-  }
-
-  try {
-    const res = await fetch(`${baseUrl}/openapi/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-access-key': config.app_key,
-        'sys_code': '901',
-        'lang': '_en_US'
-      },
-      body: JSON.stringify({
-        appkey: config.app_key,
-        user_account: config.user_account,
-        user_password: config.user_password,
-        login_type: '0'
-      })
-    });
-
-    const text = await res.text();
-    let data;
+  // If user provided a base_url, use it directly
+  if (config.base_url && config.base_url.trim()) {
+    const baseUrl = config.base_url.trim().replace(/\/$/, '');
+    if (baseUrl.includes('web3.') || (!baseUrl.includes('gateway') && baseUrl.includes('isolarcloud'))) {
+      return { success: false, message: `ה-Base URL "${baseUrl}" הוא פורטל Web ולא API Gateway. השתמש ב:\n• אירופה: https://gateway.isolarcloud.eu\n• אסיה/גלובלי: https://gateway.isolarcloud.com.hk` };
+    }
     try {
-      data = JSON.parse(text);
+      const result = await trySungrowLogin(baseUrl, config);
+      if (result.html) return { success: false, message: `השרת ב-${baseUrl} החזיר HTML ולא JSON — ה-Base URL שגוי.` };
+      if (result.success) return { success: true, message: `חיבור לSunGrow הצליח דרך ${baseUrl}!` };
+      return { success: false, message: `SunGrow (${baseUrl}): ${result.message || JSON.stringify(result.data)}` };
     } catch (e) {
-      const preview = text.substring(0, 150).replace(/\n/g, ' ');
-      return { success: false, message: `השרת החזיר תגובה שאינה JSON — כנראה שה-Base URL שגוי. וודא שמשתמשים ב-https://gateway.isolarcloud.eu ולא בכתובת הפורטל. תגובה: ${preview}` };
+      return { success: false, message: `שגיאת רשת (${baseUrl}): ${e.message}` };
     }
-
-    if (data?.result_code === '1' || data?.result_data?.token) {
-      return { success: true, message: 'חיבור לـSunGrow iSolarCloud הצליח!' };
-    } else {
-      return { success: false, message: `שגיאת SunGrow: ${data?.result_msg || data?.msg || JSON.stringify(data)}` };
-    }
-  } catch (e) {
-    return { success: false, message: `שגיאת רשת: ${e.message}` };
   }
+
+  // No base_url set — auto-detect by trying EU first, then HK
+  const endpoints = [
+    'https://gateway.isolarcloud.eu',
+    'https://gateway.isolarcloud.com.hk'
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      const result = await trySungrowLogin(endpoint, config);
+      if (result.html) continue;
+      if (result.success) {
+        return { success: true, message: `חיבור הצליח דרך ${endpoint}! מומלץ להגדיר Base URL = ${endpoint} בחיבור.` };
+      }
+      // Got a real API error (not network/HTML) — this is the right endpoint, credentials wrong
+      if (result.data?.result_code && result.data.result_code !== '1') {
+        return { success: false, message: `SunGrow (${endpoint}): ${result.message || result.data?.result_code} — בדוק שה-App Key, App Secret וסיסמה נכונים.` };
+      }
+    } catch (e) {
+      continue;
+    }
+  }
+
+  return { success: false, message: 'לא הצלחתי להתחבר לאף endpoint של SunGrow. בדוק את פרטי החיבור או הגדר Base URL ידנית.' };
 }
 
 async function testSolis(config) {
