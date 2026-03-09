@@ -919,6 +919,10 @@ function evaluateRule(rule, site, inverters, expectedFraction, volatility, expec
       actual = midDayDrops || 0;
       break;
     }
+    case 'ac_peak_clipping_percent': {
+      actual = clippingPercent || 0;
+      break;
+    }
     default: return false;
   }
 
