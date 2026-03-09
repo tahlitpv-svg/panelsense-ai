@@ -318,6 +318,7 @@ function AddConnectionForm({ onSave, onCancel }) {
 export default function ApiConnectionsTab() {
   const queryClient = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
+  const [editingConn, setEditingConn] = useState(null);
   const [testingId, setTestingId] = useState(null);
 
   const { data: connections = [], isLoading } = useQuery({
