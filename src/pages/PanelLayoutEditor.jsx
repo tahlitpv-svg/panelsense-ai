@@ -121,10 +121,11 @@ export default function PanelLayoutEditor() {
     const rect = canvasRef.current.getBoundingClientRect();
     const panel = panels.find(p => p.id === panelId);
     if (!panel) return;
+    const scale = backgroundImage ? imageScale : zoom;
     setDragging({
       id: panelId,
-      offsetX: (e.clientX - rect.left) / zoom - panel.x,
-      offsetY: (e.clientY - rect.top) / zoom - panel.y
+      offsetX: (e.clientX - rect.left) / scale - panel.x,
+      offsetY: (e.clientY - rect.top) / scale - panel.y
     });
     setSelectedPanel(panelId);
   };
