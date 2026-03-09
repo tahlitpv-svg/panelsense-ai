@@ -367,8 +367,6 @@ export default function PanelLayoutEditor() {
             )}
           </div>
 
-          </div>
-
           {/* Selected panel info */}
           {selectedPanel && (() => {
             const panel = panels.find(p => p.id === selectedPanel);
