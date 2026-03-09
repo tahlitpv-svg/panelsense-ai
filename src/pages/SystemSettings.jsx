@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import AssumptionsSettings from "../components/site/AssumptionsSettings";
+import ApiConnectionsTab from "../components/settings/ApiConnectionsTab";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, BarChart2, Zap } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function SystemSettings() {
   const queryClient = useQueryClient();
