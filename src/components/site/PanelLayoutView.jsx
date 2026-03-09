@@ -184,23 +184,23 @@ export default function PanelLayoutView({ site, inverters }) {
       <div className="flex items-center justify-between p-3 border-t border-slate-100 flex-wrap gap-2">
         <div className="flex items-center gap-3 text-[10px] flex-wrap">
           <div className="flex items-center gap-1">
-            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#93c5fd' }} />
+            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#38bdf8' }} />
             <span className="text-slate-500">ייצור גבוה</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#3b82f6' }} />
+            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#0ea5e9' }} />
             <span className="text-slate-500">טוב</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#2563eb' }} />
+            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#0284c7' }} />
             <span className="text-slate-500">בינוני</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#1e3a5f' }} />
+            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#075985' }} />
             <span className="text-slate-500">חלש</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#000000' }} />
+            <div className="w-4 h-3 rounded-sm border border-slate-700" style={{ backgroundColor: '#000000' }} />
             <span className="text-slate-500">לא מייצר</span>
           </div>
         </div>
