@@ -111,6 +111,73 @@ export default function PanelLayoutEditor() {
     setPanels(allNew);
   }, [strings]);
 
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsAnalyzing(true);
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      
+      const res = await base44.integrations.Core.InvokeLLM({
+        prompt: `Analyze this solar panel layout plan. The image shows solar panels organized into strings (often indicated by colored lines or text).
+        Please extract the layout into a JSON array of panels.
+        Assume a canvas of 1200x800. Estimate the relative x, y coordinates (0 to 1200 for x, 0 to 800 for y) of each panel.
+        A standard panel is width 40, height 60 (vertical) or width 60, height 40 (horizontal).
+        Identify the string_id for each panel based on the colored lines or labels.
+        Return the panels array.`,
+        file_urls: [file_url],
+        response_json_schema: {
+          type: "object",
+          properties: {
+            panels: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  x: { type: "number" },
+                  y: { type: "number" },
+                  width: { type: "number" },
+                  height: { type: "number" },
+                  string_id: { type: "string" },
+                  rotation: { type: "number" }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (res && res.panels) {
+        const stringCounts = {};
+        const newPanels = res.panels.map((p, idx) => {
+          let sid = p.string_id || 'Unknown';
+          const matchedString = strings.find(s => s.string_id.toLowerCase() === sid.toLowerCase() || sid.includes(s.string_id));
+          if (matchedString) sid = matchedString.string_id;
+
+          stringCounts[sid] = (stringCounts[sid] || 0) + 1;
+          return {
+            id: \`ai_\${Date.now()}_\${idx}\`,
+            x: snapToGrid(p.x || 100),
+            y: snapToGrid(p.y || 100),
+            width: p.width || PANEL_W,
+            height: p.height || PANEL_H,
+            string_id: sid,
+            panel_index: stringCounts[sid],
+            rotation: p.rotation || 0
+          };
+        });
+        setPanels(prev => [...prev, ...newPanels]);
+      }
+    } catch (error) {
+      console.error("Failed to analyze image", error);
+      alert("אירעה שגיאה בניתוח התמונה.");
+    } finally {
+      setIsAnalyzing(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   // Mouse handling for drag
   const handleMouseDown = (e, panelId) => {
     e.stopPropagation();
