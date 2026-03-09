@@ -462,10 +462,10 @@ export default function PanelLayoutEditor() {
                     setSelectedPanel(panel.id);
                   }}
                 >
-                  <span className="text-[8px] font-bold leading-none" style={{ color, fontSize: Math.max(7, 9 * zoom) }}>
+                  <span className="text-[8px] font-bold leading-none" style={{ color, fontSize: Math.max(7, 9 * (backgroundImage ? imageScale : zoom)) }}>
                     {panel.string_id}
                   </span>
-                  <span className="text-[7px] text-slate-500 leading-none" style={{ fontSize: Math.max(6, 7 * zoom) }}>
+                  <span className="text-[7px] text-slate-500 leading-none" style={{ fontSize: Math.max(6, 7 * (backgroundImage ? imageScale : zoom)) }}>
                     #{panel.panel_index}
                   </span>
                 </div>
