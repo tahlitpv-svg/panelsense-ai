@@ -312,22 +312,39 @@ export default function PanelLayoutEditor() {
       
       // 2. Invoke LLM for AI Vision Analysis
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `You are an expert solar panel layout analyzer. 
-I have uploaded a blueprint of a solar panel installation. 
-Your task is to identify EVERY single solar panel in the image.
-- Each panel is a dark rectangle with a gray border.
-- Some panels are portrait (vertical), some are landscape (horizontal).
-- Panels are often grouped together in arrays.
-- There are green lines and labels indicating strings (e.g. "Str 1", "Str 2", etc.). 
+        prompt: `You are an expert solar panel layout analyzer for rooftop installations.
+I have uploaded a blueprint/diagram showing solar panels mounted on a roof.
+Your CRITICAL task: Identify EVERY SINGLE solar panel in the image. Be thorough.
 
-Return a JSON object containing an array of 'panels'. 
-For EACH panel, provide:
-1. x_percent: The center X coordinate of the panel as a percentage of the image width (0 to 100).
-2. y_percent: The center Y coordinate of the panel as a percentage of the image height (0 to 100).
-3. is_landscape: true if the panel is horizontal (wider than it is tall), false if vertical.
-4. string_id: The string name (e.g., 'S1', 'S2') based on the green labels, or just 'S1' if unsure.
+PANEL IDENTIFICATION RULES:
+- Solar panels appear as dark rectangles (black, dark gray, or charcoal with a grid/texture pattern).
+- Each panel is typically outlined by a light gray or white border/frame.
+- Some panels are in PORTRAIT orientation (taller than wide).
+- Some panels are in LANDSCAPE orientation (wider than tall).
+- Panels are grouped together in ARRAYS/STRINGS, often outlined by colored lines (green, blue, etc.).
+- String labels may appear as text like "S1", "S2", "Str 1", "Str 2", etc.
 
-Identify ALL panels in the image carefully! Do not miss any.`,
+CRITICAL: Count and locate EVERY dark rectangle you see - do not skip small or distant ones.
+
+Return ONLY valid JSON with this exact structure:
+{
+  "panels": [
+    {
+      "x_percent": <number 0-100>,
+      "y_percent": <number 0-100>,
+      "is_landscape": <boolean>,
+      "string_id": <string like "S1" or "S2">
+    }
+  ]
+}
+
+For each panel:
+- x_percent = center X as % of image width
+- y_percent = center Y as % of image height  
+- is_landscape = true if wider than tall, false if taller than wide
+- string_id = best guess of the string name based on nearby labels/colors, default to "S1"
+
+RETURN ALL DETECTED PANELS. Accuracy is critical.`,
         model: "claude_sonnet_4_6",
         file_urls: [uploadRes.file_url],
         response_json_schema: {
