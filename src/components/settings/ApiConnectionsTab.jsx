@@ -158,6 +158,25 @@ function ConnectionCard({ conn, onTest, onDelete, onEdit, isTestingId }) {
               <Download className="w-3 h-3" />
               ייבא מערכות
             </Button>
+            {conn.provider === 'sungrow' && (
+              <Button size="sm" variant="outline" onClick={() => {
+                // Save connection_id for OAuth callback
+                localStorage.setItem('sungrow_oauth_connection_id', conn.id);
+                // Extract application ID from the auth URL or use default
+                const appId = conn.config?.app_id || '3048';
+                const redirectUri = encodeURIComponent('https://delkal-energy-view.base44.app/SungrowAuth');
+                const authUrl = `https://web3.isolarcloud.eu/#/authorized-app?cloudId=3&applicationId=${appId}&redirectUri=${redirectUri}`;
+                window.open(authUrl, '_blank');
+              }} className="gap-1 border-purple-300 text-purple-700 hover:bg-purple-50">
+                <Zap className="w-3 h-3" />
+                {conn.config?.oauth_access_token ? 'חידוש OAuth2' : 'חיבור OAuth2'}
+              </Button>
+            )}
+            {conn.provider === 'sungrow' && conn.config?.oauth_access_token && (
+              <Badge className="bg-purple-50 text-purple-700 border-0 gap-1 text-xs">
+                <CheckCircle2 className="w-3 h-3" /> OAuth2 מחובר
+              </Badge>
+            )}
             <Button size="sm" variant="outline" onClick={() => onEdit(conn)} className="gap-1">
               <Pencil className="w-3 h-3" />
               ערוך
