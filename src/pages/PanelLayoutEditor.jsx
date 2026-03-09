@@ -334,6 +334,38 @@ export default function PanelLayoutEditor() {
               <Grid3X3 className="w-3.5 h-3.5" />
               יצור את כל הפנלים
             </Button>
+          </div>
+
+          <div className="border-t border-slate-100 pt-3 space-y-2">
+            <h3 className="font-bold text-sm text-slate-700 mb-2">תמונת blueprint</h3>
+            <input type="file" ref={blueprintInputRef} className="hidden" accept="image/*" onChange={handleBlueprintUpload} />
+            {!backgroundImage ? (
+              <Button variant="outline" className="w-full text-xs gap-2" onClick={() => blueprintInputRef.current?.click()}>
+                <Upload className="w-3.5 h-3.5" />
+                העלה תמונה
+              </Button>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <label className="text-xs text-slate-500">שקיפות:</label>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="1" 
+                    step="0.1" 
+                    value={imageOpacity}
+                    onChange={(e) => setImageOpacity(parseFloat(e.target.value))}
+                    className="w-full h-2"
+                  />
+                  <span className="text-xs text-slate-500">{Math.round(imageOpacity * 100)}%</span>
+                </div>
+                <Button variant="outline" className="w-full text-xs gap-2 text-red-600 hover:bg-red-50" onClick={clearBlueprint}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                  הסר תמונה
+                </Button>
+              </>
+            )}
+          </div>
 
           </div>
 
