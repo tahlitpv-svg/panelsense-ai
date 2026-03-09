@@ -135,11 +135,14 @@ async function fetchSungrowSites(config) {
     'lang': '_en_US'
   };
 
+  const serialNum = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+
   // Try multiple known endpoint variants - token must be in body too
   const endpoints = [
-    { path: '/openapi/getPsList', body: { appkey: config.app_key, token, curPage: 1, size: 100 } },
-    { path: '/openapi/getPlantList', body: { appkey: config.app_key, token, curPage: 1, size: 100 } },
-    { path: '/openapi/getStationList', body: { appkey: config.app_key, token, curPage: 1, size: 100 } },
+    { path: '/openapi/getPsList', body: { appkey: config.app_key, token, req_serial_num: serialNum(), curPage: 1, size: 100 } },
+    { path: '/openapi/getPlantList', body: { appkey: config.app_key, token, req_serial_num: serialNum(), curPage: 1, size: 100 } },
+    { path: '/openapi/getStationList', body: { appkey: config.app_key, token, req_serial_num: serialNum(), curPage: 1, size: 100 } },
+    { path: '/openapi/getPsList', body: { appkey: config.app_key, token, req_serial_num: serialNum(), curPage: '1', size: '100' } },
   ];
 
   let plants = [];
