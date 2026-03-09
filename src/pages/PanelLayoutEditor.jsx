@@ -44,6 +44,9 @@ export default function PanelLayoutEditor() {
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
+  const [backgroundImage, setBackgroundImage] = useState(null);
+  const [imageOpacity, setImageOpacity] = useState(0.5);
+  const blueprintInputRef = useRef(null);
 
   // Load existing layout
   useEffect(() => {
