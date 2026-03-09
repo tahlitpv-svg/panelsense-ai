@@ -394,8 +394,14 @@ export default function PanelLayoutEditor() {
                   }}
                   onMouseDown={(e) => handleMouseDown(e, panel.id)}
                   onTouchStart={(e) => handleTouchStart(e, panel.id)}
-                  onDoubleClick={() => rotatePanelId(panel.id)}
-                  onClick={(e) => e.stopPropagation()}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    rotatePanelId(panel.id);
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedPanel(panel.id);
+                  }}
                 >
                   <span className="text-[8px] font-bold leading-none" style={{ color, fontSize: Math.max(7, 9 * zoom) }}>
                     {panel.string_id}
