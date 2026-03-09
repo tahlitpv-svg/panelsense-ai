@@ -193,6 +193,23 @@ Deno.serve(async (req) => {
           totalUpdated++;
           console.log(`[syncSungrow] Updated site ${site.name}: power=${currentPower}kW daily=${dailyYield}kWh cap=${updateData.dc_capacity_kwp || site.dc_capacity_kwp}kWp`);
 
+          // Save daily snapshot for historical chart (accumulate over time)
+          if (dailyYield > 0) {
+            const todayKey = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+            const snapStationId = `sg_${psId}`;
+            try {
+              const existingSnaps = await db.entities.SiteGraphSnapshot.filter({ station_id: snapStationId, date_key: todayKey });
+              const snapData = { station_id: snapStationId, date_key: todayKey, daily_yield_kwh: dailyYield, data: [] };
+              if (existingSnaps.length > 0) {
+                await db.entities.SiteGraphSnapshot.update(existingSnaps[0].id, { daily_yield_kwh: dailyYield });
+              } else {
+                await db.entities.SiteGraphSnapshot.create(snapData);
+              }
+            } catch(e) {
+              console.log(`[syncSungrow] Snapshot save error for ${psId}: ${e.message}`);
+            }
+          }
+
           // --- Sync inverters for this station ---
           try {
             const devListRes = await sungrowPost(base_url, '/openapi/getPsDeviceList', conn.config, token, user_id, { ps_id: psId });
