@@ -53,7 +53,7 @@ async function trySungrowLogin(baseUrl, config) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-access-key': config.app_key,
+      'x-access-key': config.app_secret,
       'sys_code': '901',
       'lang': '_en_US'
     },
