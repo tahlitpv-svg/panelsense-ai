@@ -220,6 +220,23 @@ export default function PanelLayoutEditor() {
     }));
   };
 
+  // Handle blueprint upload
+  const handleBlueprintUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setBackgroundImage(event.target.result);
+    };
+    reader.readAsDataURL(file);
+    if (blueprintInputRef.current) blueprintInputRef.current.value = '';
+  };
+
+  const clearBlueprint = () => {
+    setBackgroundImage(null);
+    setImageOpacity(0.5);
+  };
+
   // Save layout
   const handleSave = async () => {
     setSaving(true);
