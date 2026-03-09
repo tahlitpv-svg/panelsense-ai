@@ -235,7 +235,7 @@ export default function PanelLayoutEditor() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <Link to={createPageUrl('SiteDetails') + `&id=${siteId}`}>
+          <Link to={createPageUrl('SiteDetails') + `?id=${siteId}`}>
             <Button variant="ghost" size="icon" className="rounded-full bg-white border border-slate-200">
               <ArrowRight className="w-4 h-4" />
             </Button>

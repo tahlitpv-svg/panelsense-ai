@@ -81,7 +81,7 @@ export default function PanelLayoutView({ site, inverters }) {
       <Card className="p-6 border border-slate-200 bg-white text-center">
         <Grid3X3 className="w-8 h-8 text-slate-300 mx-auto mb-3" />
         <p className="text-sm text-slate-500 mb-3">לא הוגדר לייאאוט פנלים לאתר זה</p>
-        <Link to={createPageUrl('PanelLayoutEditor') + `&siteId=${siteId}`}>
+        <Link to={createPageUrl('PanelLayoutEditor') + `?siteId=${siteId}`}>
           <Button variant="outline" className="gap-2 text-sm">
             <Pencil className="w-3.5 h-3.5" />
             צור לייאאוט
@@ -120,7 +120,7 @@ export default function PanelLayoutView({ site, inverters }) {
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setZoom(z => Math.min(2, z + 0.1))}>
             <ZoomIn className="w-3.5 h-3.5" />
           </Button>
-          <Link to={createPageUrl('PanelLayoutEditor') + `&siteId=${siteId}`}>
+          <Link to={createPageUrl('PanelLayoutEditor') + `?siteId=${siteId}`}>
             <Button variant="ghost" size="sm" className="h-7 text-xs gap-1">
               <Pencil className="w-3 h-3" /> ערוך
             </Button>
