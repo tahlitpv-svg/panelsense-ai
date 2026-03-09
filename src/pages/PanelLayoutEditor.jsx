@@ -301,9 +301,41 @@ export default function PanelLayoutEditor() {
         </div>
       </div>
 
-      <div className="flex gap-4 flex-col lg:flex-row">
-        {/* Sidebar */}
-        <Card className="p-4 border border-slate-200 bg-white w-full lg:w-72 shrink-0 space-y-4">
+      <div className="flex gap-4 flex-col lg:flex-row h-[calc(100vh-200px)]">
+        {/* Left Toolbar - Panel Palette */}
+        <Card className="p-3 border border-slate-200 bg-white w-full lg:w-32 shrink-0 overflow-y-auto">
+          <h3 className="font-bold text-sm text-slate-700 mb-3">פנלים</h3>
+          <div className="space-y-2">
+            {strings.map((s) => {
+              const panelCount = panels.filter(p => p.string_id === s.string_id).length;
+              return (
+                <Button
+                  key={s.string_id}
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs flex flex-col gap-1 h-auto py-2"
+                  style={{ 
+                    backgroundColor: stringColors[s.string_id] + '22',
+                    borderColor: stringColors[s.string_id]
+                  }}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = 'copy';
+                    e.dataTransfer.setData('stringId', s.string_id);
+                  }}
+                  title={`משוך פנל מ-${s.string_id}`}
+                >
+                  <div className="w-3 h-3 rounded" style={{ backgroundColor: stringColors[s.string_id] }} />
+                  <span>{s.string_id}</span>
+                  <span className="text-[10px] text-slate-500">{panelCount}/{s.num_panels}</span>
+                </Button>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Canvas - Main Area */}
+        <Card className="flex-1 border border-slate-200 bg-white overflow-auto relative flex flex-col">
           <div>
             <h3 className="font-bold text-sm text-slate-700 mb-2">סטרינגים</h3>
             <div className="space-y-2">
