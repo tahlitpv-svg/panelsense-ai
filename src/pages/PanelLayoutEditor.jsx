@@ -473,6 +473,61 @@ export default function PanelLayoutEditor() {
             })}
             </div>
         </Card>
+        </div>
+
+        {/* Right Sidebar - Properties */}
+        <Card className="p-4 border border-slate-200 bg-white w-full lg:w-64 shrink-0 overflow-y-auto space-y-4">
+          {selectedPanel && (() => {
+            const panel = panels.find(p => p.id === selectedPanel);
+            if (!panel) return null;
+            return (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-bold text-sm text-slate-700 mb-2">פנל נבחר</h3>
+                  <div className="text-xs text-slate-500 space-y-1">
+                    <div>סטרינג: <span className="font-medium text-slate-700">{panel.string_id}</span></div>
+                    <div>מספר פנל: <span className="font-medium text-slate-700">{panel.panel_index}</span></div>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">שייך לסטרינג:</label>
+                  <Select value={panel.string_id} onValueChange={reassignString}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {strings.map(s => (
+                        <SelectItem key={s.string_id} value={s.string_id}>{s.string_id}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="flex-1 gap-1 text-xs" onClick={rotatePanel}>
+                    <RotateCw className="w-3 h-3" /> סובב
+                  </Button>
+                  <Button size="sm" variant="outline" className="flex-1 gap-1 text-xs text-red-600 hover:bg-red-50" onClick={deletePanel}>
+                    <Trash2 className="w-3 h-3" /> מחק
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+
+          {!selectedPanel && (
+            <div>
+              <h3 className="font-bold text-sm text-slate-700 mb-2">מקרא</h3>
+              <div className="space-y-1">
+                {strings.map(s => (
+                  <div key={s.string_id} className="flex items-center gap-2 text-xs">
+                    <div className="w-4 h-3 rounded" style={{ backgroundColor: stringColors[s.string_id], opacity: 0.7 }} />
+                    <span className="text-slate-600">{s.string_id} ({s.orientation || '?'})</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Card>
       </div>
     </div>
   );
