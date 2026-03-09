@@ -18,9 +18,11 @@ export default function SiteProductionChart({ stationId, sungrowStationId, sungr
   const [showExpected, setShowExpected] = useState(false);
 
   const { data: siteArray } = useQuery({
-    queryKey: ['siteForChart', stationId],
-    queryFn: () => base44.entities.Site.filter({ solis_station_id: stationId }),
-    enabled: !!stationId
+    queryKey: ['siteForChart', stationId, sungrowStationId],
+    queryFn: () => stationId
+      ? base44.entities.Site.filter({ solis_station_id: stationId })
+      : base44.entities.Site.filter({ sungrow_station_id: sungrowStationId }),
+    enabled: !!(stationId || sungrowStationId)
   });
   const site = siteArray?.[0];
 
