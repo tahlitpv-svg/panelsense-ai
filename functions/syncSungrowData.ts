@@ -232,10 +232,34 @@ Deno.serve(async (req) => {
 
           // --- Sync inverters for this station ---
           try {
-            const devListRes = await sungrowPost(base_url, '/openapi/getPsDeviceList', conn.config, token, user_id, { ps_id: psId });
-            const devices = devListRes?.result_data?.deviceListItems || devListRes?.result_data?.list || [];
-            const inverterDevices = devices.filter(d => d.dev_type === 1 || d.device_type === 1 || (d.dev_type_name || '').toLowerCase().includes('inverter'));
-            console.log(`[syncSungrow] ps_id=${psId} devices=${devices.length} inverters=${inverterDevices.length}`);
+            // Try multiple device list endpoints
+            let devListRes = await sungrowPost(base_url, '/openapi/getPsDeviceList', conn.config, token, user_id, { ps_id: psId });
+            console.log(`[syncSungrow] getPsDeviceList code=${devListRes?.result_code} keys=${JSON.stringify(Object.keys(devListRes?.result_data || {}))}`);
+            
+            // Try alternate endpoint if first fails
+            if (!devListRes?.result_data || devListRes?.result_code === 'E900') {
+              devListRes = await sungrowPost(base_url, '/openapi/getDeviceList', conn.config, token, user_id, { ps_id: psId });
+              console.log(`[syncSungrow] getDeviceList code=${devListRes?.result_code} keys=${JSON.stringify(Object.keys(devListRes?.result_data || {}))}`);
+            }
+            
+            // Extract devices from various response structures
+            const rdKeys = Object.keys(devListRes?.result_data || {});
+            let devices = [];
+            for (const key of rdKeys) {
+              const val = devListRes.result_data[key];
+              if (Array.isArray(val) && val.length > 0) {
+                devices = val;
+                console.log(`[syncSungrow] Found devices under key="${key}" count=${devices.length}`);
+                break;
+              }
+            }
+            
+            const inverterDevices = devices.filter(d => {
+              const dtype = d.dev_type || d.device_type || d.type_id || d.devType || 0;
+              const dtypeName = (d.dev_type_name || d.device_type_name || d.typeName || '').toLowerCase();
+              return dtype === 1 || dtype === '1' || dtypeName.includes('inverter') || dtypeName.includes('逆变器');
+            });
+            console.log(`[syncSungrow] ps_id=${psId} devices=${devices.length} inverters=${inverterDevices.length} sample=${JSON.stringify(devices[0] || {})}`);
 
             for (const dev of inverterDevices) {
               const devSn = String(dev.dev_sn || dev.sn || dev.device_sn || '');
