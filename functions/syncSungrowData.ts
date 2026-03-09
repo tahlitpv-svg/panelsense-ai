@@ -138,15 +138,19 @@ Deno.serve(async (req) => {
           });
 
           const detail = detailRes?.result_data || {};
-          console.log(`[syncSungrow] ps_id=${psId} detail keys=${JSON.stringify(Object.keys(detail))}`);
 
-          // Map Sungrow fields to our Site entity
-          // power in kW, energy in kWh
-          const currentPower = parseFloat(detail.real_health_state_power ?? detail.curr_power ?? detail.current_power ?? station.real_health_state_power ?? 0);
-          const dailyYield = parseFloat(detail.today_energy ?? detail.daily_yield ?? station.today_energy ?? 0);
-          const monthlyYield = parseFloat(detail.month_energy ?? detail.monthly_yield ?? station.month_energy ?? 0);
-          const yearlyYield = parseFloat(detail.year_energy ?? detail.yearly_yield ?? station.year_energy ?? 0);
-          const lifetimeYield = parseFloat(detail.total_energy ?? detail.lifetime_yield ?? station.total_energy ?? 0);
+          // Also try getPsKpi for live energy metrics
+          const kpiRes = await sungrowPost(base_url, '/openapi/getPsKpi', conn.config, token, user_id, { ps_id: psId });
+          const kpi = kpiRes?.result_data || {};
+          console.log(`[syncSungrow] ps_id=${psId} station_keys=${JSON.stringify(Object.keys(station))} kpi_keys=${JSON.stringify(Object.keys(kpi))}`);
+          console.log(`[syncSungrow] ps_id=${psId} station_sample=${JSON.stringify(station)} kpi_sample=${JSON.stringify(kpi)}`);
+
+          // Map Sungrow fields - check station list data, detail, and kpi
+          const currentPower = parseFloat(kpi.curr_power ?? detail.curr_power ?? station.curr_power ?? station.real_health_state_power ?? 0) || 0;
+          const dailyYield = parseFloat(kpi.today_energy ?? detail.today_energy ?? station.today_energy ?? 0) || 0;
+          const monthlyYield = parseFloat(kpi.month_energy ?? detail.month_energy ?? station.month_energy ?? 0) || 0;
+          const yearlyYield = parseFloat(kpi.year_energy ?? detail.year_energy ?? station.year_energy ?? 0) || 0;
+          const lifetimeYield = parseFloat(kpi.total_energy ?? detail.total_energy ?? station.total_energy ?? 0) || 0;
 
           const healthState = detail.ps_health_state ?? station.ps_health_state;
           let status = 'online';
