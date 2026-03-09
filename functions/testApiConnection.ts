@@ -60,7 +60,7 @@ async function trySungrowLogin(baseUrl, config) {
     body: JSON.stringify({
       appkey: config.app_key,
       user_account: config.user_account,
-      user_password: config.user_password,
+      user_password: md5(config.user_password),
       login_type: '0'
     })
   });
