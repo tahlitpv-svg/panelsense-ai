@@ -523,7 +523,10 @@ _אם התקלה לא תטופל._
       if (ft.alert_type === 'inverter_fault') {
         const temps = siteInverters.map(i => i.temperature_c).filter(v => v != null);
         const maxTemp = temps.length ? Math.max(...temps) : null;
-        if (maxTemp !== null && maxTemp > 60) reasons.push(`טמפרטורה ${maxTemp}°C`);
+        // Use the actual threshold from the rule, not a hardcoded value
+        const tempRule = ft.detection_rules?.find(r => r.metric === 'temperature_c');
+        const tempThreshold = tempRule?.value ?? 60;
+        if (maxTemp !== null && maxTemp > tempThreshold) reasons.push(`טמפרטורה ${maxTemp}°C`);
         if (volatility > 50) reasons.push(`תנודתיות ${volatility}`);
         const cyclicDays = countRectangularDropDays(stationSnapshots, dateKey);
         if (cyclicDays >= 7) reasons.push(`${cyclicDays} ימים עם דפוס מסרק (derating) מ-20 אחרונים`);
