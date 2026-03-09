@@ -127,23 +127,26 @@ async function fetchSungrowSites(config) {
 
   if (!token) throw new Error('לא הצלחתי להתחבר לשרת Sungrow - בדוק פרטי חיבור');
 
-  // For data endpoints, x-access-key = app_key (not app_secret)
+  // get user_id and org_id from login
+  const userId = loginResult?.result_data?.user_id;
+  const orgId = loginResult?.result_data?.user_master_org_id;
+
   const headers = {
     'Content-Type': 'application/json',
-    'x-access-key': config.app_key,
+    'x-access-key': config.app_secret,
     'token': token,
     'sys_code': '901',
     'lang': '_en_US'
   };
 
   const serialNum = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+  const baseBody = { appkey: config.app_key, token, req_serial_num: serialNum(), ...(userId ? { user_id: userId } : {}), ...(orgId ? { org_id: orgId } : {}) };
 
-  // Try multiple known endpoint variants - token must be in body too
+  // Try multiple known endpoint variants
   const endpoints = [
-    { path: '/openapi/getPsList', body: { appkey: config.app_key, token, req_serial_num: serialNum(), curPage: 1, size: 100 } },
-    { path: '/openapi/getPlantList', body: { appkey: config.app_key, token, req_serial_num: serialNum(), curPage: 1, size: 100 } },
-    { path: '/openapi/getStationList', body: { appkey: config.app_key, token, req_serial_num: serialNum(), curPage: 1, size: 100 } },
-    { path: '/openapi/getPsList', body: { appkey: config.app_key, token, req_serial_num: serialNum(), curPage: '1', size: '100' } },
+    { path: '/openapi/getPsList', body: { ...baseBody, curPage: 1, size: 100 } },
+    { path: '/openapi/getPlantList', body: { ...baseBody, curPage: 1, size: 100 } },
+    { path: '/openapi/getStationList', body: { ...baseBody, curPage: 1, size: 100 } },
   ];
 
   let plants = [];
