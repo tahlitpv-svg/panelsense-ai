@@ -478,7 +478,12 @@ _אם התקלה לא תטופל._
               const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
               const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
               if (accountSid && authToken) {
-                const toFormatted = site.contact_phone.startsWith('whatsapp:') ? site.contact_phone : `whatsapp:${site.contact_phone}`;
+                let phoneNormalized = site.contact_phone.trim();
+                // Convert Israeli local format (05X...) to international (+972...)
+                if (phoneNormalized.startsWith('0') && !phoneNormalized.startsWith('00')) {
+                  phoneNormalized = '+972' + phoneNormalized.slice(1);
+                }
+                const toFormatted = phoneNormalized.startsWith('whatsapp:') ? phoneNormalized : `whatsapp:${phoneNormalized}`;
                 const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
                 const params = new URLSearchParams({
                   To: toFormatted,
