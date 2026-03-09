@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowRight, Save, Plus, Trash2, RotateCw, Grid3X3, MousePointer2, ZoomIn, ZoomOut, Upload } from "lucide-react";
+import { ArrowRight, Save, Plus, Trash2, RotateCw, Grid3X3, MousePointer2, ZoomIn, ZoomOut, Upload, Wand2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
@@ -47,6 +47,7 @@ export default function PanelLayoutEditor() {
   const [backgroundImage, setBackgroundImage] = useState(null);
   const [imageOpacity, setImageOpacity] = useState(0.5);
   const [imageScale, setImageScale] = useState(1);
+  const [blueprintFile, setBlueprintFile] = useState(null);
   const blueprintInputRef = useRef(null);
 
   // Load existing layout
@@ -286,6 +287,7 @@ export default function PanelLayoutEditor() {
   const handleBlueprintUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setBlueprintFile(file);
     const reader = new FileReader();
     reader.onload = (event) => {
       setBackgroundImage(event.target.result);
@@ -297,6 +299,100 @@ export default function PanelLayoutEditor() {
   const clearBlueprint = () => {
     setBackgroundImage(null);
     setImageOpacity(0.5);
+    setBlueprintFile(null);
+  };
+
+  const handleAnalyzeBlueprint = async () => {
+    if (!blueprintFile) return;
+    setIsAnalyzing(true);
+    try {
+      // 1. Upload the image
+      const uploadRes = await base44.integrations.Core.UploadFile({ file: blueprintFile });
+      if (!uploadRes?.file_url) throw new Error("Failed to upload image");
+      
+      // 2. Invoke LLM for AI Vision Analysis
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `You are an expert solar panel layout analyzer. 
+I have uploaded a blueprint of a solar panel installation. 
+Your task is to identify EVERY single solar panel in the image.
+- Each panel is a dark rectangle with a gray border.
+- Some panels are portrait (vertical), some are landscape (horizontal).
+- Panels are often grouped together in arrays.
+- There are green lines and labels indicating strings (e.g. "Str 1", "Str 2", etc.). 
+
+Return a JSON object containing an array of 'panels'. 
+For EACH panel, provide:
+1. x_percent: The center X coordinate of the panel as a percentage of the image width (0 to 100).
+2. y_percent: The center Y coordinate of the panel as a percentage of the image height (0 to 100).
+3. is_landscape: true if the panel is horizontal (wider than it is tall), false if vertical.
+4. string_id: The string name (e.g., 'S1', 'S2') based on the green labels, or just 'S1' if unsure.
+
+Identify ALL panels in the image carefully! Do not miss any.`,
+        model: "claude_sonnet_4_6",
+        file_urls: [uploadRes.file_url],
+        response_json_schema: {
+          type: "object",
+          properties: {
+            panels: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  x_percent: { type: "number" },
+                  y_percent: { type: "number" },
+                  is_landscape: { type: "boolean" },
+                  string_id: { type: "string" }
+                },
+                required: ["x_percent", "y_percent", "is_landscape"]
+              }
+            }
+          },
+          required: ["panels"]
+        }
+      });
+      
+      if (result && result.panels && Array.isArray(result.panels)) {
+        const canvasW = 1200;
+        const canvasH = 800;
+        
+        const newPanels = result.panels.map((p, idx) => {
+          const w = p.is_landscape ? PANEL_H : PANEL_W;
+          const h = p.is_landscape ? PANEL_W : PANEL_H;
+          
+          let x = (p.x_percent / 100) * canvasW - (w / 2);
+          let y = (p.y_percent / 100) * canvasH - (h / 2);
+          
+          // Try to match returned string_id (e.g. "S1", "Str 1", "1") to actual string IDs
+          let matchedString = strings[0]?.string_id || 'S1';
+          if (p.string_id) {
+            const cleanId = p.string_id.replace(/[^0-9]/g, '');
+            const found = strings.find(s => s.string_id.includes(cleanId));
+            if (found) matchedString = found.string_id;
+          }
+          
+          return {
+            id: `ai_p_${Date.now()}_${idx}`,
+            x: snapToGrid(Math.max(0, Math.min(x, canvasW - w))),
+            y: snapToGrid(Math.max(0, Math.min(y, canvasH - h))),
+            width: w,
+            height: h,
+            string_id: matchedString,
+            panel_index: idx + 1,
+            rotation: 0
+          };
+        });
+        
+        setPanels(prev => [...prev, ...newPanels]);
+        alert(`זוהו ${newPanels.length} פנלים בהצלחה בעזרת AI!`);
+      } else {
+        alert("לא נמצאו פנלים בתמונה או שהייתה שגיאה בפענוח.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("שגיאה בניתוח התמונה. נסה שנית.");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   // Save layout
@@ -424,10 +520,22 @@ export default function PanelLayoutEditor() {
                 מחק כל הפנלים
               </Button>
               {backgroundImage && (
-                <Button variant="outline" size="sm" className="text-xs gap-1" onClick={clearBlueprint}>
-                  <Trash2 className="w-3 h-3" />
-                  הסר רקע
-                </Button>
+                <>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    className="text-xs gap-1 bg-purple-600 hover:bg-purple-700 text-white" 
+                    onClick={handleAnalyzeBlueprint}
+                    disabled={isAnalyzing}
+                  >
+                    <Wand2 className="w-3 h-3" />
+                    {isAnalyzing ? 'מפענח...' : 'פענח ב-AI'}
+                  </Button>
+                  <Button variant="outline" size="sm" className="text-xs gap-1" onClick={clearBlueprint}>
+                    <Trash2 className="w-3 h-3" />
+                    הסר רקע
+                  </Button>
+                </>
               )}
               {!backgroundImage && (
                 <Button 
