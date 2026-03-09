@@ -184,11 +184,11 @@ export default function PanelLayoutView({ site, inverters }) {
       <div className="flex items-center justify-between p-3 border-t border-slate-100 flex-wrap gap-2">
         <div className="flex items-center gap-3 text-[10px] flex-wrap">
           <div className="flex items-center gap-1">
-            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#bfdbfe' }} />
+            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#93c5fd' }} />
             <span className="text-slate-500">ייצור גבוה</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#60a5fa' }} />
+            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#3b82f6' }} />
             <span className="text-slate-500">טוב</span>
           </div>
           <div className="flex items-center gap-1">
