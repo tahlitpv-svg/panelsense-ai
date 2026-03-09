@@ -373,6 +373,7 @@ export default function PanelLayoutEditor() {
           {/* Canvas area */}
           <div className="flex-1 overflow-auto relative" style={{ background: backgroundImage ? 'transparent' : 'linear-gradient(135deg, #f5f5f5 0%, #e5e5e5 100%)' }}>
             <input type="file" ref={blueprintInputRef} className="hidden" accept="image/*" onChange={handleBlueprintUpload} />
+            <div
              ref={canvasRef}
              className="relative cursor-crosshair m-auto"
              style={{
@@ -417,7 +418,7 @@ export default function PanelLayoutEditor() {
                setPanels(prev => [...prev, newPanel]);
                setSelectedPanel(newPanel.id);
              }}
-             >
+            >
              {backgroundImage && (
                <div 
                  style={{
@@ -476,8 +477,9 @@ export default function PanelLayoutEditor() {
               );
             })}
             </div>
-        </Card>
-        </div>
+          </div>
+          </Card>
+          </div>
 
         {/* Right Sidebar - Properties */}
         <Card className="p-4 border border-slate-200 bg-white w-full lg:w-64 shrink-0 overflow-y-auto space-y-4">
