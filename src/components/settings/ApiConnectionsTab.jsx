@@ -378,12 +378,21 @@ function SolisSystemCard() {
           <div><span className="text-slate-500">Key Secret:</span> <span className="text-slate-400 italic">••••••••</span></div>
           <div><span className="text-slate-500">API URL:</span> <span className="text-slate-700 font-medium dir-ltr">www.soliscloud.com:13333</span></div>
         </div>
-        <div className="mt-4">
+        <div className="flex gap-2 mt-4">
           <Button size="sm" onClick={handleTest} disabled={status === 'testing'} className="gap-1 bg-orange-500 hover:bg-orange-600">
             <RefreshCw className={`w-3 h-3 ${status === 'testing' ? 'animate-spin' : ''}`} />
             בדוק חיבור Solis
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowImport(v => !v)} className="gap-1 border-blue-300 text-blue-700 hover:bg-blue-50">
+            <Download className="w-3 h-3" />
+            ייבא מערכות
+          </Button>
         </div>
+        {showImport && (
+          <div className="mt-4">
+            <ImportSitesPanel conn="solis_system" onClose={() => setShowImport(false)} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
