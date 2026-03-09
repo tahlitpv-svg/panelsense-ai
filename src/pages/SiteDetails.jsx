@@ -18,7 +18,6 @@ import ProductionAnalysis from "../components/site/ProductionAnalysis";
 import SiteConfiguration from "../components/site/SiteConfiguration";
 import SiteProductionChart from "../components/site/SiteProductionChart";
 import PanelLayoutView from "../components/site/PanelLayoutView";
-import SungrowGraphViewer from "../components/site/SungrowGraphViewer";
 
 export default function SiteDetails() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -268,22 +267,15 @@ export default function SiteDetails() {
                         <BarChart3 className="w-4 h-4 text-green-600" />
                         גרף מהפך
                       </h4>
-                      {inverter.solis_inverter_id ? (
-                        <HistoricalInverterChart
-                          inverterId={inverter.solis_inverter_id}
-                          inverterSn={inverter.solis_sn}
-                        />
-                      ) : site.sungrow_station_id ? (
-                        <SungrowGraphViewer siteId={site.id} psId={site.sungrow_station_id} />
-                      ) : (
-                        <div className="text-sm text-slate-500 bg-slate-50 p-4 rounded-lg text-center">
-                          אין נתוני גרף זמינים לממיר זה
-                        </div>
-                      )}
+                      <HistoricalInverterChart
+                        inverterId={inverter.solis_inverter_id}
+                        inverterSn={inverter.solis_sn}
+                        inverter={inverter}
+                        site={site}
+                      />
                     </div>
 
                     {/* Temperature toggle */}
-                    {inverter.solis_inverter_id && (
                     <div className="mt-4 border-t border-slate-100 pt-4">
                       <button
                         onClick={() => setTempVisible(prev => ({ ...prev, [inverter.id]: !prev[inverter.id] }))}
@@ -309,7 +301,6 @@ export default function SiteDetails() {
                         </div>
                       )}
                     </div>
-                    )}
                   </Card>
                 ))}
               </div>
