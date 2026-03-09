@@ -515,6 +515,11 @@ _אם התקלה לא תטופל._
     // Build a descriptive reason string from site data (used as fallback if LLM doesn't run)
     function buildFaultReason(ft, site, siteInverters, volatility, stationSnapshots, dateKey) {
       const reasons = [];
+      // Check for AC clipping
+      if (ft.detection_rules?.some(r => r.metric === 'ac_peak_clipping_percent')) {
+        const cp = detectAcClipping(stationSnapshots[dateKey] || null, site.ac_capacity_kw);
+        if (cp > 0) reasons.push(`הממיר מקטם ב-${cp}% מה-AC capacity (${site.ac_capacity_kw} kW) - גרף שטוח של שעה+ בשיא`);
+      }
       if (ft.alert_type === 'inverter_fault') {
         const temps = siteInverters.map(i => i.temperature_c).filter(v => v != null);
         const maxTemp = temps.length ? Math.max(...temps) : null;
