@@ -464,16 +464,20 @@ export default function ApiConnectionsTab() {
         />
       )}
 
+      {/* Always show system Solis card */}
+      <div className="mb-2">
+        <h3 className="text-sm font-medium text-slate-600 mb-2">חיבורים מובנים</h3>
+        <SolisSystemCard />
+      </div>
+
+      {(connections.length > 0 || showAdd || editingConn) && (
+        <div>
+          <h3 className="text-sm font-medium text-slate-600 mb-2">חיבורים נוספים</h3>
+        </div>
+      )}
+
       {isLoading ? (
-        <div className="text-center py-12 text-slate-400">טוען חיבורים...</div>
-      ) : connections.length === 0 && !showAdd ? (
-        <Card className="border-dashed border-slate-300">
-          <CardContent className="text-center py-12">
-            <Settings className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500 font-medium">אין חיבורי API מוגדרים</p>
-            <p className="text-slate-400 text-sm mt-1">לחץ "הוסף חיבור" כדי לחבר ספק נתונים</p>
-          </CardContent>
-        </Card>
+        <div className="text-center py-4 text-slate-400">טוען חיבורים...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {connections.map(conn => (
