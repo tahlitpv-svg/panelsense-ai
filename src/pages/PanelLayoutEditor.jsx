@@ -419,19 +419,45 @@ export default function PanelLayoutEditor() {
         </Card>
 
         {/* Canvas */}
-        <Card className="flex-1 border border-slate-200 bg-white overflow-auto relative" style={{ minHeight: 500 }}>
-          <div
-            ref={canvasRef}
-            className="relative cursor-crosshair"
-            style={{
-              width: 1200 * zoom,
-              height: 800 * zoom,
-              backgroundImage: `radial-gradient(circle, #e2e8f0 1px, transparent 1px)`,
-              backgroundSize: `${GRID_SIZE * zoom}px ${GRID_SIZE * zoom}px`
-            }}
-            onClick={() => setSelectedPanel(null)}
-            onTouchEnd={() => { setDragging(null); }}
-          >
+         <Card className="flex-1 border border-slate-200 bg-white overflow-auto relative" style={{ minHeight: 500 }}>
+           <div
+             ref={canvasRef}
+             className="relative cursor-crosshair"
+             style={{
+               width: 1200 * zoom,
+               height: 800 * zoom,
+               backgroundImage: backgroundImage 
+                 ? `url('${backgroundImage}')` 
+                 : `radial-gradient(circle, #e2e8f0 1px, transparent 1px)`,
+               backgroundSize: 'cover',
+               backgroundPosition: 'center',
+               backgroundRepeat: 'no-repeat',
+               opacity: 1,
+               position: 'relative'
+             }}
+             onClick={() => setSelectedPanel(null)}
+             onTouchEnd={() => { setDragging(null); }}
+           >
+             {backgroundImage && (
+               <div 
+                 style={{
+                   position: 'absolute',
+                   inset: 0,
+                   backgroundColor: 'rgba(255, 255, 255, ' + (1 - imageOpacity) + ')',
+                   pointerEvents: 'none'
+                 }}
+               />
+             )}
+             <div 
+               style={{
+                 position: 'absolute',
+                 inset: 0,
+                 backgroundImage: `radial-gradient(circle, #e2e8f0 1px, transparent 1px)`,
+                 backgroundSize: `${GRID_SIZE * zoom}px ${GRID_SIZE * zoom}px`,
+                 opacity: backgroundImage ? 0.3 : 1,
+                 pointerEvents: 'none'
+               }}
+             />
             {panels.map(panel => {
               const isSelected = selectedPanel === panel.id;
               const color = stringColors[panel.string_id] || '#94a3b8';
