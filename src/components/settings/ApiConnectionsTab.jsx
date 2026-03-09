@@ -329,6 +329,7 @@ function AddConnectionForm({ onSave, onCancel }) {
 function SolisSystemCard() {
   const [status, setStatus] = useState(null); // null | 'testing' | 'ok' | 'error'
   const [message, setMessage] = useState('');
+  const [showImport, setShowImport] = useState(false);
 
   const handleTest = async () => {
     setStatus('testing');
