@@ -104,30 +104,87 @@ export default function SiteProductionChart({ stationId, sungrowStationId, sungr
         if (!sgResult) return [];
         const d = sgResult.data;
 
-        if (isDay) {
-          // Try various structures for power curve
-          const points = d?.pointList || d?.powerList || d?.dataList || d?.curveList || [];
-          if (points.length > 0) {
-            return points.map(p => {
-              const timeStr = p.time_str || p.time || p.pointTime || '';
-              const match = timeStr.match(/(\d{2}:\d{2})/);
-              const label = match ? match[1] : timeStr.slice(-5);
-              const val = parseFloat(p.p_value ?? p.power ?? p.value ?? 0) || 0;
-              // Sungrow power curve is in W or kW — if max value > 1000, it's W
-              return { label, value: val, minutes: label ? timeToMinutes(label) : 0 };
-            }).filter(p => p.label).sort((a, b) => a.minutes - b.minutes);
+        // site_aggregate fallback — show bar chart with what we have from DB
+        if (sgResult.endpoint === 'site_aggregate') {
+          if (isDay) return [];
+          if (timeframe === 'month') {
+            const daysInMonth = getDaysInMonth(refDate);
+            const avgPerDay = (d.monthly_yield || 0) / daysInMonth;
+            return Array.from({ length: daysInMonth }, (_, i) => ({ label: String(i+1).padStart(2,'0'), value: 0, estimated: avgPerDay }));
+          }
+          if (timeframe === 'year') {
+            const months = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+            return months.map(m => ({ label: m, value: 0 }));
           }
           return [];
         }
 
+        // db_snapshot fallback
+        if (sgResult.endpoint === 'db_snapshot') {
+          const items = d?.dataList || [];
+          if (timeframe === 'month') {
+            const daysInMonth = getDaysInMonth(refDate);
+            const byDay = {};
+            items.forEach(item => {
+              const day = parseInt(String(item.date_id || '').slice(-2), 10);
+              if (day) byDay[day] = parseFloat(item.energy || 0);
+            });
+            return Array.from({ length: daysInMonth }, (_, i) => ({ label: String(i+1).padStart(2,'0'), value: byDay[i+1] || 0 }));
+          }
+          if (timeframe === 'year') {
+            const byMonth = {};
+            items.forEach(item => {
+              const m = String(item.date_id || '').slice(-2);
+              if (m) byMonth[m] = parseFloat(item.energy || 0);
+            });
+            const months = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+            return months.map(m => ({ label: m, value: byMonth[m] || 0 }));
+          }
+          return [];
+        }
+
+        if (isDay) {
+          // Try various structures for power curve
+          const points = d?.pointList || d?.powerList || d?.dataList || d?.curveList ||
+            d?.power_point_list || d?.kpi_day_point_list || [];
+          if (points.length > 0) {
+            const mapped = points.map(p => {
+              const timeStr = p.time_str || p.time || p.pointTime || p.point_time || '';
+              const match = timeStr.match(/(\d{2}:\d{2})/);
+              const label = match ? match[1] : timeStr.slice(-5);
+              const raw = parseFloat(p.p_value ?? p.power ?? p.value ?? p.p ?? 0) || 0;
+              // Sungrow power curve can be in W — divide if values are very large
+              const val = raw > 5000 ? raw / 1000 : raw;
+              return { label, value: val, minutes: label ? timeToMinutes(label) : 0 };
+            }).filter(p => p.label);
+            mapped.sort((a, b) => a.minutes - b.minutes);
+            return mapped;
+          }
+          // Try flat key/value pairs (some endpoints return {p_20250309_0600: 1234, ...})
+          const flatPoints = [];
+          if (d && typeof d === 'object') {
+            Object.entries(d).forEach(([k, v]) => {
+              const m = k.match(/(\d{4})(\d{2})$/);
+              if (m) {
+                const hh = m[1].slice(0,2), mm = m[1].slice(2,4);
+                const label = `${hh}:${mm}`;
+                const raw = parseFloat(v) || 0;
+                flatPoints.push({ label, value: raw > 5000 ? raw/1000 : raw, minutes: timeToMinutes(label) });
+              }
+            });
+          }
+          if (flatPoints.length > 0) return flatPoints.sort((a, b) => a.minutes - b.minutes);
+          return [];
+        }
+
         if (timeframe === 'month') {
-          const items = d?.dataList || d?.energyList || d?.dayEnergyList || [];
+          const items = d?.dataList || d?.energyList || d?.dayEnergyList || d?.power_point_list || [];
           const daysInMonth = getDaysInMonth(refDate);
           const byDay = {};
           items.forEach(item => {
-            const dateStr = item.date_id || item.date || item.time || '';
-            const day = parseInt(dateStr.slice(-2), 10);
-            if (day) byDay[day] = parseFloat(item.energy || item.p_value || item.value || 0) || 0;
+            const dateStr = item.date_id || item.date || item.time || item.point_time || '';
+            const day = parseInt(String(dateStr).slice(-2), 10);
+            if (day) byDay[day] = parseFloat(item.energy || item.p_value || item.value || item.p || 0) || 0;
           });
           return Array.from({ length: daysInMonth }, (_, i) => ({
             label: String(i + 1).padStart(2, '0'),
@@ -136,12 +193,12 @@ export default function SiteProductionChart({ stationId, sungrowStationId, sungr
         }
 
         if (timeframe === 'year') {
-          const items = d?.dataList || d?.energyList || d?.monthEnergyList || [];
+          const items = d?.dataList || d?.energyList || d?.monthEnergyList || d?.power_point_list || [];
           const byMonth = {};
           items.forEach(item => {
-            const dateStr = item.date_id || item.date || item.time || '';
-            const m = dateStr.slice(-2);
-            if (m) byMonth[m] = parseFloat(item.energy || item.p_value || item.value || 0) || 0;
+            const dateStr = item.date_id || item.date || item.time || item.point_time || '';
+            const m = String(dateStr).slice(-2);
+            if (m && parseInt(m) >= 1) byMonth[m] = parseFloat(item.energy || item.p_value || item.value || item.p || 0) || 0;
           });
           const months = ['01','02','03','04','05','06','07','08','09','10','11','12'];
           return months.map(m => ({ label: m, value: byMonth[m] || 0 }));
