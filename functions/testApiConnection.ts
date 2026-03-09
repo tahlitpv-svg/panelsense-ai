@@ -67,6 +67,7 @@ async function trySungrowLogin(baseUrl, config) {
   const text = await res.text();
   let data;
   try { data = JSON.parse(text); } catch (e) { return { success: false, message: null, html: true }; }
+  console.log(`[trySungrowLogin] url=${baseUrl} result_code=${data?.result_code} msg=${data?.result_msg || data?.msg}`);
   return { success: data?.result_code === '1' || !!data?.result_data?.token, message: data?.result_msg || data?.msg || null, data };
 }
 
