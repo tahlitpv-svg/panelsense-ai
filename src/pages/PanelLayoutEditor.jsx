@@ -429,8 +429,8 @@ export default function PanelLayoutEditor() {
                  position: 'absolute',
                  inset: 0,
                  backgroundImage: `radial-gradient(circle, #e2e8f0 1px, transparent 1px)`,
-                 backgroundSize: `${GRID_SIZE * zoom}px ${GRID_SIZE * zoom}px`,
-                 opacity: backgroundImage ? 0.3 : 1,
+                 backgroundSize: `${GRID_SIZE * (backgroundImage ? imageScale : zoom)}px ${GRID_SIZE * (backgroundImage ? imageScale : zoom)}px`,
+                 opacity: backgroundImage ? 0.2 : 1,
                  pointerEvents: 'none'
                }}
              />
