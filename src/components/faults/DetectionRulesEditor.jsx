@@ -19,7 +19,8 @@ const METRIC_LABELS = {
   mppt_string_current: 'זרם סטרינג MPPT (A)',
   temperature_c: 'טמפרטורת ממיר (°C)',
   last_heartbeat_minutes_ago: 'דקות מאז עדכון אחרון',
-  mid_day_power_drop_count: 'מספר נפילות חדות לאפס באמצע היום'
+  mid_day_power_drop_count: 'מספר נפילות חדות לאפס באמצע היום',
+  ac_peak_clipping_percent: 'קיטום ממיר - הספק שטוח בשיא (% מ-AC)'
 };
 
 const OPERATOR_LABELS = {
