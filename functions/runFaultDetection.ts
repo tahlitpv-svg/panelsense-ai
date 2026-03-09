@@ -549,8 +549,21 @@ _אם התקלה לא תטופל._
       }
     }
 
-    // === SOLIS WARNING STATUS: Create alerts for sites with warning/offline status from Solis ===
+    // === SOLIS STATUS: Auto-resolve alerts for sites back online, create alerts for warning/offline ===
     for (const site of sites) {
+      // Auto-resolve Solis status alerts for sites that came back online
+      if (site.status === 'online') {
+        const solisAlert = openAlerts.find(a =>
+          a.site_id === site.id &&
+          a.fault_type_name?.startsWith('סטטוס Solis:') &&
+          !a.is_resolved
+        );
+        if (solisAlert) {
+          await db.entities.Alert.update(solisAlert.id, { is_resolved: true, resolved_date: now.toISOString() });
+          log.push(`[SOLIS_STATUS] Auto-resolved alert for ${site.name} (back online)`);
+        }
+        continue;
+      }
       if (site.status !== 'warning' && site.status !== 'offline') continue;
       
       const existingStatusAlert = openAlerts.find(a =>
