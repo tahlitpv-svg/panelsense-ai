@@ -114,10 +114,14 @@ export default function SiteDetails() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 md:space-y-6">
-        <TabsList className="bg-white p-1 border border-slate-200 h-10 md:h-11 w-full rounded-xl grid grid-cols-3">
+        <TabsList className="bg-white p-1 border border-slate-200 h-10 md:h-11 w-full rounded-xl grid grid-cols-4">
           <TabsTrigger value="overview" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 text-slate-500 gap-1.5 rounded-lg text-xs md:text-sm">
             <Wrench className="w-3.5 h-3.5 md:w-4 md:h-4" />
             סקירה
+          </TabsTrigger>
+          <TabsTrigger value="layout" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 text-slate-500 gap-1.5 rounded-lg text-xs md:text-sm">
+            <LayoutGrid className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            לייאאוט
           </TabsTrigger>
           <TabsTrigger value="analysis" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 text-slate-500 gap-1.5 rounded-lg text-xs md:text-sm">
             <BarChart3 className="w-3.5 h-3.5 md:w-4 md:h-4" />
@@ -300,6 +304,10 @@ export default function SiteDetails() {
               </div>
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="layout">
+          <PanelLayoutView site={site} inverters={inverters} />
         </TabsContent>
 
         <TabsContent value="analysis">
