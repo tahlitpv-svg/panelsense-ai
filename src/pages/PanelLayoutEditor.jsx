@@ -478,8 +478,7 @@ export default function PanelLayoutEditor() {
             })}
             </div>
           </div>
-          </Card>
-          </div>
+        </Card>
 
         {/* Right Sidebar - Properties */}
         <Card className="p-4 border border-slate-200 bg-white w-full lg:w-64 shrink-0 overflow-y-auto space-y-4">
