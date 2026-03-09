@@ -852,7 +852,7 @@ _נא לטפל בדחיפות._
   }
 });
 
-function evaluateRule(rule, site, inverters, expectedFraction, volatility, expectedSpecificYield, cyclicDropDays, midDayDrops) {
+function evaluateRule(rule, site, inverters, expectedFraction, volatility, expectedSpecificYield, cyclicDropDays, midDayDrops, clippingPercent = 0) {
   const { metric, operator, value, value_string } = rule;
 
   if (metric === 'power_volatility_index') {
