@@ -133,10 +133,11 @@ export default function PanelLayoutEditor() {
   const handleMouseMove = useCallback((e) => {
     if (!dragging || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = snapToGrid((e.clientX - rect.left) / zoom - dragging.offsetX);
-    const y = snapToGrid((e.clientY - rect.top) / zoom - dragging.offsetY);
+    const scale = backgroundImage ? imageScale : zoom;
+    const x = snapToGrid((e.clientX - rect.left) / scale - dragging.offsetX);
+    const y = snapToGrid((e.clientY - rect.top) / scale - dragging.offsetY);
     setPanels(prev => prev.map(p => p.id === dragging.id ? { ...p, x: Math.max(0, x), y: Math.max(0, y) } : p));
-  }, [dragging, zoom]);
+  }, [dragging, zoom, backgroundImage, imageScale]);
 
   const handleMouseUp = useCallback((e) => {
     // If we only clicked without dragging, we should still ensure the panel is selected
