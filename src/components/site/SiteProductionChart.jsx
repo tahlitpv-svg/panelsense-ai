@@ -119,8 +119,8 @@ export default function SiteProductionChart({ stationId, sungrowStationId, sungr
           return [];
         }
 
-        // db_snapshot fallback
-        if (sgResult.endpoint === 'db_snapshot') {
+        // db_snapshot / station_list fallback
+        if (sgResult.endpoint === 'db_snapshot' || sgResult.endpoint === 'station_list_monthly' || sgResult.endpoint === 'station_list_yearly') {
           const items = d?.dataList || [];
           if (timeframe === 'month') {
             const daysInMonth = getDaysInMonth(refDate);
@@ -141,6 +141,16 @@ export default function SiteProductionChart({ stationId, sungrowStationId, sungr
             return months.map(m => ({ label: m, value: byMonth[m] || 0 }));
           }
           return [];
+        }
+
+        // Handle day snapshot from station_list fallback
+        if (sgResult.endpoint === 'db_day_snapshot') {
+          const points = d?.pointList || [];
+          return points.map(p => ({
+            label: p.time,
+            value: p.value,
+            minutes: p.time ? timeToMinutes(p.time) : 0
+          })).filter(p => p.label).sort((a, b) => a.minutes - b.minutes);
         }
 
         if (isDay) {
