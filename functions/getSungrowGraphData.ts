@@ -153,6 +153,127 @@ Deno.serve(async (req) => {
   }
 });
 
+// Use the getPowerStationList endpoint (available on Basic plan) to get aggregate yields
+// then combine with DB snapshots for a more complete picture
+async function tryStationListFallback(base44, conn, ps_id, timeframe, date) {
+  try {
+    const cfg = conn.config;
+    const psIdStr = String(ps_id);
+    
+    // Login to get token
+    let token, user_id, base_url;
+    if (cfg.auth_method === 'oauth2' && cfg.oauth_access_token) {
+      token = cfg.oauth_access_token;
+      user_id = cfg.oauth_user_id || '';
+      base_url = (cfg.oauth_base_url || cfg.base_url || 'https://gateway.isolarcloud.eu').replace(/\/$/, '');
+    } else {
+      const loginRes = await sungrowOpenApiLogin(cfg, (cfg.base_url || 'https://gateway.isolarcloud.eu').replace(/\/$/, ''));
+      if (!loginRes) return null;
+      token = loginRes.token;
+      user_id = loginRes.user_id;
+      base_url = (cfg.base_url || 'https://gateway.isolarcloud.eu').replace(/\/$/, '');
+    }
+
+    // Fetch station list to get current aggregate values
+    const listRes = await sungrowPost(base_url, '/openapi/getPowerStationList', cfg.app_key, cfg.app_secret, token, user_id, {
+      curPage: 1, size: 200
+    });
+    const stations = listRes?.result_data?.pageList || listRes?.result_data?.list || [];
+    const station = stations.find(s => String(s.ps_id) === psIdStr);
+    if (!station) return null;
+
+    function parseField(field) {
+      if (!field && field !== 0) return 0;
+      if (typeof field === 'object' && field !== null && 'value' in field) {
+        const num = parseFloat(field.value) || 0;
+        const unit = (field.unit || '').toLowerCase();
+        if (unit === 'w') return num / 1000;
+        if (unit === 'mwh') return num * 1000;
+        if (unit === 'gwh') return num * 1000000;
+        return num;
+      }
+      return parseFloat(field) || 0;
+    }
+
+    const todayYield = parseField(station.today_energy);
+    const monthYield = parseField(station.month_energy);
+    const yearYield = parseField(station.year_energy);
+    const totalYield = parseField(station.total_energy);
+
+    console.log(`[stationListFallback] ps_id=${psIdStr} today=${todayYield} month=${monthYield} year=${yearYield}`);
+
+    // Get DB snapshots for this station
+    const snapStationId = `sg_${psIdStr}`;
+    const allSnaps = await base44.asServiceRole.entities.SiteGraphSnapshot.filter({ station_id: snapStationId });
+    
+    if (timeframe === 'month') {
+      // dateStr format: "202603"
+      const year = date.slice(0, 4);
+      const month = date.slice(4, 6);
+      const yearMonth = `${year}-${month}`;
+      const monthSnaps = allSnaps.filter(s => s.date_key && s.date_key.startsWith(yearMonth));
+      
+      // Build daily data from snapshots
+      const dataList = monthSnaps.map(s => ({
+        date_id: s.date_key.replace(/-/g, ''),
+        energy: s.daily_yield_kwh || 0
+      }));
+      
+      // Check if we're looking at current month - if so, use live monthYield as reference
+      const now = new Date();
+      const isCurrentMonth = now.getFullYear() === parseInt(year) && (now.getMonth() + 1) === parseInt(month);
+      
+      if (dataList.length > 0) {
+        return { endpoint: 'station_list_monthly', data: { dataList, monthYield: isCurrentMonth ? monthYield : null } };
+      }
+      
+      // If no snapshots at all for this month but it's current month, return the total
+      if (isCurrentMonth && monthYield > 0) {
+        return { endpoint: 'site_aggregate', data: { monthly_yield: monthYield } };
+      }
+    }
+
+    if (timeframe === 'year') {
+      const yearStr = date.slice(0, 4);
+      const yearSnaps = allSnaps.filter(s => s.date_key && s.date_key.startsWith(yearStr));
+      
+      // Aggregate by month
+      const byMonth = {};
+      yearSnaps.forEach(s => {
+        const m = s.date_key?.slice(5, 7);
+        if (m) byMonth[m] = (byMonth[m] || 0) + (s.daily_yield_kwh || 0);
+      });
+      
+      const dataList = Object.entries(byMonth).map(([m, energy]) => ({ date_id: yearStr + m, energy }));
+      
+      const now = new Date();
+      const isCurrentYear = now.getFullYear() === parseInt(yearStr);
+      
+      if (dataList.length > 0) {
+        return { endpoint: 'station_list_yearly', data: { dataList, yearYield: isCurrentYear ? yearYield : null } };
+      }
+      
+      if (isCurrentYear && yearYield > 0) {
+        return { endpoint: 'site_aggregate', data: { yearly_yield: yearYield } };
+      }
+    }
+
+    if (timeframe === 'day') {
+      // For daily power curve, check DB snapshots
+      const dateKey = `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}`;
+      const daySnap = allSnaps.find(s => s.date_key === dateKey);
+      if (daySnap && daySnap.data && daySnap.data.length > 0) {
+        return { endpoint: 'db_day_snapshot', data: { pointList: daySnap.data } };
+      }
+    }
+
+    return null;
+  } catch(e) {
+    console.log(`[stationListFallback] Error: ${e.message}`);
+    return null;
+  }
+}
+
 function buildEndpoints(timeframe, psIdStr, date) {
   if (timeframe === 'day') {
     return [
