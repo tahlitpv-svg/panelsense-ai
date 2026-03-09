@@ -56,8 +56,9 @@ import Reports from './pages/Reports';
 import SiteDetail from './pages/SiteDetail';
 import SiteDetails from './pages/SiteDetails';
 import SiteManager from './pages/SiteManager';
-import SystemSettings from './pages/SystemSettings';
 import SungrowAuth from './pages/SungrowAuth';
+import SystemSettings from './pages/SystemSettings';
+import PanelLayoutEditor from './pages/PanelLayoutEditor';
 import __Layout from './Layout.jsx';
 
 
@@ -71,8 +72,9 @@ export const PAGES = {
     "SiteDetail": SiteDetail,
     "SiteDetails": SiteDetails,
     "SiteManager": SiteManager,
-    "SystemSettings": SystemSettings,
     "SungrowAuth": SungrowAuth,
+    "SystemSettings": SystemSettings,
+    "PanelLayoutEditor": PanelLayoutEditor,
 }
 
 export const pagesConfig = {
