@@ -94,28 +94,72 @@ async function fetchSolisSites(config) {
 }
 
 async function fetchSungrowSites(config) {
-  const baseUrl = (config.base_url || 'https://gateway.isolarcloud.eu').replace(/\/$/, '');
+  // Try configured base_url, then EU, then HK
+  const candidates = [];
+  if (config.base_url && config.base_url.trim()) {
+    candidates.push(config.base_url.trim().replace(/\/$/, ''));
+  }
+  candidates.push('https://gateway.isolarcloud.eu', 'https://gateway.isolarcloud.com.hk');
 
-  const loginRes = await fetch(`${baseUrl}/openapi/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-access-key': config.app_secret, 'sys_code': '901', 'lang': '_en_US' },
-    body: JSON.stringify({ appkey: config.app_key, user_account: config.user_account, user_password: md5(config.user_password), login_type: '0' })
-  });
-  const loginData = await loginRes.json();
-  const token = loginData?.result_data?.token;
-  if (!token) throw new Error(`Login failed: ${loginData?.result_msg || JSON.stringify(loginData)}`);
+  let token = null;
+  let workingBase = null;
 
-  const headers = { 'Content-Type': 'application/json', 'x-access-key': config.app_secret, 'token': token, 'sys_code': '901', 'lang': '_en_US' };
+  for (const baseUrl of candidates) {
+    try {
+      const loginRes = await fetch(`${baseUrl}/openapi/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-access-key': config.app_secret, 'sys_code': '901', 'lang': '_en_US' },
+        body: JSON.stringify({ appkey: config.app_key, user_account: config.user_account, user_password: md5(config.user_password), login_type: '0' })
+      });
+      const text = await loginRes.text();
+      let loginData;
+      try { loginData = JSON.parse(text); } catch(e) { continue; }
+      console.log(`[fetchSungrow login] base=${baseUrl} code=${loginData?.result_code} token=${loginData?.result_data?.token ? 'yes' : 'no'}`);
+      if (loginData?.result_data?.token) {
+        token = loginData.result_data.token;
+        workingBase = baseUrl;
+        break;
+      }
+    } catch(e) {
+      console.log(`[fetchSungrow login error] base=${candidates} e=${e.message}`);
+    }
+  }
 
-  const listRes = await fetch(`${baseUrl}/openapi/getPlantList`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ appkey: config.app_key, curPage: '1', size: '100' })
-  });
-  const listData = await listRes.json();
-  console.log(`[fetchSungrow] result_code=${listData?.result_code} keys=${JSON.stringify(Object.keys(listData?.result_data || {}))}`);
+  if (!token) throw new Error('לא הצלחתי להתחבר לשרת Sungrow - בדוק פרטי חיבור');
 
-  const plants = listData?.result_data?.pageList || listData?.result_data?.list || listData?.result_data?.plants || [];
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-access-key': config.app_secret,
+    'token': token,
+    'sys_code': '901',
+    'lang': '_en_US'
+  };
+
+  // Try multiple known endpoint variants
+  const endpoints = [
+    { path: '/openapi/getPsList', body: { appkey: config.app_key, curPage: 1, size: 100 } },
+    { path: '/openapi/getPlantList', body: { appkey: config.app_key, curPage: 1, size: 100 } },
+    { path: '/openapi/getPlantList', body: { appkey: config.app_key, curPage: '1', size: '100' } },
+  ];
+
+  let plants = [];
+  for (const ep of endpoints) {
+    const res = await fetch(`${workingBase}${ep.path}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(ep.body)
+    });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e) { continue; }
+    console.log(`[fetchSungrow list] path=${ep.path} code=${data?.result_code} data_keys=${JSON.stringify(Object.keys(data?.result_data || {}))} full=${text.substring(0, 500)}`);
+
+    if (data?.result_code === '1' || data?.result_code === 1) {
+      plants = data?.result_data?.pageList || data?.result_data?.list || data?.result_data?.plants || [];
+      console.log(`[fetchSungrow] SUCCESS path=${ep.path} plants_count=${plants.length}`);
+      break;
+    }
+  }
 
   return plants.map(p => ({
     external_id: String(p.ps_id || p.plant_id || p.id),
