@@ -144,8 +144,9 @@ async function fetchSungrowSites(config) {
   const serialNum = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
   const baseBody = { appkey: config.app_key, token, req_serial_num: serialNum(), ...(userId ? { user_id: userId } : {}), ...(orgId ? { org_id: orgId } : {}) };
 
-  // Try multiple known endpoint variants
+  // Try multiple known endpoint variants - main one from docs is getPowerStationList
   const endpoints = [
+    { path: '/openapi/getPowerStationList', body: { ...baseBody, curPage: 1, size: 100 } },
     { path: '/openapi/getPsList', body: { ...baseBody, curPage: 1, size: 100 } },
     { path: '/openapi/getPlantList', body: { ...baseBody, curPage: 1, size: 100 } },
     { path: '/openapi/getStationList', body: { ...baseBody, curPage: 1, size: 100 } },
