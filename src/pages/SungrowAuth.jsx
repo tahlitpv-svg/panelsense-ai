@@ -1,109 +1,105 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { CheckCircle2, XCircle, Loader2, ArrowRight } from 'lucide-react';
-import { createPageUrl } from '@/utils';
+import { base44 } from "@/api/base44Client";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { AlertCircle, CheckCircle, Loader } from "lucide-react";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 
 export default function SungrowAuth() {
-  const [status, setStatus] = useState('processing'); // processing | success | error
-  const [message, setMessage] = useState('מעבד את ההרשאה מ-Sungrow...');
+  const [status, setStatus] = useState('loading'); // loading, success, error
+  const [message, setMessage] = useState('');
+  const [psListCount, setPsListCount] = useState(0);
 
   useEffect(() => {
-    handleOAuthCallback();
+    const handleAuth = async () => {
+      try {
+        // Get code from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+
+        if (!code) {
+          setStatus('error');
+          setMessage('No authorization code found in URL');
+          return;
+        }
+
+        // Call backend function to exchange code for token
+        const response = await base44.functions.invoke('sungrowOAuthCallback', { code });
+
+        if (response.data?.success) {
+          setPsListCount(response.data.auth_ps_list?.length || 0);
+          setStatus('success');
+          setMessage('Successfully connected to Sungrow!');
+          
+          // Clear the code from URL
+          window.history.replaceState({}, document.title, createPageUrl('SungrowAuth'));
+        } else {
+          setStatus('error');
+          setMessage(response.data?.error || 'Failed to exchange authorization code');
+        }
+      } catch (err) {
+        setStatus('error');
+        setMessage(err.message || 'An error occurred during authentication');
+        console.error('Auth error:', err);
+      }
+    };
+
+    handleAuth();
   }, []);
 
-  async function handleOAuthCallback() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    const connectionId = urlParams.get('state') || localStorage.getItem('sungrow_oauth_connection_id');
-
-    if (!code) {
-      setStatus('error');
-      setMessage('לא התקבל קוד הרשאה מ-Sungrow. נסה שוב.');
-      return;
-    }
-
-    if (!connectionId) {
-      setStatus('error');
-      setMessage('לא נמצא מזהה חיבור. חזור להגדרות ונסה שוב.');
-      return;
-    }
-
-    try {
-      setMessage('מחליף את קוד ההרשאה ב-Access Token...');
-      
-      const response = await base44.functions.invoke('sungrowOAuthCallback', {
-        code,
-        connection_id: connectionId
-      });
-
-      const data = response.data;
-      
-      if (data?.success) {
-        setStatus('success');
-        setMessage(`ההרשאה הצליחה! ${data.has_refresh_token ? 'Token מתחדש נשמר.' : ''}`);
-        localStorage.removeItem('sungrow_oauth_connection_id');
-      } else {
-        setStatus('error');
-        setMessage(data?.error || 'שגיאה בהחלפת קוד ההרשאה');
-      }
-    } catch (e) {
-      setStatus('error');
-      setMessage(`שגיאה: ${e.message}`);
-    }
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" dir="rtl">
-      <Card className="max-w-md w-full">
-        <CardHeader className="text-center pb-4">
-          <div className="text-4xl mb-3">🌿</div>
-          <CardTitle className="text-xl">
-            {status === 'processing' ? 'מעבד הרשאת Sungrow...' : 
-             status === 'success' ? 'ההרשאה הצליחה!' : 'שגיאה בהרשאה'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-center space-y-4">
-          {status === 'processing' && (
-            <div className="flex flex-col items-center gap-3">
-              <Loader2 className="w-10 h-10 animate-spin text-green-600" />
-              <p className="text-slate-600">{message}</p>
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
+      <Card className="w-full max-w-md p-6 border border-slate-200 bg-white">
+        {status === 'loading' && (
+          <div className="text-center space-y-4">
+            <Loader className="w-8 h-8 text-blue-500 mx-auto animate-spin" />
+            <h2 className="text-lg font-bold text-slate-800">מחבר לחשבון Sungrow...</h2>
+            <p className="text-sm text-slate-500">אנא המתן בזמן שאנו משלימים את התחברות</p>
+          </div>
+        )}
+
+        {status === 'success' && (
+          <div className="text-center space-y-4">
+            <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
+            <h2 className="text-lg font-bold text-slate-800">התחברות בוצעה בהצלחה!</h2>
+            <p className="text-sm text-slate-600">
+              חיברנו {psListCount} תחנות ייצור לדאשבורד שלך
+            </p>
+            <div className="pt-2 space-y-2">
+              <Link to={createPageUrl('Dashboard')}>
+                <Button className="w-full bg-green-600 hover:bg-green-700 text-white">
+                  חזור לדאשבורד
+                </Button>
+              </Link>
+              <Link to={createPageUrl('SiteManager')}>
+                <Button variant="outline" className="w-full">
+                  לעורך האתרים
+                </Button>
+              </Link>
             </div>
-          )}
-          
-          {status === 'success' && (
-            <div className="flex flex-col items-center gap-3">
-              <CheckCircle2 className="w-12 h-12 text-green-600" />
-              <p className="text-green-700 font-medium">{message}</p>
-              <p className="text-sm text-slate-500">
-                כעת המערכת תשתמש ב-OAuth2 לסנכרון נתוני Sungrow ותוכל לגשת לנתונים מפורטים יותר.
-              </p>
-              <Button 
-                onClick={() => window.location.href = createPageUrl('SiteManager')}
-                className="mt-2 bg-green-600 hover:bg-green-700 gap-2"
-              >
-                <ArrowRight className="w-4 h-4" />
-                חזור להגדרות
-              </Button>
+          </div>
+        )}
+
+        {status === 'error' && (
+          <div className="text-center space-y-4">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto" />
+            <h2 className="text-lg font-bold text-slate-800">שגיאה בהתחברות</h2>
+            <p className="text-sm text-slate-600">{message}</p>
+            <div className="pt-2 space-y-2">
+              <Link to={createPageUrl('Dashboard')}>
+                <Button className="w-full bg-orange-600 hover:bg-orange-700 text-white">
+                  חזור לדאשבורד
+                </Button>
+              </Link>
+              <a href="https://www.isolarcloud.com" target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" className="w-full">
+                  עזרה בחשבון Sungrow
+                </Button>
+              </a>
             </div>
-          )}
-          
-          {status === 'error' && (
-            <div className="flex flex-col items-center gap-3">
-              <XCircle className="w-12 h-12 text-red-500" />
-              <p className="text-red-600">{message}</p>
-              <Button 
-                onClick={() => window.location.href = createPageUrl('SiteManager')}
-                variant="outline"
-                className="mt-2 gap-2"
-              >
-                <ArrowRight className="w-4 h-4" />
-                חזור להגדרות
-              </Button>
-            </div>
-          )}
-        </CardContent>
+          </div>
+        )}
       </Card>
     </div>
   );
