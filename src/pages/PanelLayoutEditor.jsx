@@ -185,7 +185,13 @@ export default function PanelLayoutEditor() {
   const rotatePanelId = (id) => {
     setPanels(prev => prev.map(p => {
       if (p.id !== id) return p;
-      return { ...p, rotation: p.rotation === 0 ? 90 : 0, width: p.height, height: p.width };
+      // Also physically swap width and height so visual container updates
+      return { 
+        ...p, 
+        rotation: p.rotation === 0 ? 90 : 0, 
+        width: p.height, 
+        height: p.width 
+      };
     }));
   };
 
@@ -385,7 +391,7 @@ export default function PanelLayoutEditor() {
                     height: panel.height * zoom,
                     backgroundColor: color + '33',
                     borderColor: color,
-                    transform: panel.rotation ? `rotate(${panel.rotation}deg)` : undefined,
+                    // Remove transform rotate because we literally swap width/height instead to prevent bounding box issues
                   }}
                   onMouseDown={(e) => handleMouseDown(e, panel.id)}
                   onTouchStart={(e) => handleTouchStart(e, panel.id)}

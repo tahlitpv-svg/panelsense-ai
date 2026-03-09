@@ -11,11 +11,12 @@ import { ZoomIn, ZoomOut, Pencil, Grid3X3 } from "lucide-react";
 function getPanelColor(wattage, maxWattage) {
   if (!wattage || wattage <= 0) return { bg: '#000000', border: '#111111', text: '#ffffff' }; // black
   const ratio = maxWattage > 0 ? wattage / maxWattage : 0;
-  if (ratio >= 0.8) return { bg: '#bfdbfe', border: '#93c5fd', text: '#1e3a5f' }; // very light blue
-  if (ratio >= 0.6) return { bg: '#60a5fa', border: '#3b82f6', text: '#1e3a5f' }; // light blue
-  if (ratio >= 0.4) return { bg: '#2563eb', border: '#1d4ed8', text: '#ffffff' }; // medium blue
-  if (ratio >= 0.2) return { bg: '#1e3a5f', border: '#0f172a', text: '#ffffff' }; // dark blue
-  return { bg: '#0f172a', border: '#020617', text: '#94a3b8' }; // very dark blue
+  // Highest production = Light blue, lowest = Dark blue. Black = No production.
+  if (ratio >= 0.8) return { bg: '#93c5fd', border: '#bfdbfe', text: '#1e3a5f' }; // light blue
+  if (ratio >= 0.6) return { bg: '#3b82f6', border: '#60a5fa', text: '#ffffff' }; // blue
+  if (ratio >= 0.4) return { bg: '#2563eb', border: '#3b82f6', text: '#ffffff' }; // medium blue
+  if (ratio >= 0.2) return { bg: '#1d4ed8', border: '#2563eb', text: '#ffffff' }; // dark blue
+  return { bg: '#1e3a5f', border: '#1e40af', text: '#94a3b8' }; // darkest blue before black
 }
 
 export default function PanelLayoutView({ site, inverters }) {
@@ -153,7 +154,6 @@ export default function PanelLayoutView({ site, inverters }) {
                   height: panel.height * zoom,
                   backgroundColor: color.bg,
                   borderColor: color.border,
-                  transform: panel.rotation ? `rotate(${panel.rotation}deg)` : undefined,
                 }}
                 title={`${panel.string_id} #${panel.panel_index}: ${data.watts}W`}
               >
