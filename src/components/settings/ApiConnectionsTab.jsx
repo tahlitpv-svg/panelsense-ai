@@ -8,8 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import {
   Plus, Wifi, WifiOff, RefreshCw, Trash2, ChevronDown, ChevronUp,
-  CheckCircle2, XCircle, Clock, Settings, Zap, Pencil
+  CheckCircle2, XCircle, Clock, Settings, Zap, Pencil, Download
 } from 'lucide-react';
+import ImportSitesPanel from './ImportSitesPanel';
 
 const PROVIDERS = [
   {
