@@ -493,7 +493,7 @@ export default function PanelLayoutEditor() {
                 </div>
               );
             })}
-          </div>
+            </div>
         </Card>
       </div>
     </div>
