@@ -315,6 +315,69 @@ function AddConnectionForm({ onSave, onCancel }) {
   );
 }
 
+function SolisSystemCard() {
+  const [status, setStatus] = useState(null); // null | 'testing' | 'ok' | 'error'
+  const [message, setMessage] = useState('');
+  const apiUrl = Deno?.env ? Deno.env.get('SOLIS_API_URL') : null; // won't work in frontend, just cosmetic
+
+  const handleTest = async () => {
+    setStatus('testing');
+    setMessage('');
+    try {
+      const res = await base44.functions.invoke('testApiConnection', { provider: 'solis_system' });
+      const data = res.data;
+      if (data?.success) {
+        setStatus('ok');
+        setMessage(data.message);
+      } else {
+        setStatus('error');
+        setMessage(data?.message || data?.error || 'שגיאה לא ידועה');
+      }
+    } catch (e) {
+      setStatus('error');
+      setMessage(e.message);
+    }
+  };
+
+  return (
+    <Card className={`border-2 ${status === 'ok' ? 'border-green-300' : status === 'error' ? 'border-red-300' : 'border-orange-200'} bg-orange-50/30`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">☀️</span>
+            <div>
+              <div className="font-semibold text-slate-900 flex items-center gap-2">
+                Solis Cloud — מפתחות מערכת
+                <Badge className="bg-orange-100 text-orange-700 border-0 text-xs">מובנה</Badge>
+              </div>
+              <div className="text-xs text-slate-500">משתמש ב-SOLIS_API_KEY_ID / SECRET מהסביבה</div>
+            </div>
+          </div>
+          {status === 'ok' && <Badge className="bg-green-50 text-green-600 border-0 gap-1"><CheckCircle2 className="w-3 h-3" /> מחובר</Badge>}
+          {status === 'error' && <Badge className="bg-red-50 text-red-600 border-0 gap-1"><XCircle className="w-3 h-3" /> שגיאה</Badge>}
+          {status === 'testing' && <Badge className="bg-blue-50 text-blue-600 border-0 gap-1"><RefreshCw className="w-3 h-3 animate-spin" /> בודק...</Badge>}
+        </div>
+        {message && (
+          <div className={`text-xs rounded p-2 mt-2 ${status === 'ok' ? 'text-green-700 bg-green-50' : 'text-red-600 bg-red-50'}`}>{message}</div>
+        )}
+      </CardHeader>
+      <CardContent className="pt-0 border-t border-orange-100">
+        <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+          <div><span className="text-slate-500">Key ID:</span> <span className="text-slate-400 italic">מוגדר בסביבה</span></div>
+          <div><span className="text-slate-500">Key Secret:</span> <span className="text-slate-400 italic">••••••••</span></div>
+          <div><span className="text-slate-500">API URL:</span> <span className="text-slate-700 font-medium dir-ltr">www.soliscloud.com:13333</span></div>
+        </div>
+        <div className="mt-4">
+          <Button size="sm" onClick={handleTest} disabled={status === 'testing'} className="gap-1 bg-orange-500 hover:bg-orange-600">
+            <RefreshCw className={`w-3 h-3 ${status === 'testing' ? 'animate-spin' : ''}`} />
+            בדוק חיבור Solis
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ApiConnectionsTab() {
   const queryClient = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
