@@ -549,6 +549,81 @@ _אם התקלה לא תטופל._
       }
     }
 
+    // === SOLIS WARNING STATUS: Create alerts for sites with warning/offline status from Solis ===
+    for (const site of sites) {
+      if (site.status !== 'warning' && site.status !== 'offline') continue;
+      
+      const existingStatusAlert = openAlerts.find(a =>
+        a.site_id === site.id &&
+        !a.is_resolved
+      );
+      
+      if (existingStatusAlert) {
+        log.push(`[SOLIS_STATUS] ${site.name} (${site.status}) - alert already open`);
+        continue;
+      }
+
+      const statusMessage = site.status === 'warning'
+        ? `אתר "${site.name}" מדווח סטטוס אזהרה ממערכת Solis`
+        : `אתר "${site.name}" מדווח כלא מקוון (offline) ממערכת Solis`;
+      
+      const alertType = site.status === 'offline' ? 'communication_fault' : 'other';
+      const severity = site.status === 'offline' ? 'critical' : 'warning';
+
+      await db.entities.Alert.create({
+        site_id: site.id,
+        site_name: site.name,
+        type: alertType,
+        severity: severity,
+        message: statusMessage,
+        fault_type_name: `סטטוס Solis: ${site.status}`,
+        is_resolved: false
+      });
+      
+      triggered.push({ fault_type: `סטטוס Solis: ${site.status}`, site_name: site.name, site_id: site.id, severity });
+      log.push(`[SOLIS_STATUS] Alert created for ${site.name} (${site.status})`);
+
+      // Send notifications
+      const timeStr = now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' });
+      const severityIcon = severity === 'critical' ? '🔴' : '🟡';
+      const severityText = severity === 'critical' ? 'קריטית' : 'אזהרה';
+
+      if (site.contact_email) {
+        try {
+          await db.integrations.Core.SendEmail({
+            to: site.contact_email,
+            subject: `${severityIcon} התראת סטטוס: ${site.name} - ${site.status}`,
+            body: `התראת סטטוס - ${severityText}\n\nאתר: ${site.name}\nסטטוס: ${site.status}\nפירוט: ${statusMessage}\nזמן: ${timeStr}\n\nPanel Sense AI`
+          });
+          log.push(`[SOLIS_STATUS] Email sent to ${site.contact_email} for: ${site.name}`);
+        } catch (e) {
+          log.push(`[SOLIS_STATUS] Email failed for ${site.name}: ${e.message}`);
+        }
+      }
+
+      if (site.contact_phone) {
+        try {
+          const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
+          const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
+          if (accountSid && authToken) {
+            const whatsappMsg = `━━━━━━━━━━━━━━━━━━━━━\n⚡ *Panel Sense AI* ⚡\n━━━━━━━━━━━━━━━━━━━━━\n\n${severityIcon} *התראת סטטוס - ${severityText}*\n\n📍 *אתר:* ${site.name}\n👤 *לקוח:* ${site.contact_name || '---'}\n\n📋 *פירוט:*\n${statusMessage}\n\n🕐 *זמן זיהוי:* ${timeStr}\n\n━━━━━━━━━━━━━━━━━━━━━\n🌐 *Panel Sense AI*`;
+            const toFormatted = site.contact_phone.startsWith('whatsapp:') ? site.contact_phone : `whatsapp:${site.contact_phone}`;
+            const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+            const params = new URLSearchParams({ To: toFormatted, From: 'whatsapp:+14155238886', Body: whatsappMsg });
+            const waRes = await fetch(url, { method: 'POST', headers: { 'Authorization': 'Basic ' + btoa(`${accountSid}:${authToken}`), 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
+            if (waRes.ok) {
+              log.push(`[SOLIS_STATUS] WhatsApp sent to ${site.contact_phone} for: ${site.name}`);
+            } else {
+              const waErr = await waRes.json();
+              log.push(`[SOLIS_STATUS] WhatsApp failed: ${waErr.message || JSON.stringify(waErr)}`);
+            }
+          }
+        } catch (e) {
+          log.push(`[SOLIS_STATUS] WhatsApp error: ${e.message}`);
+        }
+      }
+    }
+
     // === 24-HOUR REMINDER: resend WhatsApp for unresolved alerts older than 24h ===
     const remindersSent = [];
     for (const alert of openAlerts) {
