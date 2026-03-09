@@ -166,6 +166,58 @@ function ConnectionCard({ conn, onTest, onDelete, onEdit, isTestingId }) {
   );
 }
 
+function EditConnectionForm({ conn, onSave, onCancel }) {
+  const provider = PROVIDERS.find(p => p.id === conn.provider) || PROVIDERS[PROVIDERS.length - 1];
+  const [form, setForm] = useState({
+    name: conn.name || '',
+    config: { ...conn.config },
+    notes: conn.notes || ''
+  });
+
+  const handleSave = () => {
+    onSave(conn.id, { name: form.name, config: form.config, notes: form.notes, status: 'not_tested' });
+  };
+
+  return (
+    <Card className="border-2 border-dashed border-blue-300 bg-blue-50/20">
+      <CardHeader>
+        <CardTitle className="text-base text-blue-800 flex items-center gap-2">
+          <Pencil className="w-4 h-4" /> עריכת חיבור: {conn.name}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div>
+          <Label className="text-sm text-slate-700">שם לחיבור</Label>
+          <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="mt-1" />
+        </div>
+        {provider.fields.map(f => (
+          <div key={f.key}>
+            <Label className="text-xs text-slate-500">{f.label}</Label>
+            <Input
+              type={f.sensitive ? 'password' : 'text'}
+              value={form.config[f.key] || ''}
+              onChange={e => setForm(f2 => ({ ...f2, config: { ...f2.config, [f.key]: e.target.value } }))}
+              placeholder={f.placeholder}
+              className="mt-1 text-sm"
+              dir="ltr"
+            />
+          </div>
+        ))}
+        <div>
+          <Label className="text-xs text-slate-500">הערות (אופציונלי)</Label>
+          <Input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="mt-1 text-sm" />
+        </div>
+        <div className="flex gap-2 pt-2">
+          <Button onClick={handleSave} disabled={!form.name} className="bg-blue-600 hover:bg-blue-700">
+            <Pencil className="w-4 h-4 mr-1" /> שמור שינויים
+          </Button>
+          <Button variant="outline" onClick={onCancel}>ביטול</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function AddConnectionForm({ onSave, onCancel }) {
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [form, setForm] = useState({ name: '', config: {}, notes: '' });
