@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ArrowRight, MapPin, Wrench, Calendar, BarChart3, Settings as SettingsIcon, Sun, Zap, Droplets, AlertTriangle, Thermometer } from "lucide-react";
+import { ArrowRight, MapPin, Wrench, Calendar, BarChart3, Settings as SettingsIcon, Sun, Zap, Droplets, AlertTriangle, Thermometer, LayoutGrid } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
@@ -17,6 +17,7 @@ import TemperatureChart from "../components/inverter/TemperatureChart";
 import ProductionAnalysis from "../components/site/ProductionAnalysis";
 import SiteConfiguration from "../components/site/SiteConfiguration";
 import SiteProductionChart from "../components/site/SiteProductionChart";
+import PanelLayoutView from "../components/site/PanelLayoutView";
 
 export default function SiteDetails() {
   const [activeTab, setActiveTab] = useState('overview');
