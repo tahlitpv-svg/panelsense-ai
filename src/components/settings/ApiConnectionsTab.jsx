@@ -94,7 +94,7 @@ const STATUS_CONFIG = {
   not_tested: { label: 'לא נבדק', icon: Clock, color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200' }
 };
 
-function ConnectionCard({ conn, onTest, onDelete, isTestingId }) {
+function ConnectionCard({ conn, onTest, onDelete, onEdit, isTestingId }) {
   const [expanded, setExpanded] = useState(false);
   const provider = PROVIDERS.find(p => p.id === conn.provider) || PROVIDERS[PROVIDERS.length - 1];
   const status = STATUS_CONFIG[conn.status || 'not_tested'];
@@ -150,6 +150,10 @@ function ConnectionCard({ conn, onTest, onDelete, isTestingId }) {
             <Button size="sm" onClick={() => onTest(conn.id)} disabled={isTesting} className="gap-1 bg-green-600 hover:bg-green-700">
               <RefreshCw className={`w-3 h-3 ${isTesting ? 'animate-spin' : ''}`} />
               בדוק חיבור
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => onEdit(conn)} className="gap-1">
+              <Pencil className="w-3 h-3" />
+              ערוך
             </Button>
             <Button size="sm" variant="destructive" onClick={() => onDelete(conn.id)} className="gap-1">
               <Trash2 className="w-3 h-3" />
