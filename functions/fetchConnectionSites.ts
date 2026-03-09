@@ -114,9 +114,10 @@ async function fetchSungrowSites(config) {
       const text = await loginRes.text();
       let loginData;
       try { loginData = JSON.parse(text); } catch(e) { continue; }
-      console.log(`[fetchSungrow login] base=${baseUrl} code=${loginData?.result_code} token=${loginData?.result_data?.token ? 'yes' : 'no'} full=${JSON.stringify(loginData).substring(0, 600)}`);
+      console.log(`[fetchSungrow login] base=${baseUrl} code=${loginData?.result_code} token=${loginData?.result_data?.token ? 'yes' : 'no'}`);
       if (loginData?.result_data?.token) {
         token = loginData.result_data.token;
+        loginResult = loginData;
         workingBase = baseUrl;
         break;
       }
