@@ -942,6 +942,16 @@ function evaluateRule(rule, site, inverters, expectedFraction, volatility, expec
       break;
     }
     case 'ac_peak_clipping_percent': {
+      // ac_peak_clipping_percent: clippingPercent is % of AC capacity where inverter is stuck
+      // operator "less_than_percent_of_expected" means: flat plateau IS detected below X% of AC
+      // i.e., clippingPercent > 0 AND clippingPercent < value means clipping IS happening
+      // But since we store it as "greater_than" (flat plateau > X%), handle both operators here directly
+      if (operator === 'greater_than') return (clippingPercent || 0) > value;
+      if (operator === 'less_than') return (clippingPercent || 0) < value && (clippingPercent || 0) > 0;
+      if (operator === 'less_than_percent_of_expected') {
+        // "קיטום מתחת ל-X% מ-AC" = detected flat plateau below X% of AC capacity
+        return (clippingPercent || 0) > 0 && (clippingPercent || 0) < value;
+      }
       actual = clippingPercent || 0;
       break;
     }
@@ -964,16 +974,10 @@ function evaluateRule(rule, site, inverters, expectedFraction, volatility, expec
       return volatility > value;
     }
     // For production metrics: use 20-day average specific yield
-    // If we don't have 20 active days, we CANNOT evaluate - return false (no alert)
     if (expectedSpecificYield === null) return false;
-    // expectedSpecificYield = avg daily kWh per kWp from last 20 active days
-    // Compare today's yield per kWp against % of expected
     const todaySpecificYield = (site.daily_yield_kwh ?? 0) / (site.dc_capacity_kwp || 1);
-    // Only evaluate after enough production hours (after 10:00)
     if (expectedFraction < 0.1) return false;
-    // Scale expected by time-of-day fraction (how much of the day has passed)
-    const fractionOfDayDone = expectedFraction; // 0-1 based on bell curve
-    const expectedTodaySoFar = expectedSpecificYield * fractionOfDayDone;
+    const expectedTodaySoFar = expectedSpecificYield * expectedFraction;
     return todaySpecificYield < (value / 100) * expectedTodaySoFar;
   }
   return false;
