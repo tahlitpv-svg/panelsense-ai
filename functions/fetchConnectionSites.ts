@@ -166,7 +166,7 @@ async function fetchSungrowSites(config) {
 
     if (data?.result_code === '1' || data?.result_code === 1) {
       plants = data?.result_data?.pageList || data?.result_data?.list || data?.result_data?.plants || [];
-      console.log(`[fetchSungrow] SUCCESS path=${ep.path} plants_count=${plants.length}`);
+      console.log(`[fetchSungrow] SUCCESS path=${ep.path} plants_count=${plants.length} sample=${JSON.stringify(plants[0] || {})}`);
       break;
     }
   }
