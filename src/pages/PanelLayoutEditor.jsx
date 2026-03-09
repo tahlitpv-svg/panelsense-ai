@@ -370,22 +370,50 @@ export default function PanelLayoutEditor() {
           <div className="flex-1 overflow-auto relative" style={{ background: backgroundImage ? 'transparent' : 'linear-gradient(135deg, #f5f5f5 0%, #e5e5e5 100%)' }}>
             <input type="file" ref={blueprintInputRef} className="hidden" accept="image/*" onChange={handleBlueprintUpload} />
              ref={canvasRef}
-             className="relative cursor-crosshair"
+             className="relative cursor-crosshair m-auto"
              style={{
-               width: 1200 * zoom,
-               height: 800 * zoom,
+               width: backgroundImage ? 1200 * imageScale : 1200 * zoom,
+               height: backgroundImage ? 800 * imageScale : 800 * zoom,
                backgroundImage: backgroundImage 
                  ? `url('${backgroundImage}')` 
                  : `radial-gradient(circle, #e2e8f0 1px, transparent 1px)`,
                backgroundSize: 'cover',
                backgroundPosition: 'center',
                backgroundRepeat: 'no-repeat',
-               opacity: 1,
                position: 'relative'
              }}
              onClick={() => setSelectedPanel(null)}
              onTouchEnd={() => { setDragging(null); }}
-           >
+             onDragOver={(e) => {
+               if (backgroundImage) {
+                 e.preventDefault();
+                 e.dataTransfer.dropEffect = 'copy';
+               }
+             }}
+             onDrop={(e) => {
+               if (!backgroundImage) return;
+               e.preventDefault();
+               const stringId = e.dataTransfer.getData('stringId');
+               if (!stringId) return;
+
+               const rect = canvasRef.current.getBoundingClientRect();
+               const x = snapToGrid((e.clientX - rect.left) / imageScale);
+               const y = snapToGrid((e.clientY - rect.top) / imageScale);
+
+               const newPanel = {
+                 id: `${stringId}_p${Date.now()}`,
+                 x,
+                 y,
+                 width: PANEL_W,
+                 height: PANEL_H,
+                 string_id: stringId,
+                 panel_index: panels.filter(p => p.string_id === stringId).length + 1,
+                 rotation: 0
+               };
+               setPanels(prev => [...prev, newPanel]);
+               setSelectedPanel(newPanel.id);
+             }}
+             >
              {backgroundImage && (
                <div 
                  style={{
