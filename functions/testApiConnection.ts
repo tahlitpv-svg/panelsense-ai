@@ -156,21 +156,10 @@ async function testSolis(config) {
   }
 }
 
-async function computeMd5Base64(content) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(content);
-  const hashBuffer = await crypto.subtle.digest('MD5', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return btoa(String.fromCharCode(...hashArray));
+function computeMd5Base64(content) {
+  return createHash('md5').update(content, 'utf8').digest('base64');
 }
 
-async function computeHmacSha1(secret, message) {
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw', encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-1' },
-    false, ['sign']
-  );
-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(message));
-  return btoa(String.fromCharCode(...new Uint8Array(signature)));
+function computeHmacSha1(secret, message) {
+  return createHmac('sha1', secret).update(message, 'utf8').digest('base64');
 }
