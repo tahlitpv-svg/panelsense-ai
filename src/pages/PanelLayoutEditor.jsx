@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowRight, Save, Plus, Trash2, RotateCw, Grid3X3, MousePointer2, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowRight, Save, Plus, Trash2, RotateCw, Grid3X3, MousePointer2, ZoomIn, ZoomOut, Upload, Bot, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
