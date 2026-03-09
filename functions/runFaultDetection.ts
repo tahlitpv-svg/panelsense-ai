@@ -422,8 +422,19 @@ ${todayGraphSummary}
           const severityText = ft.severity === 'critical' ? 'קריטית' : ft.severity === 'warning' ? 'אזהרה' : 'מידע';
           const solutionText = ft.solution ? `\n\n💡 *פתרון מוצע:*\n${ft.solution}` : '';
 
-          // WhatsApp formatted message
-          const whatsappMsg = `━━━━━━━━━━━━━━━━━━━━━
+          // WhatsApp formatted message - use custom template if defined
+          let whatsappMsg;
+          if (ft.whatsapp_template && ft.whatsapp_template.trim()) {
+            whatsappMsg = ft.whatsapp_template
+              .replace(/{site_name}/g, site.name)
+              .replace(/{fault_type}/g, ft.name)
+              .replace(/{message}/g, message)
+              .replace(/{contact_name}/g, site.contact_name || '---')
+              .replace(/{solution}/g, ft.solution || '')
+              .replace(/{timestamp}/g, timeStr)
+              .replace(/{severity}/g, severityText);
+          } else {
+            whatsappMsg = `━━━━━━━━━━━━━━━━━━━━━
 ⚡ *Panel Sense AI* ⚡
 ━━━━━━━━━━━━━━━━━━━━━
 
@@ -444,6 +455,7 @@ _הודעת תזכורת תישלח תוך 24 שעות_
 _אם התקלה לא תטופל._
 ━━━━━━━━━━━━━━━━━━━━━
 🌐 *Panel Sense AI* - ניטור חכם למערכות סולאריות`;
+          }
 
           // Email to site owner
           if (ft.notify_email && site.contact_email) {
