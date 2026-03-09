@@ -127,9 +127,10 @@ async function fetchSungrowSites(config) {
 
   if (!token) throw new Error('לא הצלחתי להתחבר לשרת Sungrow - בדוק פרטי חיבור');
 
+  // For data endpoints, x-access-key = app_key (not app_secret)
   const headers = {
     'Content-Type': 'application/json',
-    'x-access-key': config.app_secret,
+    'x-access-key': config.app_key,
     'token': token,
     'sys_code': '901',
     'lang': '_en_US'
