@@ -701,9 +701,41 @@ ${JSON.stringify(faultTypeSummaries, null, 2)}
         });
 
         if (matchResult?.fault_type_name) {
-          matchedFt = activeFaultTypes.find(ft => ft.name === matchResult.fault_type_name);
-          matchReason = matchResult.reason;
-          log.push(`[SOLIS_STATUS] LLM matched ${site.name} (${site.status}) → ${matchResult.fault_type_name}: ${matchReason}`);
+          const candidate = activeFaultTypes.find(ft => ft.name === matchResult.fault_type_name);
+          if (candidate) {
+            // CRITICAL: if the matched fault type has detection_rules, verify they actually pass.
+            // This prevents the LLM from assigning a fault type whose thresholds are NOT met
+            // (e.g. user set temp threshold to 75°C but inverter is only at 69°C)
+            const hasRules = candidate.detection_rules && candidate.detection_rules.length > 0;
+            if (hasRules) {
+              const siteStationSnapshots = site.solis_station_id ? (snapshotsByStation[site.solis_station_id] || {}) : {};
+              const graphData = siteStationSnapshots[dateKey] || null;
+              const vol = computeVolatilityIndex(graphData);
+              const rulesPass = evaluateRules(candidate, site, siteInverters, vol, siteStationSnapshots);
+              if (rulesPass) {
+                matchedFt = candidate;
+                matchReason = matchResult.reason;
+                log.push(`[SOLIS_STATUS] LLM matched ${site.name} → ${matchResult.fault_type_name} (rules verified): ${matchReason}`);
+              } else {
+                log.push(`[SOLIS_STATUS] LLM suggested ${matchResult.fault_type_name} for ${site.name} but detection_rules NOT met - skipping this fault type`);
+                // Try to find the next best fault type WITHOUT rules (communication fault etc.)
+                matchedFt = activeFaultTypes.find(ft =>
+                  ft.name !== candidate.name &&
+                  (!ft.detection_rules || ft.detection_rules.length === 0) &&
+                  ft.alert_type === 'communication_fault'
+                ) || null;
+                if (matchedFt) {
+                  matchReason = `סטטוס Solis: ${site.status}`;
+                  log.push(`[SOLIS_STATUS] Fallback to communication fault type: ${matchedFt.name}`);
+                }
+              }
+            } else {
+              // No rules = pure description/LLM based, accept the match
+              matchedFt = candidate;
+              matchReason = matchResult.reason;
+              log.push(`[SOLIS_STATUS] LLM matched ${site.name} → ${matchResult.fault_type_name}: ${matchReason}`);
+            }
+          }
         } else {
           log.push(`[SOLIS_STATUS] LLM found no matching fault type for ${site.name} (${site.status}): ${matchResult?.reason}`);
         }
