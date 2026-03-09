@@ -111,9 +111,22 @@ Deno.serve(async (req) => {
           const psId = String(station.ps_id || station.plant_id || station.id);
           if (!psId) continue;
 
-          // Find matching Site by sungrow_station_id
-          const sites = await db.entities.Site.filter({ sungrow_station_id: psId });
-          const site = sites[0];
+          // Find matching Site by sungrow_station_id first, then fallback to name match
+          let site = null;
+          const byId = await db.entities.Site.filter({ sungrow_station_id: psId });
+          if (byId.length > 0) {
+            site = byId[0];
+          } else {
+            // Fallback: match by name
+            const stationName = station.ps_name || station.name || '';
+            const allSites = await db.entities.Site.list();
+            site = allSites.find(s => s.name && s.name.trim() === stationName.trim()) || null;
+            if (site) {
+              // Save the sungrow_station_id for future syncs
+              await db.entities.Site.update(site.id, { sungrow_station_id: psId, sungrow_connection_id: conn.id });
+              console.log(`[syncSungrow] Matched site "${site.name}" by name → saved ps_id=${psId}`);
+            }
+          }
           if (!site) {
             console.log(`[syncSungrow] No site found for ps_id=${psId} (${station.ps_name}), skipping`);
             continue;
