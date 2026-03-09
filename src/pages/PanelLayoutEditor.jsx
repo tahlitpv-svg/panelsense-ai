@@ -391,7 +391,6 @@ export default function PanelLayoutEditor() {
                     height: panel.height * zoom,
                     backgroundColor: color + '33',
                     borderColor: color,
-                    // Remove transform rotate because we literally swap width/height instead to prevent bounding box issues
                   }}
                   onMouseDown={(e) => handleMouseDown(e, panel.id)}
                   onTouchStart={(e) => handleTouchStart(e, panel.id)}
