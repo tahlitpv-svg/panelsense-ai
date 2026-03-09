@@ -97,6 +97,7 @@ const STATUS_CONFIG = {
 
 function ConnectionCard({ conn, onTest, onDelete, onEdit, isTestingId }) {
   const [expanded, setExpanded] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const provider = PROVIDERS.find(p => p.id === conn.provider) || PROVIDERS[PROVIDERS.length - 1];
   const status = STATUS_CONFIG[conn.status || 'not_tested'];
   const StatusIcon = status.icon;
