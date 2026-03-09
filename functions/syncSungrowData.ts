@@ -266,14 +266,25 @@ Deno.serve(async (req) => {
               const devId = String(dev.dev_id || dev.device_id || dev.id || '');
               if (!devSn && !devId) continue;
 
-              // Fetch device real-time data
+              // Fetch device real-time data - try multiple endpoints
               let devData = {};
               try {
-                const rtRes = await sungrowPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, { dev_sn: devSn, ps_id: psId });
+                let rtRes = await sungrowPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, { dev_sn: devSn, ps_id: psId });
+                console.log(`[syncSungrow] getDeviceRealTimeData sn=${devSn} code=${rtRes?.result_code}`);
                 if (rtRes?.result_code === '1' || rtRes?.result_code === 1) {
                   devData = rtRes?.result_data || {};
+                } else {
+                  // Try with dev_id
+                  rtRes = await sungrowPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, { dev_id: devId, ps_id: psId });
+                  console.log(`[syncSungrow] getDeviceRealTimeData by dev_id=${devId} code=${rtRes?.result_code}`);
+                  if (rtRes?.result_code === '1' || rtRes?.result_code === 1) {
+                    devData = rtRes?.result_data || {};
+                  }
                 }
-              } catch(e) {}
+                if (Object.keys(devData).length > 0) {
+                  console.log(`[syncSungrow] devData keys: ${JSON.stringify(Object.keys(devData).slice(0, 20))}`);
+                }
+              } catch(e) { console.log(`[syncSungrow] rtData error: ${e.message}`); }
 
               // Parse inverter real-time values
               function parseDevField(key) {
