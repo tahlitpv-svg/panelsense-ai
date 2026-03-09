@@ -1,6 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 import { createHmac, createHash } from 'node:crypto';
 
+function md5(str) {
+  return createHash('md5').update(str, 'utf8').digest('hex');
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
