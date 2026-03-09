@@ -135,11 +135,11 @@ async function fetchSungrowSites(config) {
     'lang': '_en_US'
   };
 
-  // Try multiple known endpoint variants
+  // Try multiple known endpoint variants - token must be in body too
   const endpoints = [
-    { path: '/openapi/getPsList', body: { appkey: config.app_key, curPage: 1, size: 100 } },
-    { path: '/openapi/getPlantList', body: { appkey: config.app_key, curPage: 1, size: 100 } },
-    { path: '/openapi/getPlantList', body: { appkey: config.app_key, curPage: '1', size: '100' } },
+    { path: '/openapi/getPsList', body: { appkey: config.app_key, token, curPage: 1, size: 100 } },
+    { path: '/openapi/getPlantList', body: { appkey: config.app_key, token, curPage: 1, size: 100 } },
+    { path: '/openapi/getStationList', body: { appkey: config.app_key, token, curPage: 1, size: 100 } },
   ];
 
   let plants = [];
