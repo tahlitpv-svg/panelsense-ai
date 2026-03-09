@@ -5,37 +5,36 @@ function md5(str) {
   return createHash('md5').update(str, 'utf8').digest('hex');
 }
 
-// Login via OpenAPI (sys_code 901)
-async function sungrowOpenApiLogin(config, baseUrl) {
-  const res = await fetch(`${baseUrl}/openapi/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-access-key': config.app_secret, 'sys_code': '901', 'lang': '_en_US' },
-    body: JSON.stringify({ appkey: config.app_key, user_account: config.user_account, user_password: md5(config.user_password), login_type: '0' })
-  });
-  const data = JSON.parse(await res.text());
-  if (data?.result_data?.token) return { token: data.result_data.token, user_id: data.result_data.user_id };
-  return null;
-}
+// The iSolarCloud web portal uses this public app key (not user's API key)
+const WEB_APP_KEY = '93D72E60331ABDCDC7B39ADC2D1F32B3';
 
-// Login via Web Portal API (sys_code 900) — gives access to graph endpoints
-async function sungrowWebLogin(config, baseUrl) {
-  // Try multiple login paths used by iSolarCloud web portal
+// Login via iSolarCloud Web Portal API (same creds, public app key)
+async function sungrowWebPortalLogin(config, baseUrl) {
   const paths = [
     '/v1/userService/login',
-    '/v1/gatewayService/login',
     '/openapi/login',
   ];
   for (const path of paths) {
     try {
       const res = await fetch(`${baseUrl}${path}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-access-key': config.app_secret || '', 'sys_code': '900', 'lang': '_en_US' },
-        body: JSON.stringify({ appkey: config.app_key, user_account: config.user_account, user_password: md5(config.user_password), login_type: '0' })
+        headers: {
+          'Content-Type': 'application/json',
+          'x-access-key': WEB_APP_KEY,
+          'sys_code': '901',
+          'lang': '_en_US',
+          'User-Agent': 'Mozilla/5.0'
+        },
+        body: JSON.stringify({
+          appkey: WEB_APP_KEY,
+          user_account: config.user_account,
+          user_password: md5(config.user_password),
+          login_type: '0'
+        })
       });
-      const text = await res.text();
-      const data = JSON.parse(text);
+      const data = JSON.parse(await res.text());
       if (data?.result_data?.token) {
-        console.log(`[sungrowWebLogin] Success at ${path}`);
+        console.log(`[webPortalLogin] Success at ${path} with WEB_APP_KEY`);
         return { token: data.result_data.token, user_id: data.result_data.user_id };
       }
     } catch(e) {}
@@ -43,11 +42,31 @@ async function sungrowWebLogin(config, baseUrl) {
   return null;
 }
 
-async function sungrowPost(base_url, path, appkey, app_secret, sys_code, token, user_id, body = {}) {
+// Login via OpenAPI (user's own app_key + app_secret)
+async function sungrowOpenApiLogin(config, baseUrl) {
+  try {
+    const res = await fetch(`${baseUrl}/openapi/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-access-key': config.app_secret, 'sys_code': '901', 'lang': '_en_US' },
+      body: JSON.stringify({ appkey: config.app_key, user_account: config.user_account, user_password: md5(config.user_password), login_type: '0' })
+    });
+    const data = JSON.parse(await res.text());
+    if (data?.result_data?.token) return { token: data.result_data.token, user_id: data.result_data.user_id };
+  } catch(e) {}
+  return null;
+}
+
+async function sungrowPost(base_url, path, appkey, access_key, token, user_id, body = {}) {
   const fullBody = { appkey, token, user_id, req_serial_num: Date.now().toString(36) + Math.random().toString(36).slice(2), ...body };
   const res = await fetch(`${base_url}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-access-key': app_secret || '', 'sys_code': sys_code, 'lang': '_en_US' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-access-key': access_key,
+      'sys_code': '901',
+      'lang': '_en_US',
+      'User-Agent': 'Mozilla/5.0'
+    },
     body: JSON.stringify(fullBody)
   });
   try { return JSON.parse(await res.text()); } catch(e) { return null; }
@@ -76,91 +95,37 @@ Deno.serve(async (req) => {
     for (const baseUrl of candidates) {
       if (result) break;
 
-      // Try both sys_code 901 (OpenAPI) and 900 (Web Portal) sessions
+      // Try both: web portal session (WEB_APP_KEY) and openapi session (user's key)
       const sessions = [];
 
-      const s901 = await sungrowOpenApiLogin(cfg, baseUrl).catch(() => null);
-      if (s901) sessions.push({ ...s901, sys_code: '901' });
+      const webSess = await sungrowWebPortalLogin(cfg, baseUrl);
+      if (webSess) sessions.push({ ...webSess, appkey: WEB_APP_KEY, access_key: WEB_APP_KEY, label: 'web' });
 
-      const s900 = await sungrowWebLogin(cfg, baseUrl).catch(() => null);
-      if (s900) sessions.push({ ...s900, sys_code: '900' });
+      const apiSess = await sungrowOpenApiLogin(cfg, baseUrl);
+      if (apiSess) sessions.push({ ...apiSess, appkey: cfg.app_key, access_key: cfg.app_secret, label: 'openapi' });
 
       for (const sess of sessions) {
         if (result) break;
 
-        const post = (path, body) => sungrowPost(baseUrl, path, cfg.app_key, cfg.app_secret, sess.sys_code, sess.token, sess.user_id, body);
+        const post = (path, body) => sungrowPost(baseUrl, path, sess.appkey, sess.access_key, sess.token, sess.user_id, body);
 
-        if (timeframe === 'day') {
-          const endpoints = [
-            { path: '/v1/powerStationService/queryPowerStationByDay',   body: { ps_id: psIdStr, date_id: date } },
-            { path: '/v1/powerStationService/queryDeviceByDay',          body: { ps_id: psIdStr, date_id: date } },
-            { path: '/v1/powerStationService/queryPsKpiForDay',          body: { ps_id: psIdStr, date_id: date } },
-            { path: '/openapi/getPsDay',                                  body: { ps_id: psIdStr, date_id: date } },
-            { path: '/openapi/getPsDay',                                  body: { ps_id_list: [psIdStr], date_id: date } },
-            { path: '/openapi/queryPsDay',                                body: { ps_id: psIdStr, date_id: date } },
-            { path: '/openapi/getPowerStationPowerCurve',                 body: { ps_id: psIdStr, date_id: date } },
-            { path: '/openapi/getDayPowerCurve',                          body: { ps_id: psIdStr, date_id: date } },
-            { path: '/openapi/getPsKpiDay',                               body: { ps_id: psIdStr, date_id: date } },
-            { path: '/openapi/getStationPowerByHour',                     body: { ps_id: psIdStr, date: date } },
-            { path: '/openapi/queryPsKpiForHour',                         body: { ps_id: psIdStr, date_id: date } },
-            { path: '/v1/api/queryPsDay',                                 body: { ps_id: psIdStr, date_id: date } },
-            { path: '/v1/api/getPsDay',                                   body: { ps_id: psIdStr, date_id: date } },
-            { path: '/v1/api/getDayPowerCurve',                           body: { ps_id: psIdStr, date_id: date } },
-            { path: '/v1/api/getPowerStationPowerCurve',                  body: { ps_id: psIdStr, date_id: date } },
-          ];
-          for (const ep of endpoints) {
-            const res = await post(ep.path, ep.body);
-            const code = String(res?.result_code || '');
-            console.log(`[getSungrowGraph day] ${ep.path} sys=${sess.sys_code} code=${code}`);
-            if (code === '1') { result = { endpoint: ep.path, data: res.result_data }; break; }
-          }
-        } else if (timeframe === 'month') {
-          const endpoints = [
-            { path: '/v1/powerStationService/queryPowerStationByMonth', body: { ps_id: psIdStr, date_id: date } },
-            { path: '/v1/powerStationService/queryPsKpiForMonth',       body: { ps_id: psIdStr, date_id: date } },
-            { path: '/openapi/getPsMonth',                               body: { ps_id: psIdStr, date_id: date } },
-            { path: '/openapi/getPsMonth',                               body: { ps_id_list: [psIdStr], date_id: date } },
-            { path: '/openapi/queryPsMonth',                             body: { ps_id: psIdStr, date_id: date } },
-            { path: '/openapi/getPsKpiMonth',                            body: { ps_id: psIdStr, date_id: date } },
-            { path: '/openapi/getPsKpiMonth',                            body: { ps_id: psIdStr, month: date } },
-            { path: '/openapi/queryPsKpiForDay',                         body: { ps_id: psIdStr, date_id: date } },
-            { path: '/openapi/getMonthPowerGeneration',                  body: { ps_id: psIdStr, date_id: date } },
-            { path: '/v1/api/queryPsMonth',                              body: { ps_id: psIdStr, date_id: date } },
-            { path: '/v1/api/getPsMonth',                                body: { ps_id: psIdStr, date_id: date } },
-          ];
-          for (const ep of endpoints) {
-            const res = await post(ep.path, ep.body);
-            const code = String(res?.result_code || '');
-            console.log(`[getSungrowGraph month] ${ep.path} sys=${sess.sys_code} code=${code} sample=${JSON.stringify(res?.result_data)?.substring(0,150)}`);
-            if (code === '1') { result = { endpoint: ep.path, data: res.result_data }; break; }
-          }
-        } else if (timeframe === 'year') {
-          const endpoints = [
-            { path: '/v1/powerStationService/queryPowerStationByYear',  body: { ps_id: psIdStr, date_id: date } },
-            { path: '/v1/powerStationService/queryPsKpiForYear',        body: { ps_id: psIdStr, date_id: date } },
-            { path: '/openapi/getPsYear',                                body: { ps_id: psIdStr, date_id: date } },
-            { path: '/openapi/getPsYear',                                body: { ps_id_list: [psIdStr], date_id: date } },
-            { path: '/openapi/queryPsYear',                              body: { ps_id: psIdStr, date_id: date } },
-            { path: '/openapi/getPsKpiYear',                             body: { ps_id: psIdStr, date_id: date } },
-            { path: '/openapi/getPsKpiYear',                             body: { ps_id: psIdStr, year: date } },
-            { path: '/openapi/queryPsKpiForMonth',                       body: { ps_id: psIdStr, date_id: date } },
-            { path: '/openapi/getYearPowerGeneration',                   body: { ps_id: psIdStr, date_id: date } },
-            { path: '/v1/api/queryPsYear',                               body: { ps_id: psIdStr, date_id: date } },
-            { path: '/v1/api/getPsYear',                                 body: { ps_id: psIdStr, date_id: date } },
-          ];
-          for (const ep of endpoints) {
-            const res = await post(ep.path, ep.body);
-            const code = String(res?.result_code || '');
-            console.log(`[getSungrowGraph year] ${ep.path} sys=${sess.sys_code} code=${code}`);
-            if (code === '1') { result = { endpoint: ep.path, data: res.result_data }; break; }
+        const endpointSets = buildEndpoints(timeframe, psIdStr, date);
+
+        for (const ep of endpointSets) {
+          const res = await post(ep.path, ep.body);
+          const code = String(res?.result_code || '');
+          const sample = JSON.stringify(res?.result_data)?.substring(0, 200);
+          console.log(`[getSungrowGraph ${timeframe}] ${ep.path} sess=${sess.label} code=${code} sample=${sample}`);
+          if (code === '1') {
+            result = { endpoint: ep.path, data: res.result_data };
+            break;
           }
         }
       }
     }
 
-    // Fallback: build from DB snapshots / site aggregates
+    // Fallback: build from DB
     if (!result) {
-      console.log(`[getSungrowGraph] No live endpoint worked, trying DB fallback...`);
       result = await buildFromDbFallback(base44, ps_id, timeframe, date);
     }
 
@@ -169,6 +134,55 @@ Deno.serve(async (req) => {
     return Response.json({ error: error.message }, { status: 500 });
   }
 });
+
+function buildEndpoints(timeframe, psIdStr, date) {
+  if (timeframe === 'day') {
+    return [
+      { path: '/v1/powerStationService/queryPsDay',          body: { ps_id: psIdStr, date_id: date } },
+      { path: '/v1/powerStationService/queryPsByDay',         body: { ps_id: psIdStr, date_id: date } },
+      { path: '/v1/powerStationService/queryPsKpiForHour',   body: { ps_id: psIdStr, date_id: date } },
+      { path: '/v1/powerStationService/queryDeviceByDay',     body: { ps_id: psIdStr, date_id: date } },
+      { path: '/openapi/getPsDay',                            body: { ps_id: psIdStr, date_id: date } },
+      { path: '/openapi/getPsDay',                            body: { ps_id_list: [psIdStr], date_id: date } },
+      { path: '/openapi/queryPsDay',                          body: { ps_id: psIdStr, date_id: date } },
+      { path: '/openapi/getPowerStationPowerCurve',           body: { ps_id: psIdStr, date_id: date } },
+      { path: '/openapi/getDayPowerCurve',                    body: { ps_id: psIdStr, date_id: date } },
+      { path: '/openapi/getPsKpiDay',                         body: { ps_id: psIdStr, date_id: date } },
+      { path: '/openapi/getPsKpiDay',                         body: { ps_id_list: [psIdStr], date_id: date } },
+      { path: '/openapi/queryPsKpiForHour',                   body: { ps_id: psIdStr, date_id: date } },
+      { path: '/openapi/getStationPowerByHour',               body: { ps_id: psIdStr, date: date } },
+    ];
+  }
+  if (timeframe === 'month') {
+    return [
+      { path: '/v1/powerStationService/queryPsMonth',        body: { ps_id: psIdStr, date_id: date } },
+      { path: '/v1/powerStationService/queryPsByMonth',       body: { ps_id: psIdStr, date_id: date } },
+      { path: '/v1/powerStationService/queryPsKpiForDay',    body: { ps_id: psIdStr, date_id: date } },
+      { path: '/openapi/getPsMonth',                          body: { ps_id: psIdStr, date_id: date } },
+      { path: '/openapi/getPsMonth',                          body: { ps_id_list: [psIdStr], date_id: date } },
+      { path: '/openapi/queryPsMonth',                        body: { ps_id: psIdStr, date_id: date } },
+      { path: '/openapi/getPsKpiMonth',                       body: { ps_id: psIdStr, date_id: date } },
+      { path: '/openapi/getPsKpiMonth',                       body: { ps_id: psIdStr, month: date } },
+      { path: '/openapi/queryPsKpiForDay',                    body: { ps_id: psIdStr, date_id: date } },
+      { path: '/openapi/getMonthPowerGeneration',             body: { ps_id: psIdStr, date_id: date } },
+    ];
+  }
+  if (timeframe === 'year') {
+    return [
+      { path: '/v1/powerStationService/queryPsYear',         body: { ps_id: psIdStr, date_id: date } },
+      { path: '/v1/powerStationService/queryPsByYear',        body: { ps_id: psIdStr, date_id: date } },
+      { path: '/v1/powerStationService/queryPsKpiForMonth',  body: { ps_id: psIdStr, date_id: date } },
+      { path: '/openapi/getPsYear',                           body: { ps_id: psIdStr, date_id: date } },
+      { path: '/openapi/getPsYear',                           body: { ps_id_list: [psIdStr], date_id: date } },
+      { path: '/openapi/queryPsYear',                         body: { ps_id: psIdStr, date_id: date } },
+      { path: '/openapi/getPsKpiYear',                        body: { ps_id: psIdStr, date_id: date } },
+      { path: '/openapi/getPsKpiYear',                        body: { ps_id: psIdStr, year: date } },
+      { path: '/openapi/queryPsKpiForMonth',                  body: { ps_id: psIdStr, date_id: date } },
+      { path: '/openapi/getYearPowerGeneration',              body: { ps_id: psIdStr, date_id: date } },
+    ];
+  }
+  return [];
+}
 
 async function buildFromDbFallback(base44, ps_id, timeframe, date) {
   try {
@@ -202,7 +216,5 @@ async function buildFromDbFallback(base44, ps_id, timeframe, date) {
       yearly_yield: site.yearly_yield_kwh,
       lifetime_yield: site.lifetime_yield_kwh
     }};
-  } catch(e) {
-    return null;
-  }
+  } catch(e) { return null; }
 }
