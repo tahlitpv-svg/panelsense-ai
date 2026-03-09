@@ -792,7 +792,9 @@ ${JSON.stringify(faultTypeSummaries, null, 2)}
           const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
           if (accountSid && authToken) {
             const whatsappMsg = `━━━━━━━━━━━━━━━━━━━━━\n⚡ *Panel Sense AI* ⚡\n━━━━━━━━━━━━━━━━━━━━━\n\n${severityIcon} *התראת תקלה - ${severityText}*\n\n📍 *אתר:* ${site.name}\n👤 *לקוח:* ${site.contact_name || '---'}\n⚠️ *סוג תקלה:* ${matchedFt.name}\n\n📋 *פירוט:*\n${message}${solutionText}\n\n🕐 *זמן זיהוי:* ${timeStr}\n\n━━━━━━━━━━━━━━━━━━━━━\n🌐 *Panel Sense AI*`;
-            const toFormatted = site.contact_phone.startsWith('whatsapp:') ? site.contact_phone : `whatsapp:${site.contact_phone}`;
+            let phoneNorm2 = site.contact_phone.trim();
+            if (phoneNorm2.startsWith('0') && !phoneNorm2.startsWith('00')) phoneNorm2 = '+972' + phoneNorm2.slice(1);
+            const toFormatted = phoneNorm2.startsWith('whatsapp:') ? phoneNorm2 : `whatsapp:${phoneNorm2}`;
             const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
             const params = new URLSearchParams({ To: toFormatted, From: 'whatsapp:+14155238886', Body: whatsappMsg });
             const waRes = await fetch(url, { method: 'POST', headers: { 'Authorization': 'Basic ' + btoa(`${accountSid}:${authToken}`), 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
