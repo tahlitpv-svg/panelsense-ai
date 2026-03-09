@@ -83,25 +83,80 @@ export default function SiteProductionChart({ stationId, sungrowStationId, sungr
   };
   const dayTickValues = [5 * 60, 12 * 60, 20 * 60];
 
-  const queryKey = ['stationGraph_v3', stationId, timeframe, offset];
+  const queryKey = ['stationGraph_v4', stationId, sungrowStationId, timeframe, offset];
 
   const { data: chartData, isLoading } = useQuery({
     queryKey,
     queryFn: async () => {
-      if (!stationId) return [];
+      if (!stationId && !sungrowStationId) return [];
 
-      // Daily — read from DB snapshots, fallback to live Solis pull
+      // ── SUNGROW path ──
+      if (isSungrow) {
+        const sgTimeframe = isDay ? 'day' : timeframe;
+        const sgDate = isDay ? format(refDate, 'yyyyMMdd') : timeframe === 'month' ? format(refDate, 'yyyyMM') : format(refDate, 'yyyy');
+        const res = await base44.functions.invoke('getSungrowGraphData', {
+          connection_id: sungrowConnectionId,
+          ps_id: sungrowStationId,
+          timeframe: sgTimeframe,
+          date: sgDate
+        });
+        const sgResult = res.data?.result;
+        if (!sgResult) return [];
+        const d = sgResult.data;
+
+        if (isDay) {
+          // Try various structures for power curve
+          const points = d?.pointList || d?.powerList || d?.dataList || d?.curveList || [];
+          if (points.length > 0) {
+            return points.map(p => {
+              const timeStr = p.time_str || p.time || p.pointTime || '';
+              const match = timeStr.match(/(\d{2}:\d{2})/);
+              const label = match ? match[1] : timeStr.slice(-5);
+              const val = parseFloat(p.p_value ?? p.power ?? p.value ?? 0) || 0;
+              // Sungrow power curve is in W or kW — if max value > 1000, it's W
+              return { label, value: val, minutes: label ? timeToMinutes(label) : 0 };
+            }).filter(p => p.label).sort((a, b) => a.minutes - b.minutes);
+          }
+          return [];
+        }
+
+        if (timeframe === 'month') {
+          const items = d?.dataList || d?.energyList || d?.dayEnergyList || [];
+          const daysInMonth = getDaysInMonth(refDate);
+          const byDay = {};
+          items.forEach(item => {
+            const dateStr = item.date_id || item.date || item.time || '';
+            const day = parseInt(dateStr.slice(-2), 10);
+            if (day) byDay[day] = parseFloat(item.energy || item.p_value || item.value || 0) || 0;
+          });
+          return Array.from({ length: daysInMonth }, (_, i) => ({
+            label: String(i + 1).padStart(2, '0'),
+            value: byDay[i + 1] || 0
+          }));
+        }
+
+        if (timeframe === 'year') {
+          const items = d?.dataList || d?.energyList || d?.monthEnergyList || [];
+          const byMonth = {};
+          items.forEach(item => {
+            const dateStr = item.date_id || item.date || item.time || '';
+            const m = dateStr.slice(-2);
+            if (m) byMonth[m] = parseFloat(item.energy || item.p_value || item.value || 0) || 0;
+          });
+          const months = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+          return months.map(m => ({ label: m, value: byMonth[m] || 0 }));
+        }
+        return [];
+      }
+
+      // ── SOLIS path (original) ──
       if (isDay) {
         const dateKey = format(refDate, 'yyyy-MM-dd');
         const snaps = await base44.entities.SiteGraphSnapshot.filter({ station_id: stationId, date_key: dateKey });
         let raw = snaps?.[0]?.data || [];
         const existingSnapshotId = snaps?.[0]?.id || null;
-
-        // Check if snapshot is corrupted (contains empty times from older bug)
-        // A healthy snapshot only contains valid time strings like "06:05"
         const hasValidTimes = raw.length > 0 && !raw.some(d => !d.time || d.time === '');
 
-        // If no snapshot or snapshot is corrupt, fetch from Solis
         if (raw.length === 0 || !hasValidTimes) {
           const res = await base44.functions.invoke('getSolisGraphData', {
             endpoint: '/v1/api/stationDay',
@@ -111,72 +166,45 @@ export default function SiteProductionChart({ stationId, sungrowStationId, sungr
           raw = solisRaw.map(item => {
             let label = '';
             if (item.timeStr) {
-              const ts = item.timeStr.trim();
-              const timeMatch = ts.match(/(\d{2}:\d{2})/);
-              label = timeMatch ? timeMatch[1] : '';
+              const match = item.timeStr.trim().match(/(\d{2}:\d{2})/);
+              label = match ? match[1] : '';
             }
             const pec = parseFloat(item.powerPec) || 0.001;
             const valueKw = parseFloat(((parseFloat(item.power) || 0) * pec).toFixed(3));
             return { time: label, value: isFinite(valueKw) ? valueKw : 0 };
           }).filter(d => d.time !== '');
           raw.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
-
-          // Save/update to DB for next time (don't await to keep UI fast)
           if (raw.length > 0) {
-            if (existingSnapshotId) {
-              base44.entities.SiteGraphSnapshot.update(existingSnapshotId, { data: raw }).catch(() => {});
-            } else {
-              base44.entities.SiteGraphSnapshot.create({ station_id: stationId, date_key: dateKey, data: raw }).catch(() => {});
-            }
+            if (existingSnapshotId) base44.entities.SiteGraphSnapshot.update(existingSnapshotId, { data: raw }).catch(() => {});
+            else base44.entities.SiteGraphSnapshot.create({ station_id: stationId, date_key: dateKey, data: raw }).catch(() => {});
           }
         }
-
-        const mapped = raw
-          .filter(d => d.time && d.time !== '')
-          .map((d) => ({ label: d.time, minutes: timeToMinutes(d.time), value: d.value }));
-        mapped.sort((a, b) => a.minutes - b.minutes);
-        return mapped;
+        return raw.filter(d => d.time).map(d => ({ label: d.time, minutes: timeToMinutes(d.time), value: d.value })).sort((a, b) => a.minutes - b.minutes);
       }
 
-      // Month / Year — keep using live pull
       let endpoint = '';
       let body = { id: stationId, timezone: 2 };
-
-      if (timeframe === 'month') {
-        endpoint = '/v1/api/stationMonth';
-        body.month = format(refDate, 'yyyy-MM');
-      } else if (timeframe === 'year') {
-        endpoint = '/v1/api/stationYear';
-        body.year = format(refDate, 'yyyy');
-      }
+      if (timeframe === 'month') { endpoint = '/v1/api/stationMonth'; body.month = format(refDate, 'yyyy-MM'); }
+      else if (timeframe === 'year') { endpoint = '/v1/api/stationYear'; body.year = format(refDate, 'yyyy'); }
 
       const res = await base44.functions.invoke('getSolisGraphData', { endpoint, body });
       if (!res.data?.success || !res.data?.data) return [];
       const raw = res.data.data;
-
       const dcCap = Number(site?.dc_capacity_kwp) || Number(site?.ac_capacity_kw) || 0;
 
       const parseEnergyToKwh = (item, isMonthly) => {
-        const cleanEnergyStr = String(item.energy || '0').replace(/,/g, '');
-        const raw = parseFloat(cleanEnergyStr) || 0;
-        const pecStr = String(item.energyPec !== undefined ? item.energyPec : '1').replace(/,/g, '');
-        const pec = parseFloat(pecStr) || 1;
-        const valInUnit = raw * pec;
+        const rawVal = parseFloat(String(item.energy || '0').replace(/,/g, '')) || 0;
+        const pec = parseFloat(String(item.energyPec !== undefined ? item.energyPec : '1').replace(/,/g, '')) || 1;
+        const valInUnit = rawVal * pec;
         const unit = (item.energyStr || '').toLowerCase();
-        
         let kwh = valInUnit;
         if (unit === 'gwh') kwh = valInUnit * 1000000;
         else if (unit === 'mwh') kwh = valInUnit * 1000;
         else if (unit === 'wh') kwh = valInUnit / 1000;
-        
-        // Failsafe for Solis API bugs (sometimes raw data is 1000x too large due to missing decimal)
         if (dcCap > 0) {
-           const maxReasonable = isMonthly ? dcCap * 350 : dcCap * 15;
-           if (kwh > maxReasonable * 5) {
-              kwh = kwh / 1000;
-           }
+          const maxReasonable = isMonthly ? dcCap * 350 : dcCap * 15;
+          if (kwh > maxReasonable * 5) kwh = kwh / 1000;
         }
-        
         return kwh;
       };
 
@@ -188,12 +216,8 @@ export default function SiteProductionChart({ stationId, sungrowStationId, sungr
           const day = parts.length > 2 ? parseInt(parts[2], 10) : null;
           if (day) byDay[day] = parseEnergyToKwh(item, false);
         });
-        return Array.from({ length: daysInMonth }, (_, i) => ({
-          label: String(i + 1).padStart(2, '0'),
-          value: byDay[i + 1] || 0
-        }));
+        return Array.from({ length: daysInMonth }, (_, i) => ({ label: String(i + 1).padStart(2, '0'), value: byDay[i + 1] || 0 }));
       }
-
       if (timeframe === 'year') {
         const months = ['01','02','03','04','05','06','07','08','09','10','11','12'];
         const byMonth = {};
@@ -204,10 +228,9 @@ export default function SiteProductionChart({ stationId, sungrowStationId, sungr
         });
         return months.map(m => ({ label: m, value: byMonth[m] || 0 }));
       }
-
       return [];
     },
-    enabled: !!stationId
+    enabled: !!(stationId || sungrowStationId)
   });
 
   // Calculate daily total kWh from power curve using trapezoid integration
