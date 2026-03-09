@@ -140,31 +140,30 @@ Deno.serve(async (req) => {
           const detail = detailRes?.result_data || {};
 
           // Sungrow returns values as objects: {"unit": "kWh", "value": "537.6"} or plain numbers
-          // This helper extracts the numeric value and converts to our standard units
-          function parseField(field, targetUnit = null) {
+          function parseField(field) {
             if (!field && field !== 0) return 0;
             if (typeof field === 'object' && field !== null && 'value' in field) {
               const num = parseFloat(field.value) || 0;
               const unit = (field.unit || '').toLowerCase();
-              // Convert to kW / kWh
-              if (unit === 'w') return num / 1000;         // W → kW
-              if (unit === 'mwh') return num * 1000;       // MWh → kWh
-              if (unit === 'gwh') return num * 1000000;    // GWh → kWh (lifetime)
-              return num;                                   // already kW or kWh
+              if (unit === 'w') return num / 1000;
+              if (unit === 'mwh') return num * 1000;
+              if (unit === 'gwh') return num * 1000000;
+              return num;
             }
             return parseFloat(field) || 0;
           }
 
-          const currentPower = parseField(station.curr_power);   // W → kW
-          const dailyYield = parseField(station.today_energy);   // kWh or MWh → kWh
-          const monthlyYield = parseField(station.month_energy); // kWh or MWh → kWh
-          const yearlyYield = parseField(station.year_energy);   // kWh or MWh → kWh
-          const lifetimeYield = parseField(station.total_energy); // MWh/GWh → kWh
+          const currentPower = parseField(station.curr_power);
+          const dailyYield = parseField(station.today_energy);
+          const monthlyYield = parseField(station.month_energy);
+          const yearlyYield = parseField(station.year_energy);
+          const lifetimeYield = parseField(station.total_energy);
 
-          const healthState = detail.ps_health_state ?? station.ps_health_state;
+          // ps_status: 1=online, 2=offline, 3=fault/warning
+          const psStatus = station.ps_status;
           let status = 'online';
-          if (healthState === '1') status = 'warning';
-          else if (healthState === '2') status = 'offline';
+          if (psStatus === 2 || psStatus === '2') status = 'offline';
+          else if (psStatus === 3 || psStatus === '3') status = 'warning';
 
           const updateData = {
             current_power_kw: currentPower,
@@ -177,16 +176,104 @@ Deno.serve(async (req) => {
             sungrow_connection_id: conn.id
           };
 
-          // Only set capacity if not already set
-          if (!site.dc_capacity_kwp || site.dc_capacity_kwp === 0) {
-            const capField = detail.design_capacity ?? station.design_capacity ?? station.total_capcity;
-            const cap = parseField(capField);
-            if (cap > 0) updateData.dc_capacity_kwp = cap;
+          // Capacity: prefer total_capcity from station list (already in kWp), fallback to design_capacity
+          // design_capacity comes in Watts from API, total_capcity comes in kWp
+          const capFromStation = parseField(station.total_capcity); // kWp
+          if (capFromStation > 0) {
+            updateData.dc_capacity_kwp = capFromStation;
+          } else if (!site.dc_capacity_kwp || site.dc_capacity_kwp === 0) {
+            const capFromDetail = parseFloat(detail.design_capacity || 0);
+            if (capFromDetail > 0) {
+              // design_capacity is in Watts if > 5000, convert to kWp
+              updateData.dc_capacity_kwp = capFromDetail > 5000 ? capFromDetail / 1000 : capFromDetail;
+            }
           }
 
           await db.entities.Site.update(site.id, updateData);
           totalUpdated++;
-          console.log(`[syncSungrow] Updated site ${site.name}: power=${currentPower}kW daily=${dailyYield}kWh`);
+          console.log(`[syncSungrow] Updated site ${site.name}: power=${currentPower}kW daily=${dailyYield}kWh cap=${updateData.dc_capacity_kwp || site.dc_capacity_kwp}kWp`);
+
+          // --- Sync inverters for this station ---
+          try {
+            const devListRes = await sungrowPost(base_url, '/openapi/getPsDeviceList', conn.config, token, user_id, { ps_id: psId });
+            const devices = devListRes?.result_data?.deviceListItems || devListRes?.result_data?.list || [];
+            const inverterDevices = devices.filter(d => d.dev_type === 1 || d.device_type === 1 || (d.dev_type_name || '').toLowerCase().includes('inverter'));
+            console.log(`[syncSungrow] ps_id=${psId} devices=${devices.length} inverters=${inverterDevices.length}`);
+
+            for (const dev of inverterDevices) {
+              const devSn = String(dev.dev_sn || dev.sn || dev.device_sn || '');
+              const devId = String(dev.dev_id || dev.device_id || dev.id || '');
+              if (!devSn && !devId) continue;
+
+              // Fetch device real-time data
+              let devData = {};
+              try {
+                const rtRes = await sungrowPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, { dev_sn: devSn, ps_id: psId });
+                if (rtRes?.result_code === '1' || rtRes?.result_code === 1) {
+                  devData = rtRes?.result_data || {};
+                }
+              } catch(e) {}
+
+              // Parse inverter real-time values
+              function parseDevField(key) {
+                const v = devData[key];
+                return v !== undefined ? (parseFloat(v) || 0) : 0;
+              }
+
+              const acPower = parseDevField('p_ac') || parseDevField('total_active_power') || parseDevField('pac');
+              const dcPower = parseDevField('total_dc_power') || parseDevField('p_dc');
+              const temp = devData['temperature'] !== undefined ? parseFloat(devData['temperature']) : null;
+              const dailyYieldInv = parseDevField('daily_yield_energy') || parseDevField('today_yield');
+
+              // MPPT strings
+              const mpptStrings = [];
+              for (let i = 1; i <= 32; i++) {
+                const v = devData[`mppt_${i}_volt`] || devData[`pv${i}_volt`] || devData[`u_pv${i}`];
+                const a = devData[`mppt_${i}_curr`] || devData[`pv${i}_curr`] || devData[`i_pv${i}`];
+                if (v === undefined) break;
+                const vNum = parseFloat(v) || 0;
+                const aNum = parseFloat(a) || 0;
+                if (vNum === 0 && aNum === 0) continue;
+                mpptStrings.push({ string_id: `PV${i}`, voltage_v: vNum, current_a: aNum, power_kw: parseFloat(((vNum * aNum) / 1000).toFixed(3)) });
+              }
+
+              // Phase voltages
+              const phase_voltages = {
+                l1: parseDevField('ab_volt') || parseDevField('phase_a_volt') || parseDevField('u_ac1'),
+                l2: parseDevField('bc_volt') || parseDevField('phase_b_volt') || parseDevField('u_ac2'),
+                l3: parseDevField('ca_volt') || parseDevField('phase_c_volt') || parseDevField('u_ac3'),
+              };
+
+              const efficiency = dcPower > 0 ? parseFloat(((acPower / dcPower) * 100).toFixed(1)) : 0;
+              const devStatus = (dev.dev_status || dev.status) === 1 ? 'online' : (dev.dev_status || dev.status) === 2 ? 'warning' : 'offline';
+
+              const invData = {
+                site_id: site.id,
+                name: devSn || devId,
+                model: dev.dev_model || dev.model || '',
+                rated_power_kw: parseFloat(dev.dev_capacity || dev.rated_power || 0) || 0,
+                current_ac_power_kw: acPower,
+                current_dc_power_kw: dcPower,
+                efficiency_percent: efficiency,
+                temperature_c: temp,
+                status: devStatus,
+                daily_yield_kwh: dailyYieldInv,
+                mppt_strings: mpptStrings,
+                phase_voltages,
+                sungrow_device_sn: devSn,
+                sungrow_device_id: devId
+              };
+
+              const existingInvs = await db.entities.Inverter.filter({ sungrow_device_sn: devSn });
+              if (existingInvs.length > 0) {
+                await db.entities.Inverter.update(existingInvs[0].id, invData);
+              } else {
+                await db.entities.Inverter.create(invData);
+              }
+            }
+          } catch(e) {
+            console.log(`[syncSungrow] Inverter sync error for ps_id=${psId}: ${e.message}`);
+          }
         }
 
         // Update connection status
