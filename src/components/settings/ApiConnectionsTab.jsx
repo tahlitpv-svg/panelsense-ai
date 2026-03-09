@@ -34,10 +34,11 @@ const PROVIDERS = [
     description: 'SunGrow - פורטל מפתחים של iSolarCloud (OAuth 2.0)',
     fields: [
       { key: 'app_key', label: 'App Key', placeholder: 'מפתח האפליקציה מפורטל המפתחים', sensitive: false },
-      { key: 'app_secret', label: 'App Secret', placeholder: 'הסוד של האפליקציה', sensitive: true },
+      { key: 'app_secret', label: 'App Secret (Key)', placeholder: 'הסוד של האפליקציה', sensitive: true },
       { key: 'user_account', label: 'User Account', placeholder: 'שם משתמש iSolarCloud', sensitive: false },
       { key: 'user_password', label: 'User Password', placeholder: 'סיסמת iSolarCloud', sensitive: true },
-      { key: 'base_url', label: 'Base URL', placeholder: 'https://gateway.isolarcloud.com.hk', sensitive: false }
+      { key: 'app_id', label: 'Application ID (OAuth)', placeholder: '3048 (מתוך ה-Authorization URL)', sensitive: false },
+      { key: 'base_url', label: 'Base URL', placeholder: 'https://gateway.isolarcloud.eu', sensitive: false }
     ],
     link: { url: 'https://developer-api.isolarcloud.com/', label: 'פורטל מפתחים של SunGrow →' }
   },
