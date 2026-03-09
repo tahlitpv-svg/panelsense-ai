@@ -336,6 +336,11 @@ export default function ApiConnectionsTab() {
     onSuccess: () => queryClient.invalidateQueries(['apiConnections'])
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.ApiConnection.update(id, data),
+    onSuccess: () => { queryClient.invalidateQueries(['apiConnections']); setEditingConn(null); }
+  });
+
   const handleTest = async (connId) => {
     setTestingId(connId);
     try {
