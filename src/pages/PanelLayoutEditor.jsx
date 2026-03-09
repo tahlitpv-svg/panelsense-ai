@@ -336,41 +336,38 @@ export default function PanelLayoutEditor() {
 
         {/* Canvas - Main Area */}
         <Card className="flex-1 border border-slate-200 bg-white overflow-auto relative flex flex-col">
-          <div>
-            <h3 className="font-bold text-sm text-slate-700 mb-2">סטרינגים</h3>
-            <div className="space-y-2">
-              {strings.map(s => {
-                const panelCount = panels.filter(p => p.string_id === s.string_id).length;
-                return (
-                  <div key={s.string_id} className="flex items-center justify-between p-2 rounded-lg border border-slate-100 bg-slate-50">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded" style={{ backgroundColor: stringColors[s.string_id] }} />
-                      <span className="text-sm font-medium text-slate-700">{s.string_id}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-500">{panelCount}/{s.num_panels}</span>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 text-xs"
-                        onClick={() => generateStringPanels(s)}
-                        disabled={panelCount >= s.num_panels}
-                      >
-                        <Plus className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
+          {/* Toolbar */}
+          <div className="border-b border-slate-100 px-4 py-3 flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setImageScale(s => Math.max(0.5, s - 0.2))}>
+                <ZoomOut className="w-4 h-4" />
+              </Button>
+              <span className="text-xs text-slate-500 w-12 text-center">{Math.round(imageScale * 100)}%</span>
+              <Button variant="outline" size="sm" onClick={() => setImageScale(s => Math.min(3, s + 0.2))}>
+                <ZoomIn className="w-4 h-4" />
+              </Button>
             </div>
-            <Button variant="outline" className="w-full mt-3 text-xs gap-1" onClick={generateAllPanels}>
-              <Grid3X3 className="w-3.5 h-3.5" />
-              יצור את כל הפנלים
-            </Button>
+            {backgroundImage && (
+              <Button variant="outline" size="sm" className="text-xs gap-1" onClick={clearBlueprint}>
+                <Trash2 className="w-3 h-3" />
+                הסר
+              </Button>
+            )}
+            {!backgroundImage && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-xs gap-1"
+                onClick={() => blueprintInputRef.current?.click()}
+              >
+                <Upload className="w-3 h-3" />
+                העלה blueprint
+              </Button>
+            )}
           </div>
 
-          <div className="border-t border-slate-100 pt-3 space-y-2">
-            <h3 className="font-bold text-sm text-slate-700 mb-2">תמונת blueprint</h3>
+          {/* Canvas area */}
+          <div className="flex-1 overflow-auto relative" style={{ background: backgroundImage ? 'transparent' : 'linear-gradient(135deg, #f5f5f5 0%, #e5e5e5 100%)' }}>
             <input type="file" ref={blueprintInputRef} className="hidden" accept="image/*" onChange={handleBlueprintUpload} />
             {!backgroundImage ? (
               <Button variant="outline" className="w-full text-xs gap-2" onClick={() => blueprintInputRef.current?.click()}>
