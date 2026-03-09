@@ -137,7 +137,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Fallback: build from DB
+    // Fallback: try to get aggregated data from station list API (works on Basic plan)
+    if (!result) {
+      result = await tryStationListFallback(base44, conn, ps_id, timeframe, date);
+    }
+
+    // Final fallback: build from DB snapshots
     if (!result) {
       result = await buildFromDbFallback(base44, ps_id, timeframe, date);
     }
