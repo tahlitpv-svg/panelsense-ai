@@ -157,7 +157,7 @@ export default function PanelLayoutEditor() {
 
           stringCounts[sid] = (stringCounts[sid] || 0) + 1;
           return {
-            id: \`ai_\${Date.now()}_\${idx}\`,
+            id: `ai_${Date.now()}_${idx}`,
             x: snapToGrid(p.x || 100),
             y: snapToGrid(p.y || 100),
             width: p.width || PANEL_W,
