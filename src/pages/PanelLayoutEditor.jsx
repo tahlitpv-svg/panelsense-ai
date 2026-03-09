@@ -120,19 +120,18 @@ export default function PanelLayoutEditor() {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       
       const res = await base44.integrations.Core.InvokeLLM({
-        prompt: `Analyze this solar panel layout blueprint. Extract the exact grid positions of each panel based on rows and columns.
-        Return panels organized in a clean grid format.
+        prompt: `Analyze this solar panel layout blueprint carefully.
+        IMPORTANT: Look for lines (diagonal or curved) that connect panels - these lines show which panels belong to the same string and in what sequence order.
         Instructions:
-        1. Identify each distinct string (e.g., S1, S2, S3, S4, S5) from the blueprint labels or color groups
-        2. For each panel within a string, identify its row and column position (1-based)
-        3. Arrange panels in a regular grid with consistent spacing:
-           - Panel dimensions: width 50, height 70 pixels (standard vertical orientation)
-           - Horizontal spacing between panels in same row: 10 pixels
-           - Vertical spacing between rows: 10 pixels
-           - Start position: x=50, y=50
-        4. Calculate coordinates based on column and row: x = 50 + (col-1)*60, y = 50 + (row-1)*80
-        5. Each panel should have: x, y, width, height (50x70 for vertical, 70x50 for horizontal), string_id, rotation (0 for vertical, 90 for horizontal)
-        Return only the panels array with correct grid positioning.`,
+        1. Trace the lines on the blueprint - each line represents one string and shows the sequence of panels in that string
+        2. Follow each line from start to end to identify the panel order (1st, 2nd, 3rd... panel in that string)
+        3. Group panels by the line they follow - this determines the string_id
+        4. Use the line path to determine the correct x,y positioning for each panel:
+           - Panels connected by the same line should maintain their relative positions from the blueprint
+           - First panel in line starts at lower position, subsequent panels follow along the line path
+           - Preserve the visual flow/path shown by the line
+        5. For each panel: extract x, y from blueprint position, width and height based on orientation (vertical/horizontal), string_id from line group, panel_index from position in line sequence, rotation (0 for vertical, 90 for horizontal)
+        Return panels array maintaining the exact sequence and positioning shown by the blueprint lines.`,
         file_urls: [file_url],
         response_json_schema: {
           type: "object",
