@@ -297,6 +297,8 @@ export default function SiteDetails() {
                           <TemperatureChart
                             inverterId={inverter.solis_inverter_id}
                             inverterSn={inverter.solis_sn}
+                            inverter={inverter}
+                            site={site}
                           />
                         </div>
                       )}
