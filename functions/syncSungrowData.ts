@@ -5,8 +5,22 @@ function md5(str) {
   return createHash('md5').update(str, 'utf8').digest('hex');
 }
 
-// Login to Sungrow and return { token, user_id, base_url }
+// Login to Sungrow and return { token, user_id, base_url, auth_method }
+// Prefers OAuth2 token if available, falls back to password login
 async function sungrowLogin(config) {
+  // Try OAuth2 first if available
+  if (config.auth_method === 'oauth2' && config.oauth_access_token) {
+    const baseUrl = config.oauth_base_url || config.base_url || 'https://gateway.isolarcloud.eu';
+    console.log(`[sungrowLogin] Using OAuth2 token, base_url=${baseUrl}`);
+    return {
+      token: config.oauth_access_token,
+      user_id: config.oauth_user_id || '',
+      base_url: baseUrl.replace(/\/$/, ''),
+      auth_method: 'oauth2'
+    };
+  }
+
+  // Fallback to standard login
   const candidates = [];
   if (config.base_url && config.base_url.trim()) {
     candidates.push(config.base_url.trim().replace(/\/$/, ''));
@@ -37,7 +51,8 @@ async function sungrowLogin(config) {
         return {
           token: data.result_data.token,
           user_id: data.result_data.user_id,
-          base_url: baseUrl
+          base_url: baseUrl,
+          auth_method: 'login'
         };
       }
     } catch (e) {
