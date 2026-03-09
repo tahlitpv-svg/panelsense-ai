@@ -315,18 +315,6 @@ export default function PanelLayoutEditor() {
               יצור את כל הפנלים
             </Button>
 
-            <div className="mt-4 pt-4 border-t border-slate-100">
-              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
-              <Button 
-                variant="default" 
-                className="w-full text-xs gap-2 bg-purple-600 hover:bg-purple-700 text-white" 
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isAnalyzing}
-              >
-                {isAnalyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bot className="w-3.5 h-3.5" />}
-                {isAnalyzing ? 'מנתח תמונה...' : 'בנה אוטומטית בעזרת AI'}
-              </Button>
-            </div>
           </div>
 
           {/* Selected panel info */}
