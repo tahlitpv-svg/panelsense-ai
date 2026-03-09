@@ -9,8 +9,8 @@ import { ArrowRight, Save, Plus, Trash2, RotateCw, Grid3X3, MousePointer2, ZoomI
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
-const PANEL_W = 60;
-const PANEL_H = 40;
+const PANEL_W = 40;
+const PANEL_H = 60;
 const GRID_SIZE = 10;
 
 function snapToGrid(val) {
@@ -46,7 +46,13 @@ export default function PanelLayoutEditor() {
   // Load existing layout
   useEffect(() => {
     if (existingLayout?.panels) {
-      setPanels(existingLayout.panels);
+      const flipped = existingLayout.panels.map(p => {
+        if (p.width > p.height) {
+          return { ...p, width: p.height, height: p.width };
+        }
+        return p;
+      });
+      setPanels(flipped);
     }
   }, [existingLayout]);
 
@@ -173,8 +179,12 @@ export default function PanelLayoutEditor() {
   // Rotate selected panel
   const rotatePanel = () => {
     if (!selectedPanel) return;
+    rotatePanelId(selectedPanel);
+  };
+
+  const rotatePanelId = (id) => {
     setPanels(prev => prev.map(p => {
-      if (p.id !== selectedPanel) return p;
+      if (p.id !== id) return p;
       return { ...p, rotation: p.rotation === 0 ? 90 : 0, width: p.height, height: p.width };
     }));
   };
@@ -379,6 +389,7 @@ export default function PanelLayoutEditor() {
                   }}
                   onMouseDown={(e) => handleMouseDown(e, panel.id)}
                   onTouchStart={(e) => handleTouchStart(e, panel.id)}
+                  onDoubleClick={() => rotatePanelId(panel.id)}
                 >
                   <span className="text-[8px] font-bold leading-none" style={{ color, fontSize: Math.max(7, 9 * zoom) }}>
                     {panel.string_id}

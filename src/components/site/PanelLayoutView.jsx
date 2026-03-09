@@ -9,13 +9,13 @@ import { createPageUrl } from "@/utils";
 import { ZoomIn, ZoomOut, Pencil, Grid3X3 } from "lucide-react";
 
 function getPanelColor(wattage, maxWattage) {
-  if (!wattage || wattage <= 0) return { bg: '#1e293b', border: '#334155', text: '#94a3b8' }; // dark/offline
+  if (!wattage || wattage <= 0) return { bg: '#000000', border: '#111111', text: '#ffffff' }; // black
   const ratio = maxWattage > 0 ? wattage / maxWattage : 0;
-  if (ratio >= 0.8) return { bg: '#1e3a5f', border: '#2563eb', text: '#ffffff' }; // dark blue = great
-  if (ratio >= 0.6) return { bg: '#2563eb', border: '#3b82f6', text: '#ffffff' }; // medium blue
-  if (ratio >= 0.4) return { bg: '#60a5fa', border: '#93c5fd', text: '#1e3a5f' }; // light blue
-  if (ratio >= 0.2) return { bg: '#93c5fd', border: '#bfdbfe', text: '#1e3a5f' }; // very light blue
-  return { bg: '#fca5a5', border: '#f87171', text: '#7f1d1d' }; // red = very low
+  if (ratio >= 0.8) return { bg: '#bfdbfe', border: '#93c5fd', text: '#1e3a5f' }; // very light blue
+  if (ratio >= 0.6) return { bg: '#60a5fa', border: '#3b82f6', text: '#1e3a5f' }; // light blue
+  if (ratio >= 0.4) return { bg: '#2563eb', border: '#1d4ed8', text: '#ffffff' }; // medium blue
+  if (ratio >= 0.2) return { bg: '#1e3a5f', border: '#0f172a', text: '#ffffff' }; // dark blue
+  return { bg: '#0f172a', border: '#020617', text: '#94a3b8' }; // very dark blue
 }
 
 export default function PanelLayoutView({ site, inverters }) {
@@ -55,8 +55,8 @@ export default function PanelLayoutView({ site, inverters }) {
         if (mpptMap[pid]) { mppt = mpptMap[pid]; break; }
       }
 
-      // Total string power in watts
-      const totalStringPowerW = mppt ? (mppt.power_kw || 0) * 1000 : 0;
+      // Total string power in watts (V * A)
+      const totalStringPowerW = mppt ? (mppt.voltage_v || 0) * (mppt.current_a || 0) : 0;
       const perPanelW = numPanels > 0 ? totalStringPowerW / numPanels : 0;
 
       stringPanels.forEach(p => {
@@ -138,7 +138,8 @@ export default function PanelLayoutView({ site, inverters }) {
             backgroundColor: '#f8fafc'
           }}
         >
-          {layout.panels.map(panel => {
+          {layout.panels.map(p => {
+            const panel = p.width > p.height ? { ...p, width: p.height, height: p.width } : p;
             const data = panelData[panel.id] || { watts: 0, string_id: panel.string_id };
             const color = getPanelColor(data.watts, maxWatts);
             return (
@@ -163,7 +164,7 @@ export default function PanelLayoutView({ site, inverters }) {
                     </span>
                     {zoom >= 0.6 && (
                       <span className="leading-none opacity-80" style={{ color: color.text, fontSize: Math.max(5, 7 * zoom) }}>
-                        {data.watts > 0 ? 'Wh' : ''}
+                        {data.watts > 0 ? 'W' : ''}
                       </span>
                     )}
                   </>
@@ -183,23 +184,23 @@ export default function PanelLayoutView({ site, inverters }) {
       <div className="flex items-center justify-between p-3 border-t border-slate-100 flex-wrap gap-2">
         <div className="flex items-center gap-3 text-[10px] flex-wrap">
           <div className="flex items-center gap-1">
-            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#1e3a5f' }} />
+            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#bfdbfe' }} />
             <span className="text-slate-500">ייצור גבוה</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#2563eb' }} />
+            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#60a5fa' }} />
             <span className="text-slate-500">טוב</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#93c5fd' }} />
+            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#2563eb' }} />
+            <span className="text-slate-500">בינוני</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#1e3a5f' }} />
             <span className="text-slate-500">חלש</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#fca5a5' }} />
-            <span className="text-slate-500">נמוך מאוד</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#1e293b' }} />
+            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#000000' }} />
             <span className="text-slate-500">לא מייצר</span>
           </div>
         </div>
