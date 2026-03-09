@@ -862,7 +862,9 @@ _נא לטפל בדחיפות._
         const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
         const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
         if (accountSid && authToken) {
-          const toFormatted = alertSite.contact_phone.startsWith('whatsapp:') ? alertSite.contact_phone : `whatsapp:${alertSite.contact_phone}`;
+          let phoneNorm3 = alertSite.contact_phone.trim();
+          if (phoneNorm3.startsWith('0') && !phoneNorm3.startsWith('00')) phoneNorm3 = '+972' + phoneNorm3.slice(1);
+          const toFormatted = phoneNorm3.startsWith('whatsapp:') ? phoneNorm3 : `whatsapp:${phoneNorm3}`;
           const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
           const params = new URLSearchParams({
             To: toFormatted,
