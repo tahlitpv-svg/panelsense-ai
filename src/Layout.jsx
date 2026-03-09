@@ -39,6 +39,15 @@ export default function Layout({ children, currentPageName }) {
     window.scrollTo(0, 0);
   }, [location.pathname, location.search]);
 
+  // Handle Sungrow OAuth2 callback - redirect to SungrowAuth page if code is in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    if (code && currentPageName !== 'SungrowAuth') {
+      window.location.href = createPageUrl('SungrowAuth') + '&code=' + encodeURIComponent(code);
+    }
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-row-reverse overflow-hidden bg-slate-50 text-slate-900" dir="rtl">
 
