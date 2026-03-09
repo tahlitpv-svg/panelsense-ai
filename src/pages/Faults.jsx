@@ -323,7 +323,13 @@ export default function Faults() {
             {form.notify_whatsapp && (
               <div className="space-y-1">
                 <Label>תבנית הודעת ווצאפ</Label>
-                <Textarea value={form.whatsapp_template} onChange={e => set('whatsapp_template', e.target.value)} placeholder="הודעת הווצאפ שתישלח..." rows={2} />
+                <Textarea
+                  value={form.whatsapp_template}
+                  onChange={e => set('whatsapp_template', e.target.value)}
+                  placeholder={`תאר את הודעת הווצאפ שתישלח. ניתן להשתמש במשתנים:\n{site_name} - שם האתר\n{fault_type} - סוג התקלה\n{message} - פירוט התקלה\n{contact_name} - שם הלקוח\n{solution} - הפתרון המוצע\n{timestamp} - זמן הזיהוי\n{severity} - רמת חומרה\n\nאם ריק - תישלח הודעה ברירת מחדל`}
+                  rows={6}
+                  className="text-sm font-mono"
+                />
               </div>
             )}
           </div>
