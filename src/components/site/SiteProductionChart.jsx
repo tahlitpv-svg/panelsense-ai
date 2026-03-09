@@ -83,35 +83,7 @@ export default function SiteProductionChart({ stationId, sungrowStationId, sungr
   };
   const dayTickValues = [5 * 60, 12 * 60, 20 * 60];
 
-  // For Sungrow: show a static summary card since OpenAPI doesn't provide granular graph data
-  if (isSungrow) {
-    return (
-      <Card className="p-6 border border-slate-200 shadow-sm bg-white">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-          <h3 className="text-lg font-bold text-slate-800">ייצור - סיכום</h3>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'יומי', value: site?.daily_yield_kwh, unit: 'kWh', color: 'text-orange-600' },
-            { label: 'חודשי', value: site?.monthly_yield_kwh, unit: 'kWh', color: 'text-blue-600' },
-            { label: 'שנתי', value: site?.yearly_yield_kwh, unit: 'kWh', color: 'text-green-600' },
-            { label: 'מצטבר', value: site?.lifetime_yield_kwh, unit: 'kWh', color: 'text-purple-600' },
-          ].map((item, i) => (
-            <div key={i} className="bg-slate-50 rounded-xl p-4 text-center border border-slate-100">
-              <div className="text-xs text-slate-500 mb-1">{item.label}</div>
-              <div className={`text-xl font-bold ${item.color}`}>
-                {item.value != null ? item.value.toLocaleString('he-IL', { maximumFractionDigits: 1 }) : '—'}
-              </div>
-              <div className="text-xs text-slate-400 mt-0.5">{item.unit}</div>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 text-xs text-slate-400 text-center">גרפים היסטוריים אינם זמינים ב-Sungrow OpenAPI</div>
-      </Card>
-    );
-  }
-
-  const queryKey = ['stationGraph_v4', stationId, sungrowStationId, timeframe, offset];
+  const queryKey = ['stationGraph_v5', stationId, sungrowStationId, timeframe, offset];
 
   const { data: chartData, isLoading } = useQuery({
     queryKey,
