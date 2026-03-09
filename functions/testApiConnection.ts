@@ -125,7 +125,7 @@ async function testSolis(config) {
     const body = JSON.stringify({ pageNo: 1, pageSize: 1 });
     const contentMd5 = computeMd5Base64(body);
     const date = new Date().toUTCString();
-    const path = '/v1/api/stationList';
+    const path = '/v1/api/userStationList';
     const stringToSign = `POST\n${contentMd5}\napplication/json\n${date}\n${path}`;
     const hmac = computeHmacSha1(apiKeySecret, stringToSign);
     const auth = `API ${apiKeyId}:${hmac}`;
