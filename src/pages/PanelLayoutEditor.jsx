@@ -175,10 +175,11 @@ export default function PanelLayoutEditor() {
     e.preventDefault();
     const touch = e.touches[0];
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = snapToGrid((touch.clientX - rect.left) / zoom - dragging.offsetX);
-    const y = snapToGrid((touch.clientY - rect.top) / zoom - dragging.offsetY);
+    const scale = backgroundImage ? imageScale : zoom;
+    const x = snapToGrid((touch.clientX - rect.left) / scale - dragging.offsetX);
+    const y = snapToGrid((touch.clientY - rect.top) / scale - dragging.offsetY);
     setPanels(prev => prev.map(p => p.id === dragging.id ? { ...p, x: Math.max(0, x), y: Math.max(0, y) } : p));
-  }, [dragging, zoom]);
+  }, [dragging, zoom, backgroundImage, imageScale]);
 
   useEffect(() => {
     const el = canvasRef.current;
