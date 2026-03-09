@@ -40,7 +40,9 @@ export default function PanelLayoutEditor() {
   const [dragging, setDragging] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
 
   // Load existing layout
