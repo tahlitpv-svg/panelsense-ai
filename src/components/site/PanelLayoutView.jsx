@@ -131,7 +131,7 @@ function calculatePortEnergyKwh(dayData = []) {
 export default function PanelLayoutView({ site, inverters }) {
   const siteId = site?.id;
   const [zoom, setZoom] = useState(1.15);
-  const [showWatts, setShowWatts] = useState(true);
+  const [displayMode, setDisplayMode] = useState('watts'); // 'watts' | 'kwh'
   const stringColors = Object.fromEntries((site?.string_configs || []).map((s, i) => [s.string_id, ['#ef4444', '#f59e0b', '#22c55e', '#8b5cf6', '#f97316', '#e11d48', '#84cc16', '#14b8a6', '#a855f7', '#eab308'][i % 10]]));
 
   const { data: layout } = useQuery({
