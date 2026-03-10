@@ -52,11 +52,17 @@ function buildPortCandidates(config) {
   return Array.from(candidates);
 }
 
-function findMatchingMppt(mpptEntries, config) {
+function findMatchingMppt(mpptEntries, config, usedKeys = new Set()) {
   const candidates = buildPortCandidates(config);
   const configPortNumber = extractPortNumber(config?.inverter_port || config?.string_id || '');
+  const expectedVoltage = Number(config?.expected_voltage || 0);
+
+  let bestMatch = null;
+  let bestScore = -Infinity;
 
   for (const [key, mppt] of mpptEntries) {
+    if (usedKeys.has(key)) continue;
+
     const normalizedKey = normalizePortToken(key);
     const keyPortNumber = extractPortNumber(key);
     const matched = candidates.find((candidate) =>
@@ -65,17 +71,29 @@ function findMatchingMppt(mpptEntries, config) {
       (candidate.length >= 3 && normalizedKey.includes(candidate))
     );
 
-    if (matched) return { key, mppt };
-    if (configPortNumber && keyPortNumber && configPortNumber === keyPortNumber) {
-      return { key, mppt };
+    const current = Number(mppt?.current_a || 0);
+    const voltage = Number(mppt?.voltage_v || 0);
+    const voltageDiff = expectedVoltage > 0 && voltage > 0 ? Math.abs(expectedVoltage - voltage) : 999;
+
+    let score = 0;
+    if (matched) score += 120;
+    if (configPortNumber && keyPortNumber && configPortNumber === keyPortNumber) score += 80;
+    if (current > 0) score += 25;
+    if (expectedVoltage > 0 && voltage > 0) score += Math.max(0, 60 - voltageDiff / 4);
+    score += current * 6;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = { key, mppt, score };
     }
   }
-  return null;
+
+  return bestMatch;
 }
 
 export default function PanelLayoutView({ site, inverters }) {
   const siteId = site?.id;
-  const [zoom, setZoom] = useState(0.8);
+  const [zoom, setZoom] = useState(1.15);
   const [showWatts, setShowWatts] = useState(true);
   const stringColors = Object.fromEntries((site?.string_configs || []).map((s, i) => [s.string_id, ['#7dc6e8', '#7ecb9a', '#e8c36d', '#e59aa0', '#b8a7e8', '#e7a8c7', '#79d7df', '#b7d97a', '#e8b07d', '#94b8e8'][i % 10]]));
 
@@ -98,10 +116,14 @@ export default function PanelLayoutView({ site, inverters }) {
       });
     });
 
+    const usedKeys = new Set();
+
     strings.forEach((sc) => {
       const stringPanels = layout.panels.filter((p) => p.string_id === sc.string_id);
       const numPanels = sc.num_panels || stringPanels.length || 1;
-      const match = findMatchingMppt(mpptEntries, sc);
+      const match = findMatchingMppt(mpptEntries, sc, usedKeys);
+      if (match?.key) usedKeys.add(match.key);
+
       const livePowerFromKw = (match?.mppt?.power_kw || 0) * 1000;
       const livePowerFromVoltage = (match?.mppt?.voltage_v || 0) * (match?.mppt?.current_a || 0);
       const livePowerFromExpectedVoltage = (sc.expected_voltage || 0) * (match?.mppt?.current_a || 0);
@@ -116,6 +138,8 @@ export default function PanelLayoutView({ site, inverters }) {
           string_id: sc.string_id,
           inverter_port: sc.inverter_port || null,
           matched_port: match?.key || null,
+          matched_current: match?.mppt?.current_a || 0,
+          matched_voltage: match?.mppt?.voltage_v || 0,
         };
       });
     });
@@ -154,11 +178,13 @@ export default function PanelLayoutView({ site, inverters }) {
 
   Object.values(panelData).forEach((d) => {
     if (!stringStats[d.string_id]) {
-      stringStats[d.string_id] = { total: 0, count: 0, inverter_port: d.inverter_port || '—', matched_port: null };
+      stringStats[d.string_id] = { total: 0, count: 0, inverter_port: d.inverter_port || '—', matched_port: null, matched_current: 0, matched_voltage: 0 };
     }
     stringStats[d.string_id].total += d.watts;
     stringStats[d.string_id].count++;
     if (d.matched_port) stringStats[d.string_id].matched_port = d.matched_port;
+    if (d.matched_current) stringStats[d.string_id].matched_current = d.matched_current;
+    if (d.matched_voltage) stringStats[d.string_id].matched_voltage = d.matched_voltage;
   });
 
   return (
@@ -196,7 +222,7 @@ export default function PanelLayoutView({ site, inverters }) {
       </div>
 
       {/* Canvas */}
-      <div className="overflow-auto bg-slate-100" style={{ maxHeight: 650 }}>
+      <div className="overflow-auto bg-slate-100" style={{ maxHeight: 820 }}>
         <div className="min-w-full min-h-full flex justify-center items-start p-6">
         <div
           className="relative shrink-0"
@@ -312,8 +338,10 @@ export default function PanelLayoutView({ site, inverters }) {
         <div className="flex gap-3 text-[10px] flex-wrap">
           {Object.entries(stringStats).map(([sid, stat]) => (
             <span key={sid} className="text-slate-500">
-              {sid} • {stat.inverter_port} • <span className="font-medium text-slate-900">{(stat.total / 1000).toFixed(1)}kW</span>
-              {stat.matched_port ? <span className="text-slate-500"> • מזוהה כ-{stat.matched_port}</span> : <span className="text-amber-500"> • לא זוהתה יציאה</span>}
+              {sid} • מוגדר {stat.inverter_port} • <span className="font-medium text-slate-900">{(stat.total / 1000).toFixed(1)}kW</span>
+              {stat.matched_port
+                ? <span className="text-slate-500"> • בפועל {stat.matched_port} • {Number(stat.matched_current || 0).toFixed(1)}A • {Number(stat.matched_voltage || 0).toFixed(0)}V</span>
+                : <span className="text-amber-500"> • לא זוהתה יציאה</span>}
             </span>
           ))}
         </div>
