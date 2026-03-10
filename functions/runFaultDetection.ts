@@ -644,7 +644,8 @@ _אם התקלה לא תטופל._
 
       // Use LLM to match the site condition to the best matching active FaultType
       const siteInverters = inverters.filter(inv => inv.site_id === site.id);
-      const stationSnapshots = site.solis_station_id ? (snapshotsByStation[site.solis_station_id] || {}) : {};
+      const snapKeyAlt = site.solis_station_id || (site.sungrow_station_id ? `sg_${site.sungrow_station_id}` : null);
+      const stationSnapshots = snapKeyAlt ? (snapshotsByStation[snapKeyAlt] || {}) : {};
 
       const faultTypeSummaries = activeFaultTypes.map(ft => ({
         name: ft.name,
