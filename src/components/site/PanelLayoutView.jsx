@@ -396,29 +396,45 @@ export default function PanelLayoutView({ site, inverters }) {
                 {/* Production color strip at bottom */}
                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: Math.max(2, Math.round(4 * stageScale)), backgroundColor: hexToRgba(stringColor, 0.16), }} />
                 {/* Labels */}
-                {showLabel && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ paddingBottom: Math.max(2, Math.round(5 * zoom)) }}>
-                    {showWatts && data.watts > 0 ? (
-                      <>
-                        <span style={{ color: '#ffffff', fontSize: Math.max(7, Math.round(10 * stageScale)), fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.95)', lineHeight: 1 }}>
-                          {data.watts}
+                {showLabel && (() => {
+                  const panelStringId = data.string_id || p.string_id;
+                  const strStat = stringStats[panelStringId];
+                  const numPanelsInString = strStat?.count || 1;
+                  const panelKwh = strStat && strStat.daily_kwh > 0 ? strStat.daily_kwh / numPanelsInString : 0;
+
+                  return (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ paddingBottom: Math.max(2, Math.round(5 * zoom)) }}>
+                      {displayMode === 'watts' && data.watts > 0 ? (
+                        <>
+                          <span style={{ color: '#ffffff', fontSize: Math.max(7, Math.round(10 * stageScale)), fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.95)', lineHeight: 1 }}>
+                            {data.watts}
+                          </span>
+                          {scaledH > 36 && (
+                            <span style={{ color: 'rgba(200,220,255,0.4)', fontSize: Math.max(5, Math.round(7 * stageScale)), lineHeight: 1, marginTop: 1 }}>W</span>
+                          )}
+                        </>
+                      ) : displayMode === 'kwh' && panelKwh > 0 ? (
+                        <>
+                          <span style={{ color: '#ffffff', fontSize: Math.max(7, Math.round(10 * stageScale)), fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.95)', lineHeight: 1 }}>
+                            {panelKwh.toFixed(2)}
+                          </span>
+                          {scaledH > 36 && (
+                            <span style={{ color: 'rgba(200,220,255,0.4)', fontSize: Math.max(5, Math.round(7 * stageScale)), lineHeight: 1, marginTop: 1 }}>kWh</span>
+                          )}
+                        </>
+                      ) : (
+                        <span style={{ color: '#ffffff', fontSize: Math.max(7, Math.round(9 * stageScale)), fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.95)', lineHeight: 1 }}>
+                          {p.string_id}
                         </span>
-                        {scaledH > 36 && (
-                          <span style={{ color: 'rgba(200,220,255,0.4)', fontSize: Math.max(5, Math.round(7 * stageScale)), lineHeight: 1, marginTop: 1 }}>W</span>
-                        )}
-                      </>
-                    ) : (
-                      <span style={{ color: '#ffffff', fontSize: Math.max(7, Math.round(9 * stageScale)), fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.95)', lineHeight: 1 }}>
-                        {p.string_id}
-                      </span>
-                    )}
-                    {scaledH > 40 && (
-                      <span style={{ color: 'rgba(200,220,255,0.35)', fontSize: Math.max(5, Math.round(6 * stageScale)), lineHeight: 1, marginTop: 1 }}>
-                        #{p.panel_index}
-                      </span>
-                    )}
-                  </div>
-                )}
+                      )}
+                      {scaledH > 40 && (
+                        <span style={{ color: 'rgba(200,220,255,0.35)', fontSize: Math.max(5, Math.round(6 * stageScale)), lineHeight: 1, marginTop: 1 }}>
+                          #{p.panel_index}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}
