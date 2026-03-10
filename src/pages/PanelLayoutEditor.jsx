@@ -45,6 +45,7 @@ export default function PanelLayoutEditor() {
   const [backgroundImage, setBackgroundImage] = useState(null);
   const [backgroundImageUrl, setBackgroundImageUrl] = useState(null);
   const [backgroundFile, setBackgroundFile] = useState(null);
+  const [backgroundDimensions, setBackgroundDimensions] = useState({ width: CANVAS_W, height: CANVAS_H });
   const [backgroundScale, setBackgroundScale] = useState(1);
   const [imageOpacity, setImageOpacity] = useState(0.85);
   const [saving, setSaving] = useState(false);
