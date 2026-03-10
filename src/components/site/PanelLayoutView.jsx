@@ -172,19 +172,44 @@ export default function PanelLayoutView({ site, inverters }) {
 
   // Calculate total and per-string stats
   const stringStats = (site?.string_configs || []).reduce((acc, sc) => {
-    acc[sc.string_id] = { total: 0, count: 0, inverter_port: sc.inverter_port || '—', matched_port: null };
+    acc[sc.string_id] = {
+      total: 0,
+      count: 0,
+      inverter_port: sc.inverter_port || '—',
+      matched_port: null,
+      matched_current: 0,
+      matched_voltage: 0,
+      daily_kwh: 0,
+    };
     return acc;
   }, {});
 
   Object.values(panelData).forEach((d) => {
     if (!stringStats[d.string_id]) {
-      stringStats[d.string_id] = { total: 0, count: 0, inverter_port: d.inverter_port || '—', matched_port: null, matched_current: 0, matched_voltage: 0 };
+      stringStats[d.string_id] = {
+        total: 0,
+        count: 0,
+        inverter_port: d.inverter_port || '—',
+        matched_port: null,
+        matched_current: 0,
+        matched_voltage: 0,
+        daily_kwh: 0,
+      };
     }
     stringStats[d.string_id].total += d.watts;
     stringStats[d.string_id].count++;
     if (d.matched_port) stringStats[d.string_id].matched_port = d.matched_port;
     if (d.matched_current) stringStats[d.string_id].matched_current = d.matched_current;
     if (d.matched_voltage) stringStats[d.string_id].matched_voltage = d.matched_voltage;
+  });
+
+  const totalLivePowerW = Object.values(stringStats).reduce((sum, stat) => sum + stat.total, 0);
+  const totalDailyYieldKwh = Number(site?.daily_yield_kwh || 0);
+
+  Object.values(stringStats).forEach((stat) => {
+    stat.daily_kwh = totalLivePowerW > 0
+      ? (stat.total / totalLivePowerW) * totalDailyYieldKwh
+      : 0;
   });
 
   return (
@@ -325,17 +350,17 @@ export default function PanelLayoutView({ site, inverters }) {
       {/* Footer / Legend */}
       <div className="bg-white border-t border-slate-200" dir="rtl">
         <div className="px-4 pt-3 pb-2 border-b border-slate-100">
-          <div className="text-xs font-bold text-slate-900 mb-2">שיוך סטרינגים ליציאות ממיר</div>
+          <div className="text-xs font-bold text-slate-900 mb-2">שיוך סטרינגים ליציאות ממיר וייצור יומי</div>
           <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
             {Object.entries(stringStats).map(([sid, stat]) => (
               <div key={sid} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px]">
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-bold text-slate-900">{sid}</span>
-                  <span className="font-medium text-slate-900">{(stat.total / 1000).toFixed(1)}kW</span>
+                  <span className="font-medium text-slate-900">{stat.daily_kwh.toFixed(1)}kWh</span>
                 </div>
                 <div className="text-slate-600">מוגדר: <span className="font-semibold text-slate-900">{stat.inverter_port}</span></div>
                 {stat.matched_port ? (
-                  <div className="text-slate-600">בפועל: <span className="font-semibold text-emerald-700">{stat.matched_port}</span> • {Number(stat.matched_current || 0).toFixed(1)}A • {Number(stat.matched_voltage || 0).toFixed(0)}V</div>
+                  <div className="text-slate-600">בפועל: <span className="font-semibold text-emerald-700">{stat.matched_port}</span> • {Number(stat.matched_current || 0).toFixed(1)}A • {Number(stat.matched_voltage || 0).toFixed(0)}V • {(stat.total / 1000).toFixed(1)}kW</div>
                 ) : (
                   <div className="text-amber-600 font-medium">לא זוהתה יציאה מתאימה</div>
                 )}
@@ -355,7 +380,7 @@ export default function PanelLayoutView({ site, inverters }) {
               </div>
             ))}
           </div>
-          <div className="text-[11px] text-slate-500">הגדרה קבועה: הגדרות האתר ← פאנלים וסטרינגים ← עמודת "יציאה בממיר"</div>
+          <div className="text-[11px] text-slate-500">סכום כל הסטרינגים = {totalDailyYieldKwh.toFixed(1)}kWh • הגדרה קבועה: הגדרות האתר ← פאנלים וסטרינגים ← עמודת "יציאה בממיר"</div>
         </div>
       </div>
     </div>
