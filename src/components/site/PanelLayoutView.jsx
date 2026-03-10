@@ -8,15 +8,14 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { ZoomIn, ZoomOut, Pencil, Grid3X3 } from "lucide-react";
 
-function getPanelColor(wattage, maxWattage) {
-  if (!wattage || wattage <= 0) return { bg: '#000000', border: '#333333', text: '#666666' }; // black / no prod
+function getProductionColor(wattage, maxWattage) {
+  if (!wattage || wattage <= 0) return null; // no production - show dark panel
   const ratio = maxWattage > 0 ? wattage / maxWattage : 0;
-  // Highest production = Light blue, lowest = Dark blue. Black = No production.
-  if (ratio >= 0.8) return { bg: '#38bdf8', border: '#7dd3fc', text: '#0c4a6e' }; // light/cyan blue
-  if (ratio >= 0.6) return { bg: '#0ea5e9', border: '#38bdf8', text: '#ffffff' }; // sky blue
-  if (ratio >= 0.4) return { bg: '#0284c7', border: '#0ea5e9', text: '#ffffff' }; // medium blue
-  if (ratio >= 0.2) return { bg: '#0369a1', border: '#0284c7', text: '#ffffff' }; // dark blue
-  return { bg: '#075985', border: '#0369a1', text: '#e0f2fe' }; // very dark blue
+  if (ratio >= 0.8) return '#22d3ee'; // cyan
+  if (ratio >= 0.6) return '#0ea5e9'; // sky
+  if (ratio >= 0.4) return '#3b82f6'; // blue
+  if (ratio >= 0.2) return '#6366f1'; // indigo
+  return '#8b5cf6'; // violet (very low)
 }
 
 export default function PanelLayoutView({ site, inverters }) {
