@@ -491,6 +491,13 @@ Rules:
             }}
             onClick={() => setSelectedPanels([])}
             onMouseMove={(e) => {
+              if (isBrushing && e.buttons !== 1) {
+                setIsBrushing(false);
+                setBrushStartPoint(null);
+                setBrushAxis(null);
+                return;
+              }
+
               const point = getCanvasPoint(e);
               let nextPoint = point;
 
