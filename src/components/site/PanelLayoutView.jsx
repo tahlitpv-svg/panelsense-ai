@@ -9,17 +9,34 @@ import { createPageUrl } from "@/utils";
 import { ZoomIn, ZoomOut, Pencil, Grid3X3, Maximize2 } from "lucide-react";
 
 function getProductionColor(wattage, maxWattage) {
-  if (!wattage || wattage <= 0) return null;
+  if (!wattage || wattage <= 0) return '#0b1f4d';
   const ratio = maxWattage > 0 ? wattage / maxWattage : 0;
-  if (ratio >= 0.8) return '#22d3ee';
-  if (ratio >= 0.6) return '#0ea5e9';
-  if (ratio >= 0.4) return '#3b82f6';
-  if (ratio >= 0.2) return '#6366f1';
-  return '#8b5cf6';
+  if (ratio >= 0.85) return '#60d8ff';
+  if (ratio >= 0.7) return '#39bdf8';
+  if (ratio >= 0.55) return '#1d9bf0';
+  if (ratio >= 0.4) return '#1577d6';
+  if (ratio >= 0.25) return '#125bb3';
+  return '#0e3f86';
+}
+
+function hexToRgba(hex, alpha) {
+  if (!hex?.startsWith('#')) return `rgba(15,23,42,${alpha})`;
+  const value = hex.replace('#', '');
+  const normalized = value.length === 3 ? value.split('').map((char) => char + char).join('') : value;
+  const int = parseInt(normalized, 16);
+  const r = (int >> 16) & 255;
+  const g = (int >> 8) & 255;
+  const b = int & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function normalizePortToken(value = '') {
   return value.toString().toUpperCase().replace(/\s+/g, '').replace(/[()_-]/g, '');
+}
+
+function extractPortNumber(value = '') {
+  const match = value.toString().toUpperCase().match(/PV\s*(\d+)|(\d+)/);
+  return match ? Number(match[1] || match[2]) : null;
 }
 
 function buildPortCandidates(config) {
@@ -37,14 +54,21 @@ function buildPortCandidates(config) {
 
 function findMatchingMppt(mpptEntries, config) {
   const candidates = buildPortCandidates(config);
+  const configPortNumber = extractPortNumber(config?.inverter_port || config?.string_id || '');
+
   for (const [key, mppt] of mpptEntries) {
     const normalizedKey = normalizePortToken(key);
+    const keyPortNumber = extractPortNumber(key);
     const matched = candidates.find((candidate) =>
       normalizedKey === candidate ||
       normalizedKey.startsWith(candidate) ||
       (candidate.length >= 3 && normalizedKey.includes(candidate))
     );
+
     if (matched) return { key, mppt };
+    if (configPortNumber && keyPortNumber && configPortNumber === keyPortNumber) {
+      return { key, mppt };
+    }
   }
   return null;
 }
@@ -78,8 +102,11 @@ export default function PanelLayoutView({ site, inverters }) {
       const stringPanels = layout.panels.filter((p) => p.string_id === sc.string_id);
       const numPanels = sc.num_panels || stringPanels.length || 1;
       const match = findMatchingMppt(mpptEntries, sc);
+      const livePowerFromKw = (match?.mppt?.power_kw || 0) * 1000;
+      const livePowerFromVoltage = (match?.mppt?.voltage_v || 0) * (match?.mppt?.current_a || 0);
+      const livePowerFromExpectedVoltage = (sc.expected_voltage || 0) * (match?.mppt?.current_a || 0);
       const totalStringPowerW = match
-        ? Math.round(((match.mppt.power_kw || (((match.mppt.voltage_v || 0) * (match.mppt.current_a || 0)) / 1000)) * 1000))
+        ? Math.round(Math.max(livePowerFromKw, livePowerFromVoltage, livePowerFromExpectedVoltage, 0))
         : 0;
       const perPanelW = numPanels > 0 ? totalStringPowerW / numPanels : 0;
 
@@ -199,6 +226,8 @@ export default function PanelLayoutView({ site, inverters }) {
             const data = panelData[p.id] || { watts: 0, string_id: p.string_id };
             const productionColor = getProductionColor(data.watts, maxWatts);
             const stringColor = stringColors[p.string_id] || '#94a3b8';
+            const subtleStringColor = hexToRgba(stringColor, 0.18);
+            const strongStringColor = hexToRgba(stringColor, 0.75);
             const isLandscape = p.width > p.height;
             const cols = isLandscape ? 6 : 4;
             const rows = isLandscape ? 4 : 6;
@@ -207,7 +236,7 @@ export default function PanelLayoutView({ site, inverters }) {
             const scaledW = p.width * stageScale;
             const scaledH = p.height * stageScale;
             const showLabel = scaledW > 22 && scaledH > 18;
-            const borderColor = stringColor;
+            const borderColor = strongStringColor;
 
             return (
               <div
@@ -219,15 +248,14 @@ export default function PanelLayoutView({ site, inverters }) {
                   width: scaledW,
                   height: scaledH,
                   background: `
-                    linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px),
-                    linear-gradient(155deg, #1b3f6e 0%, #0e2248 40%, #071428 100%)
+                    linear-gradient(rgba(255,255,255,0.055) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255,255,255,0.055) 1px, transparent 1px),
+                    linear-gradient(180deg, ${productionColor} 0%, ${hexToRgba(productionColor, 0.92)} 100%)
                   `,
                   backgroundSize: `${colW}% ${rowH}%, ${colW}% ${rowH}%, 100% 100%`,
                   border: `1.5px solid ${borderColor}`,
-                  boxShadow: productionColor
-                    ? `0 0 8px ${productionColor}44, inset 0 0 0 1px rgba(200,220,255,0.1)`
-                    : `0 0 0 1px ${stringColor}33 inset`,
+                  boxShadow: `0 0 0 999px ${subtleStringColor} inset, 0 0 8px ${hexToRgba(productionColor, 0.22)}`,
+                  outline: `1px solid ${hexToRgba(stringColor, 0.35)}`,
                   borderRadius: 1,
                 }}
                 title={`${p.string_id} #${p.panel_index}: ${data.watts > 0 ? data.watts + 'W' : 'לא מייצר'}`}
@@ -235,13 +263,13 @@ export default function PanelLayoutView({ site, inverters }) {
                 {/* Reflection shimmer */}
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '30%', background: 'linear-gradient(180deg,rgba(255,255,255,0.06) 0%,transparent 100%)', pointerEvents: 'none' }} />
                 {/* Production color strip at bottom */}
-                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: Math.max(2, Math.round(4 * stageScale)), backgroundColor: stringColor, }} />
+                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: Math.max(2, Math.round(4 * stageScale)), backgroundColor: hexToRgba(stringColor, 0.45), }} />
                 {/* Labels */}
                 {showLabel && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ paddingBottom: Math.max(2, Math.round(5 * zoom)) }}>
                     {showWatts && data.watts > 0 ? (
                       <>
-                        <span style={{ color: productionColor || 'rgba(200,220,255,0.75)', fontSize: Math.max(7, Math.round(10 * stageScale)), fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.9)', lineHeight: 1 }}>
+                        <span style={{ color: '#ffffff', fontSize: Math.max(7, Math.round(10 * stageScale)), fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.95)', lineHeight: 1 }}>
                           {data.watts}
                         </span>
                         {scaledH > 36 && (
@@ -249,7 +277,7 @@ export default function PanelLayoutView({ site, inverters }) {
                         )}
                       </>
                     ) : (
-                      <span style={{ color: stringColor, fontSize: Math.max(7, Math.round(9 * stageScale)), fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.9)', lineHeight: 1 }}>
+                      <span style={{ color: '#ffffff', fontSize: Math.max(7, Math.round(9 * stageScale)), fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.95)', lineHeight: 1 }}>
                         {p.string_id}
                       </span>
                     )}
