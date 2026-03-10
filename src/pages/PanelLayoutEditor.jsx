@@ -57,6 +57,8 @@ export default function PanelLayoutEditor() {
   const [measureDraft, setMeasureDraft] = useState(null);
   const [hoverPoint, setHoverPoint] = useState(null);
   const [isBrushing, setIsBrushing] = useState(false);
+  const [brushStartPoint, setBrushStartPoint] = useState(null);
+  const [brushAxis, setBrushAxis] = useState(null);
 
   useEffect(() => {
     if (existingLayout?.panels) setPanels(existingLayout.panels);
