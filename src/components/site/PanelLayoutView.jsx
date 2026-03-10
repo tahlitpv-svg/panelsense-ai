@@ -302,8 +302,8 @@ export default function PanelLayoutView({ site, inverters }) {
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-600 hover:text-slate-900" onClick={() => setShowWatts(!showWatts)}>
-            {showWatts ? 'הסתר ואט' : 'הצג ואט'}
+          <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-600 hover:text-slate-900" onClick={() => setDisplayMode(m => m === 'watts' ? 'kwh' : m === 'kwh' ? 'none' : 'watts')}>
+            {displayMode === 'watts' ? 'W → kWh' : displayMode === 'kwh' ? 'kWh → הסתר' : 'הסתר → W'}
           </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-600 hover:text-slate-900" onClick={() => setZoom(z => Math.max(0.3, +(z - 0.1).toFixed(1)))}>
             <ZoomOut className="w-3.5 h-3.5" />
