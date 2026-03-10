@@ -9,14 +9,14 @@ import { createPageUrl } from "@/utils";
 import { ZoomIn, ZoomOut, Pencil, Grid3X3, Maximize2 } from "lucide-react";
 
 function getProductionColor(wattage, maxWattage) {
-  if (!wattage || wattage <= 0) return '#17345f';
+  if (!wattage || wattage <= 0) return '#25456f';
   const ratio = maxWattage > 0 ? wattage / maxWattage : 0;
-  if (ratio >= 0.85) return '#8fcdf2';
-  if (ratio >= 0.7) return '#6bb6e6';
-  if (ratio >= 0.55) return '#4f9bd3';
-  if (ratio >= 0.4) return '#3d7cbc';
-  if (ratio >= 0.25) return '#315fa0';
-  return '#274b82';
+  if (ratio >= 0.85) return '#a9d8f2';
+  if (ratio >= 0.7) return '#8cc7e8';
+  if (ratio >= 0.55) return '#74b4dc';
+  if (ratio >= 0.4) return '#5f9fcf';
+  if (ratio >= 0.25) return '#4d88bb';
+  return '#3f6f9f';
 }
 
 function hexToRgba(hex, alpha) {
@@ -253,9 +253,10 @@ export default function PanelLayoutView({ site, inverters }) {
                     linear-gradient(180deg, ${productionColor} 0%, ${hexToRgba(productionColor, 0.92)} 100%)
                   `,
                   backgroundSize: `${colW}% ${rowH}%, ${colW}% ${rowH}%, 100% 100%`,
-                  border: `1.5px solid ${borderColor}`,
-                  boxShadow: `0 0 0 999px ${subtleStringColor} inset, 0 0 6px ${hexToRgba(productionColor, 0.12)}`,
-                  outline: `1px solid ${hexToRgba(stringColor, 0.22)}`,
+                  border: `2px solid ${stringColor}`,
+                  boxShadow: `0 0 0 999px ${subtleStringColor} inset, 0 0 4px ${hexToRgba(productionColor, 0.08)}`,
+                  outline: `1px solid ${hexToRgba(stringColor, 0.12)}`,
+                  opacity: 0.96,
                   borderRadius: 1,
                 }}
                 title={`${p.string_id} #${p.panel_index}: ${data.watts > 0 ? data.watts + 'W' : 'לא מייצר'}`}
@@ -263,7 +264,7 @@ export default function PanelLayoutView({ site, inverters }) {
                 {/* Reflection shimmer */}
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '30%', background: 'linear-gradient(180deg,rgba(255,255,255,0.06) 0%,transparent 100%)', pointerEvents: 'none' }} />
                 {/* Production color strip at bottom */}
-                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: Math.max(2, Math.round(4 * stageScale)), backgroundColor: hexToRgba(stringColor, 0.45), }} />
+                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: Math.max(2, Math.round(4 * stageScale)), backgroundColor: hexToRgba(stringColor, 0.28), }} />
                 {/* Labels */}
                 {showLabel && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ paddingBottom: Math.max(2, Math.round(5 * zoom)) }}>
