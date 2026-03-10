@@ -9,14 +9,14 @@ import { createPageUrl } from "@/utils";
 import { ZoomIn, ZoomOut, Pencil, Grid3X3, Maximize2 } from "lucide-react";
 
 function getProductionColor(wattage, maxWattage) {
-  if (!wattage || wattage <= 0) return '#47627f';
+  if (!wattage || wattage <= 0) return '#183b78';
   const ratio = maxWattage > 0 ? wattage / maxWattage : 0;
-  if (ratio >= 0.85) return '#eef8fd';
-  if (ratio >= 0.7) return '#cfeafb';
-  if (ratio >= 0.55) return '#acd6f0';
-  if (ratio >= 0.4) return '#87bddf';
-  if (ratio >= 0.25) return '#639fc9';
-  return '#4d84b0';
+  if (ratio >= 0.85) return '#4f8dff';
+  if (ratio >= 0.7) return '#3f7df2';
+  if (ratio >= 0.55) return '#346ddc';
+  if (ratio >= 0.4) return '#295fc5';
+  if (ratio >= 0.25) return '#234fa8';
+  return '#1d438f';
 }
 
 function hexToRgba(hex, alpha) {
