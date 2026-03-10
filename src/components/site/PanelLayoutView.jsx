@@ -323,27 +323,39 @@ export default function PanelLayoutView({ site, inverters }) {
       </div>
 
       {/* Footer / Legend */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-white border-t border-slate-200 flex-wrap gap-2" dir="rtl">
-        <div className="flex items-center gap-3 text-[10px] flex-wrap">
-          {[['#22d3ee','גבוה'],['#0ea5e9','טוב'],['#3b82f6','בינוני'],['#8b5cf6','חלש'],['rgba(100,120,150,0.4)','לא מייצר']].map(([c, label]) => (
-            <div key={label} className="flex items-center gap-1">
-              <div className="w-5 h-3 rounded-sm" style={{
-                background: `linear-gradient(155deg, #1b3f6e, #071428)`,
-                border: `1.5px solid ${c}`,
-              }} />
-              <span className="text-slate-500">{label}</span>
-            </div>
-          ))}
+      <div className="bg-white border-t border-slate-200" dir="rtl">
+        <div className="px-4 pt-3 pb-2 border-b border-slate-100">
+          <div className="text-xs font-bold text-slate-900 mb-2">שיוך סטרינגים ליציאות ממיר</div>
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+            {Object.entries(stringStats).map(([sid, stat]) => (
+              <div key={sid} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px]">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-slate-900">{sid}</span>
+                  <span className="font-medium text-slate-900">{(stat.total / 1000).toFixed(1)}kW</span>
+                </div>
+                <div className="text-slate-600">מוגדר: <span className="font-semibold text-slate-900">{stat.inverter_port}</span></div>
+                {stat.matched_port ? (
+                  <div className="text-slate-600">בפועל: <span className="font-semibold text-emerald-700">{stat.matched_port}</span> • {Number(stat.matched_current || 0).toFixed(1)}A • {Number(stat.matched_voltage || 0).toFixed(0)}V</div>
+                ) : (
+                  <div className="text-amber-600 font-medium">לא זוהתה יציאה מתאימה</div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-3 text-[10px] flex-wrap">
-          {Object.entries(stringStats).map(([sid, stat]) => (
-            <span key={sid} className="text-slate-500">
-              {sid} • מוגדר {stat.inverter_port} • <span className="font-medium text-slate-900">{(stat.total / 1000).toFixed(1)}kW</span>
-              {stat.matched_port
-                ? <span className="text-slate-500"> • בפועל {stat.matched_port} • {Number(stat.matched_current || 0).toFixed(1)}A • {Number(stat.matched_voltage || 0).toFixed(0)}V</span>
-                : <span className="text-amber-500"> • לא זוהתה יציאה</span>}
-            </span>
-          ))}
+        <div className="flex items-center justify-between px-4 py-2.5 flex-wrap gap-2">
+          <div className="flex items-center gap-3 text-[10px] flex-wrap">
+            {[['#22d3ee','גבוה'],['#0ea5e9','טוב'],['#3b82f6','בינוני'],['#8b5cf6','חלש'],['rgba(100,120,150,0.4)','לא מייצר']].map(([c, label]) => (
+              <div key={label} className="flex items-center gap-1">
+                <div className="w-5 h-3 rounded-sm" style={{
+                  background: `linear-gradient(155deg, #1b3f6e, #071428)`,
+                  border: `1.5px solid ${c}`,
+                }} />
+                <span className="text-slate-500">{label}</span>
+              </div>
+            ))}
+          </div>
+          <div className="text-[11px] text-slate-500">הגדרה קבועה: הגדרות האתר ← פאנלים וסטרינגים ← עמודת "יציאה בממיר"</div>
         </div>
       </div>
     </div>

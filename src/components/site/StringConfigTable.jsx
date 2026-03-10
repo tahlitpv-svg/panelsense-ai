@@ -151,8 +151,8 @@ export default function StringConfigTable({ strings, panelWatt, panelVoltage, pa
                   <Input
                     value={s.inverter_port || ''}
                     onChange={(e) => updateString(idx, 'inverter_port', e.target.value)}
-                    placeholder="יציאה (PV1)"
-                    className="w-20 h-8 text-sm border-slate-200"
+                    placeholder="PV1 / PV6"
+                    className="w-24 h-8 text-sm border-slate-200"
                   />
                   <Button variant="ghost" size="icon" onClick={() => removeString(idx)} className="w-7 h-7 text-red-400 hover:text-red-600 hover:bg-red-50">
                     <Trash2 className="w-3.5 h-3.5" />
@@ -229,8 +229,8 @@ export default function StringConfigTable({ strings, panelWatt, panelVoltage, pa
                       <Input
                         value={s.inverter_port || ''}
                         onChange={(e) => updateString(idx, 'inverter_port', e.target.value)}
-                        placeholder="PV1"
-                        className="h-8 w-20 text-sm border-slate-200"
+                        placeholder="PV1 / PV6"
+                        className="h-8 w-24 text-sm border-slate-200"
                       />
                     </td>
                     <td className="py-2 px-2">
