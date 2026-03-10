@@ -102,6 +102,7 @@ export default function PanelLayoutEditor() {
 
   const canvasWidth = backgroundImage ? backgroundDimensions.width : CANVAS_W;
   const canvasHeight = backgroundImage ? backgroundDimensions.height : CANVAS_H;
+  const stageScale = scale * backgroundScale;
 
   const stringColors = useMemo(() => Object.fromEntries((stringConfigs || []).map((s, i) => [s.string_id, COLORS[i % COLORS.length]])), [stringConfigs]);
   const panelCounts = useMemo(() => panels.reduce((acc, panel) => ({ ...acc, [panel.string_id]: (acc[panel.string_id] || 0) + 1 }), {}), [panels]);
@@ -109,10 +110,10 @@ export default function PanelLayoutEditor() {
   const getCanvasPoint = useCallback((event) => {
     const rect = canvasRef.current.getBoundingClientRect();
     return {
-      x: (event.clientX - rect.left) / scale,
-      y: (event.clientY - rect.top) / scale,
+      x: (event.clientX - rect.left) / stageScale,
+      y: (event.clientY - rect.top) / stageScale,
     };
-  }, [scale]);
+  }, [stageScale]);
 
   const getPlacementRect = useCallback((x, y) => {
     const width = templateSize.width;
@@ -173,8 +174,8 @@ export default function PanelLayoutEditor() {
       const panel = panels.find((item) => item.id === id);
       return {
         id,
-        offsetX: (e.clientX - rect.left) / scale - panel.x,
-        offsetY: (e.clientY - rect.top) / scale - panel.y,
+        offsetX: (e.clientX - rect.left) / stageScale - panel.x,
+        offsetY: (e.clientY - rect.top) / stageScale - panel.y,
       };
     });
     setDragging({ offsets });
@@ -188,11 +189,11 @@ export default function PanelLayoutEditor() {
       if (!hit) return panel;
       return {
         ...panel,
-        x: Math.max(0, Math.min(canvasWidth - panel.width, snapToGrid((e.clientX - rect.left) / scale - hit.offsetX))),
-        y: Math.max(0, Math.min(canvasHeight - panel.height, snapToGrid((e.clientY - rect.top) / scale - hit.offsetY))),
+        x: Math.max(0, Math.min(canvasWidth - panel.width, snapToGrid((e.clientX - rect.left) / stageScale - hit.offsetX))),
+        y: Math.max(0, Math.min(canvasHeight - panel.height, snapToGrid((e.clientY - rect.top) / stageScale - hit.offsetY))),
       };
     }));
-  }, [dragging, scale, canvasWidth, canvasHeight]);
+  }, [dragging, stageScale, canvasWidth, canvasHeight]);
 
   useEffect(() => {
     const onUp = () => {
@@ -496,13 +497,13 @@ Rules:
             ref={canvasRef}
             className="relative"
             style={{
-              width: canvasWidth * scale,
-              height: canvasHeight * scale,
+              width: canvasWidth * stageScale,
+              height: canvasHeight * stageScale,
               backgroundColor: '#ffffff',
               backgroundImage: backgroundImage
                 ? 'none'
                 : 'linear-gradient(rgba(148,163,184,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.12) 1px, transparent 1px)',
-              backgroundSize: `${20 * scale}px ${20 * scale}px`,
+              backgroundSize: `${20 * stageScale}px ${20 * stageScale}px`,
               backgroundRepeat: 'repeat',
               backgroundPosition: 'top left',
               minWidth: '100%',
@@ -596,8 +597,9 @@ Rules:
                     position: 'absolute',
                     top: 0,
                     left: 0,
-                    width: `${Math.round(backgroundScale * 100)}%`,
-                    height: 'auto',
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'fill',
                     pointerEvents: 'none'
                   }}
                 />
@@ -608,10 +610,10 @@ Rules:
               <div
                 style={{
                   position: 'absolute',
-                  left: Math.min(measureDraft.startX, measureDraft.endX) * scale,
-                  top: Math.min(measureDraft.startY, measureDraft.endY) * scale,
-                  width: Math.abs(measureDraft.endX - measureDraft.startX) * scale,
-                  height: Math.abs(measureDraft.endY - measureDraft.startY) * scale,
+                  left: Math.min(measureDraft.startX, measureDraft.endX) * stageScale,
+                  top: Math.min(measureDraft.startY, measureDraft.endY) * stageScale,
+                  width: Math.abs(measureDraft.endX - measureDraft.startX) * stageScale,
+                  height: Math.abs(measureDraft.endY - measureDraft.startY) * stageScale,
                   border: '2px dashed #2563eb',
                   backgroundColor: 'rgba(37,99,235,0.08)',
                   pointerEvents: 'none',
@@ -625,10 +627,10 @@ Rules:
                 <div
                   style={{
                     position: 'absolute',
-                    left: previewRect.x * scale,
-                    top: previewRect.y * scale,
-                    width: previewRect.width * scale,
-                    height: previewRect.height * scale,
+                    left: previewRect.x * stageScale,
+                    top: previewRect.y * stageScale,
+                    width: previewRect.width * stageScale,
+                    height: previewRect.height * stageScale,
                     border: `2px dashed ${stringColors[activeStringId] || '#0ea5e9'}`,
                     backgroundColor: `${stringColors[activeStringId] || '#0ea5e9'}22`,
                     pointerEvents: 'none',
@@ -642,7 +644,7 @@ Rules:
               <div
                 key={panel.id}
                 className="absolute"
-                style={{ left: panel.x * scale, top: panel.y * scale, width: panel.width * scale, height: panel.height * scale, zIndex: selectedPanels.includes(panel.id) ? 20 : 10 }}
+                style={{ left: panel.x * stageScale, top: panel.y * stageScale, width: panel.width * stageScale, height: panel.height * stageScale, zIndex: selectedPanels.includes(panel.id) ? 20 : 10 }}
                 onMouseDown={(e) => {
                   if (deleteMode) {
                     e.stopPropagation();
@@ -670,7 +672,7 @@ Rules:
                   isSelected={selectedPanels.includes(panel.id)}
                   stringId={panel.string_id}
                   panelIndex={panel.panel_index}
-                  scale={scale}
+                  scale={stageScale}
                   watts={0}
                 />
               </div>
