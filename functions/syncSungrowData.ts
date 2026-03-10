@@ -212,9 +212,12 @@ Deno.serve(async (req) => {
           // Save daily snapshot for historical chart + power curve accumulation
           {
             const now = new Date();
-            const todayKey = now.toISOString().slice(0, 10); // YYYY-MM-DD
+            // Use Israel local time (Asia/Jerusalem) for both date and time labels
+            const jeruFmt = (opts) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', ...opts }).format(now);
+            const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(now); // YYYY-MM-DD in Israel time
             const snapStationId = `sg_${psId}`;
-            const timeLabel = now.toISOString().slice(11, 16); // HH:MM UTC
+            const rawTime = jeruFmt({ hour: '2-digit', minute: '2-digit', hour12: false }); // "HH:MM" in Israel time
+            const timeLabel = rawTime.replace(',', '').trim().slice(0, 5);
             try {
               const existingSnaps = await db.entities.SiteGraphSnapshot.filter({ station_id: snapStationId, date_key: todayKey });
               if (existingSnaps.length > 0) {
