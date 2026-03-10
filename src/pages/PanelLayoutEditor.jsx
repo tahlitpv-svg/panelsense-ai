@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, ArrowUp, ArrowDown, ArrowLeft, Layers, RotateCw, Save, Trash2, Upload, Wand2, ZoomIn, ZoomOut } from 'lucide-react';
+import { ArrowRight, Layers, Move, RotateCw, Save, Trash2, Upload, Wand2, ZoomIn, ZoomOut } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import EditorSolarPanel from '@/components/site/editor/EditorSolarPanel';
@@ -189,8 +189,8 @@ export default function PanelLayoutEditor() {
       if (!hit) return panel;
       return {
         ...panel,
-        x: Math.max(0, Math.min(canvasWidth - panel.width, snapToGrid((e.clientX - rect.left) / stageScale - hit.offsetX))),
-        y: Math.max(0, Math.min(canvasHeight - panel.height, snapToGrid((e.clientY - rect.top) / stageScale - hit.offsetY))),
+        x: Math.max(0, Math.min(canvasWidth - panel.width, (e.clientX - rect.left) / stageScale - hit.offsetX)),
+        y: Math.max(0, Math.min(canvasHeight - panel.height, (e.clientY - rect.top) / stageScale - hit.offsetY)),
       };
     }));
   }, [dragging, stageScale, canvasWidth, canvasHeight]);
@@ -226,18 +226,6 @@ export default function PanelLayoutEditor() {
     setPanels((prev) => prev.map((panel) => selectedPanels.includes(panel.id)
       ? { ...panel, width: panel.height, height: panel.width, rotation: panel.rotation === 90 ? 0 : 90 }
       : panel));
-  };
-
-  const nudgeSelected = (dx, dy) => {
-    if (!selectedPanels.length) return;
-    setPanels((prev) => prev.map((panel) => {
-      if (!selectedPanels.includes(panel.id)) return panel;
-      return {
-        ...panel,
-        x: Math.max(0, Math.min(canvasWidth - panel.width, panel.x + dx)),
-        y: Math.max(0, Math.min(canvasHeight - panel.height, panel.y + dy)),
-      };
-    }));
   };
 
   const deleteSelected = () => {
@@ -387,6 +375,7 @@ Rules:
 
   if (!site) return <div className="min-h-screen bg-slate-100 text-slate-500 flex items-center justify-center">טוען...</div>;
 
+  const moveMode = !measureMode && !placementMode && !deleteMode;
   const selectedPanel = selectedPanels.length === 1 ? panels.find((panel) => panel.id === selectedPanels[0]) : null;
 
   return (
@@ -432,6 +421,19 @@ Rules:
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
           <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 gap-1.5" onClick={() => fileRef.current?.click()}>
             <Upload className="w-3.5 h-3.5" /> העלה הדמיה
+          </Button>
+          <Button
+            size="sm"
+            variant={moveMode ? 'default' : 'outline'}
+            className={moveMode ? 'bg-slate-900 hover:bg-slate-800 gap-1.5' : 'gap-1.5'}
+            onClick={() => {
+              setMeasureMode(false);
+              setPlacementMode(false);
+              setDeleteMode(false);
+              setMeasureDraft(null);
+            }}
+          >
+            <Move className="w-3.5 h-3.5" /> הזזה
           </Button>
           <Button
             size="sm"
@@ -661,13 +663,13 @@ Rules:
                     setPanels((prev) => prev.filter((item) => item.id !== panel.id));
                     return;
                   }
-                  if (placementMode || measureMode || deleteMode) return;
+                  if (!moveMode) return;
                   onMouseDown(e, panel.id);
                 }}
                 onDoubleClick={(e) => { e.stopPropagation(); setPanels((prev) => prev.map((item) => item.id === panel.id ? { ...item, width: item.height, height: item.width, rotation: item.rotation === 90 ? 0 : 90 } : item)); }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (placementMode || measureMode || deleteMode) return;
+                  if (!moveMode) return;
                   if (e.shiftKey) {
                     setSelectedPanels((prev) => prev.includes(panel.id) ? prev.filter((id) => id !== panel.id) : [...prev, panel.id]);
                   } else {
@@ -706,24 +708,16 @@ Rules:
                 <h3 className="font-bold text-sm text-slate-900">{selectedPanels.length > 1 ? `${selectedPanels.length} פנלים נבחרו` : 'פנל נבחר'}</h3>
                 {selectedPanel && <p className="text-xs text-slate-500 mt-1">{selectedPanel.string_id} · #{selectedPanel.panel_index} · {selectedPanel.width}×{selectedPanel.height}</p>}
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div />
-                <Button variant="outline" className="border-slate-200 bg-white text-slate-700 hover:bg-slate-100" onClick={() => nudgeSelected(0, -5)}>
-                  <ArrowUp className="w-3.5 h-3.5" />
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1 border-slate-200 bg-white text-slate-700 hover:bg-slate-100 gap-1.5" onClick={() => {
+                  setMeasureMode(false);
+                  setPlacementMode(false);
+                  setDeleteMode(false);
+                }}>
+                  <Move className="w-3.5 h-3.5" /> הזזה
                 </Button>
-                <div />
-                <Button variant="outline" className="border-slate-200 bg-white text-slate-700 hover:bg-slate-100" onClick={() => nudgeSelected(-5, 0)}>
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                </Button>
-                <Button variant="outline" className="border-slate-200 bg-white text-slate-700 hover:bg-slate-100" onClick={rotateSelected}>
+                <Button variant="outline" className="flex-1 border-slate-200 bg-white text-slate-700 hover:bg-slate-100" onClick={rotateSelected}>
                   <RotateCw className="w-3.5 h-3.5" />
-                </Button>
-                <Button variant="outline" className="border-slate-200 bg-white text-slate-700 hover:bg-slate-100" onClick={() => nudgeSelected(5, 0)}>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Button>
-                <div />
-                <Button variant="outline" className="border-slate-200 bg-white text-slate-700 hover:bg-slate-100" onClick={() => nudgeSelected(0, 5)}>
-                  <ArrowDown className="w-3.5 h-3.5" />
                 </Button>
                 <Button className="bg-red-600 text-white hover:bg-red-700" onClick={deleteSelected}>
                   <Trash2 className="w-3.5 h-3.5" />
