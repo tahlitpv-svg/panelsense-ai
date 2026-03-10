@@ -93,9 +93,8 @@ export default function PanelLayoutEditor() {
 
     const img = new Image();
     img.onload = () => {
-      const width = CANVAS_W;
-      const ratio = img.naturalWidth > 0 ? img.naturalHeight / img.naturalWidth : CANVAS_H / CANVAS_W;
-      const height = Math.max(CANVAS_H, Math.round(width * ratio));
+      const width = img.naturalWidth || CANVAS_W;
+      const height = img.naturalHeight || CANVAS_H;
       setBackgroundDimensions({ width, height });
     };
     img.src = backgroundImage;
@@ -496,7 +495,7 @@ Rules:
         <div className="flex-1 overflow-auto bg-slate-200">
           <div
             ref={canvasRef}
-            className="relative"
+            className="relative inline-block"
             style={{
               width: canvasWidth * stageScale,
               height: canvasHeight * stageScale,
@@ -507,8 +506,6 @@ Rules:
               backgroundSize: `${20 * stageScale}px ${20 * stageScale}px`,
               backgroundRepeat: 'repeat',
               backgroundPosition: 'top left',
-              minWidth: '100%',
-              minHeight: '100%',
             }}
             onClick={() => setSelectedPanels([])}
             onMouseMove={(e) => {
@@ -600,7 +597,7 @@ Rules:
                     left: 0,
                     width: '100%',
                     height: '100%',
-                    objectFit: 'fill',
+                    objectFit: 'contain',
                     pointerEvents: 'none'
                   }}
                 />
