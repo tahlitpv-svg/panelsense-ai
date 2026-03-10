@@ -9,14 +9,14 @@ import { createPageUrl } from "@/utils";
 import { ZoomIn, ZoomOut, Pencil, Grid3X3, Maximize2 } from "lucide-react";
 
 function getProductionColor(wattage, maxWattage) {
-  if (!wattage || wattage <= 0) return '#25456f';
+  if (!wattage || wattage <= 0) return '#5d7696';
   const ratio = maxWattage > 0 ? wattage / maxWattage : 0;
-  if (ratio >= 0.85) return '#a9d8f2';
-  if (ratio >= 0.7) return '#8cc7e8';
-  if (ratio >= 0.55) return '#74b4dc';
-  if (ratio >= 0.4) return '#5f9fcf';
-  if (ratio >= 0.25) return '#4d88bb';
-  return '#3f6f9f';
+  if (ratio >= 0.85) return '#d6ecf8';
+  if (ratio >= 0.7) return '#c1e1f1';
+  if (ratio >= 0.55) return '#aad4ea';
+  if (ratio >= 0.4) return '#92c4e1';
+  if (ratio >= 0.25) return '#79afd2';
+  return '#5f93bf';
 }
 
 function hexToRgba(hex, alpha) {
@@ -226,8 +226,8 @@ export default function PanelLayoutView({ site, inverters }) {
             const data = panelData[p.id] || { watts: 0, string_id: p.string_id };
             const productionColor = getProductionColor(data.watts, maxWatts);
             const stringColor = stringColors[p.string_id] || '#94a3b8';
-            const subtleStringColor = hexToRgba(stringColor, 0.1);
-            const strongStringColor = hexToRgba(stringColor, 0.55);
+            const subtleStringColor = hexToRgba(stringColor, 0.035);
+            const strongStringColor = hexToRgba(stringColor, 0.38);
             const isLandscape = p.width > p.height;
             const cols = isLandscape ? 6 : 4;
             const rows = isLandscape ? 4 : 6;
@@ -248,15 +248,15 @@ export default function PanelLayoutView({ site, inverters }) {
                   width: scaledW,
                   height: scaledH,
                   background: `
-                    linear-gradient(rgba(255,255,255,0.055) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(255,255,255,0.055) 1px, transparent 1px),
-                    linear-gradient(180deg, ${productionColor} 0%, ${hexToRgba(productionColor, 0.92)} 100%)
+                    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px),
+                    linear-gradient(180deg, ${hexToRgba(productionColor, 0.88)} 0%, ${hexToRgba(productionColor, 0.96)} 100%)
                   `,
                   backgroundSize: `${colW}% ${rowH}%, ${colW}% ${rowH}%, 100% 100%`,
-                  border: `2px solid ${stringColor}`,
-                  boxShadow: `0 0 0 999px ${subtleStringColor} inset, 0 0 4px ${hexToRgba(productionColor, 0.08)}`,
-                  outline: `1px solid ${hexToRgba(stringColor, 0.12)}`,
-                  opacity: 0.96,
+                  border: `1.5px solid ${strongStringColor}`,
+                  boxShadow: `0 0 0 999px ${subtleStringColor} inset`,
+                  outline: `1px solid ${hexToRgba(stringColor, 0.08)}`,
+                  opacity: 0.94,
                   borderRadius: 1,
                 }}
                 title={`${p.string_id} #${p.panel_index}: ${data.watts > 0 ? data.watts + 'W' : 'לא מייצר'}`}
@@ -264,7 +264,7 @@ export default function PanelLayoutView({ site, inverters }) {
                 {/* Reflection shimmer */}
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '30%', background: 'linear-gradient(180deg,rgba(255,255,255,0.06) 0%,transparent 100%)', pointerEvents: 'none' }} />
                 {/* Production color strip at bottom */}
-                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: Math.max(2, Math.round(4 * stageScale)), backgroundColor: hexToRgba(stringColor, 0.28), }} />
+                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: Math.max(2, Math.round(4 * stageScale)), backgroundColor: hexToRgba(stringColor, 0.16), }} />
                 {/* Labels */}
                 {showLabel && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ paddingBottom: Math.max(2, Math.round(5 * zoom)) }}>
