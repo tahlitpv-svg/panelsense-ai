@@ -43,6 +43,7 @@ export default function PanelLayoutEditor() {
   const [dragging, setDragging] = useState(null);
   const [scale, setScale] = useState(0.9);
   const [backgroundImage, setBackgroundImage] = useState(null);
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState(null);
   const [backgroundFile, setBackgroundFile] = useState(null);
   const [imageOpacity, setImageOpacity] = useState(0.85);
   const [saving, setSaving] = useState(false);
@@ -51,12 +52,20 @@ export default function PanelLayoutEditor() {
   const [templateSize, setTemplateSize] = useState({ width: PANEL_W, height: PANEL_H });
   const [measureMode, setMeasureMode] = useState(false);
   const [placementMode, setPlacementMode] = useState(false);
+  const [deleteMode, setDeleteMode] = useState(false);
   const [measureDraft, setMeasureDraft] = useState(null);
   const [hoverPoint, setHoverPoint] = useState(null);
   const [isBrushing, setIsBrushing] = useState(false);
 
   useEffect(() => {
     if (existingLayout?.panels) setPanels(existingLayout.panels);
+    if (existingLayout?.background_image_url) {
+      setBackgroundImage(existingLayout.background_image_url);
+      setBackgroundImageUrl(existingLayout.background_image_url);
+    }
+    if (existingLayout?.background_opacity != null) {
+      setImageOpacity(existingLayout.background_opacity);
+    }
   }, [existingLayout]);
 
   useEffect(() => {
@@ -75,39 +84,54 @@ export default function PanelLayoutEditor() {
   const getCanvasPoint = useCallback((event) => {
     const rect = canvasRef.current.getBoundingClientRect();
     return {
-      x: snapToGrid((event.clientX - rect.left) / scale),
-      y: snapToGrid((event.clientY - rect.top) / scale),
+      x: (event.clientX - rect.left) / scale,
+      y: (event.clientY - rect.top) / scale,
     };
   }, [scale]);
+
+  const getPlacementRect = useCallback((x, y) => {
+    const width = templateSize.width;
+    const height = templateSize.height;
+    const nextX = Math.round((x - width / 2) / width) * width;
+    const nextY = Math.round((y - height / 2) / height) * height;
+    return {
+      x: Math.max(0, Math.min(CANVAS_W - width, nextX)),
+      y: Math.max(0, Math.min(CANVAS_H - height, nextY)),
+      width,
+      height,
+    };
+  }, [templateSize]);
 
   const addPanelAtPoint = useCallback((x, y, stringId = activeStringId) => {
     if (!stringId) return;
     setPanels((prev) => {
-      const width = templateSize.width;
-      const height = templateSize.height;
-      const nextX = Math.max(0, Math.min(CANVAS_W - width, snapToGrid(x - width / 2)));
-      const nextY = Math.max(0, Math.min(CANVAS_H - height, snapToGrid(y - height / 2)));
-      const exists = prev.some((panel) => {
-        const centerX = panel.x + panel.width / 2;
-        const centerY = panel.y + panel.height / 2;
-        return Math.abs(centerX - x) < width * 0.35 && Math.abs(centerY - y) < height * 0.35;
-      });
+      const rect = getPlacementRect(x, y);
+      const exists = prev.some((panel) => (
+        panel.x < rect.x + rect.width &&
+        panel.x + panel.width > rect.x &&
+        panel.y < rect.y + rect.height &&
+        panel.y + panel.height > rect.y
+      ));
       if (exists) return prev;
       return [
         ...prev,
         {
           id: `${stringId}_${Date.now()}_${prev.length}`,
-          x: nextX,
-          y: nextY,
-          width,
-          height,
-          rotation: width > height ? 90 : 0,
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+          rotation: rect.width > rect.height ? 90 : 0,
           string_id: stringId,
           panel_index: prev.filter((panel) => panel.string_id === stringId).length + 1,
         },
       ];
     });
-  }, [activeStringId, templateSize]);
+  }, [activeStringId, getPlacementRect]);
+
+  const removePanelAtPoint = useCallback((x, y) => {
+    setPanels((prev) => prev.filter((panel) => !(x >= panel.x && x <= panel.x + panel.width && y >= panel.y && y <= panel.y + panel.height)));
+  }, []);
 
   const onMouseDown = (e, panelId) => {
     e.stopPropagation();
@@ -155,8 +179,9 @@ export default function PanelLayoutEditor() {
         const width = Math.abs(measureDraft.endX - measureDraft.startX);
         const height = Math.abs(measureDraft.endY - measureDraft.startY);
         if (width >= 20 && height >= 20) {
-          setTemplateSize({ width: snapToGrid(width), height: snapToGrid(height) });
+          setTemplateSize({ width: Math.round(width), height: Math.round(height) });
           setPlacementMode(true);
+          setDeleteMode(false);
           setMeasureMode(false);
         }
         setMeasureDraft(null);
@@ -191,6 +216,7 @@ export default function PanelLayoutEditor() {
     const file = e.target.files?.[0];
     if (!file) return;
     setBackgroundFile(file);
+    setBackgroundImageUrl(null);
     const reader = new FileReader();
     reader.onload = (event) => setBackgroundImage(event.target.result);
     reader.readAsDataURL(file);
@@ -291,7 +317,22 @@ Rules:
   const saveAll = async () => {
     setSaving(true);
     try {
-      const payload = { site_id: siteId, panels, canvas_width: CANVAS_W, canvas_height: CANVAS_H };
+      let nextBackgroundImageUrl = backgroundImageUrl || existingLayout?.background_image_url || null;
+      if (backgroundFile) {
+        const upload = await base44.integrations.Core.UploadFile({ file: backgroundFile });
+        nextBackgroundImageUrl = upload.file_url;
+        setBackgroundImageUrl(nextBackgroundImageUrl);
+        setBackgroundFile(null);
+      }
+
+      const payload = {
+        site_id: siteId,
+        panels,
+        canvas_width: CANVAS_W,
+        canvas_height: CANVAS_H,
+        background_image_url: nextBackgroundImageUrl,
+        background_opacity: imageOpacity,
+      };
       if (existingLayout?.id) {
         await base44.entities.PanelLayout.update(existingLayout.id, payload);
       } else {
@@ -352,6 +393,7 @@ Rules:
             onClick={() => {
               setMeasureMode((prev) => !prev);
               setPlacementMode(false);
+              setDeleteMode(false);
               setMeasureDraft(null);
             }}
           >
@@ -364,18 +406,29 @@ Rules:
             onClick={() => {
               setPlacementMode((prev) => !prev);
               setMeasureMode(false);
+              setDeleteMode(false);
             }}
           >
             מברשת פנלים
           </Button>
+          <Button
+            size="sm"
+            variant={deleteMode ? 'default' : 'outline'}
+            className={deleteMode ? 'bg-red-600 hover:bg-red-700 gap-1.5' : 'gap-1.5'}
+            onClick={() => {
+              setDeleteMode((prev) => !prev);
+              setPlacementMode(false);
+              setMeasureMode(false);
+            }}
+          >
+            סימון למחיקה
+          </Button>
           {backgroundImage && (
-            <>
-              <Button size="sm" className="bg-violet-600 hover:bg-violet-700 gap-1.5" disabled={isAnalyzing} onClick={analyzeBlueprint}>
-                <Wand2 className="w-3.5 h-3.5" /> {isAnalyzing ? 'מזהה...' : 'זהה פנלים'}
-              </Button>
-              <input type="range" min="0.35" max="1" step="0.05" value={imageOpacity} onChange={(e) => setImageOpacity(Number(e.target.value))} className="w-20 accent-cyan-500" />
-            </>
+            <input type="range" min="0.35" max="1" step="0.05" value={imageOpacity} onChange={(e) => setImageOpacity(Number(e.target.value))} className="w-20 accent-cyan-500" />
           )}
+          <Button size="sm" variant="outline" className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50" onClick={() => { setPanels([]); setSelectedPanels([]); }}>
+            <Trash2 className="w-3.5 h-3.5" /> מחק הכל
+          </Button>
           <Button size="sm" className="bg-green-600 hover:bg-green-700 gap-1.5" onClick={saveAll} disabled={saving}>
             <Save className="w-3.5 h-3.5" /> {saving ? 'שומר...' : 'שמור'}
           </Button>
@@ -429,6 +482,8 @@ Rules:
                 setMeasureDraft((prev) => prev ? { ...prev, endX: point.x, endY: point.y } : prev);
               } else if (isBrushing && placementMode) {
                 addPanelAtPoint(point.x, point.y);
+              } else if (isBrushing && deleteMode) {
+                removePanelAtPoint(point.x, point.y);
               }
             }}
             onMouseLeave={() => {
@@ -445,6 +500,11 @@ Rules:
               if (placementMode) {
                 setIsBrushing(true);
                 addPanelAtPoint(point.x, point.y);
+                return;
+              }
+              if (deleteMode) {
+                setIsBrushing(true);
+                removePanelAtPoint(point.x, point.y);
               }
             }}
             onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
@@ -473,21 +533,24 @@ Rules:
                 }}
               />
             )}
-            {placementMode && hoverPoint && activeStringId && (
-              <div
-                style={{
-                  position: 'absolute',
-                  left: (hoverPoint.x - templateSize.width / 2) * scale,
-                  top: (hoverPoint.y - templateSize.height / 2) * scale,
-                  width: templateSize.width * scale,
-                  height: templateSize.height * scale,
-                  border: `2px dashed ${stringColors[activeStringId] || '#0ea5e9'}`,
-                  backgroundColor: `${stringColors[activeStringId] || '#0ea5e9'}22`,
-                  pointerEvents: 'none',
-                  zIndex: 25,
-                }}
-              />
-            )}
+            {placementMode && hoverPoint && activeStringId && (() => {
+              const previewRect = getPlacementRect(hoverPoint.x, hoverPoint.y);
+              return (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: previewRect.x * scale,
+                    top: previewRect.y * scale,
+                    width: previewRect.width * scale,
+                    height: previewRect.height * scale,
+                    border: `2px dashed ${stringColors[activeStringId] || '#0ea5e9'}`,
+                    backgroundColor: `${stringColors[activeStringId] || '#0ea5e9'}22`,
+                    pointerEvents: 'none',
+                    zIndex: 25,
+                  }}
+                />
+              );
+            })()}
 
             {panels.map((panel) => (
               <div
@@ -495,13 +558,18 @@ Rules:
                 className="absolute"
                 style={{ left: panel.x * scale, top: panel.y * scale, width: panel.width * scale, height: panel.height * scale, zIndex: selectedPanels.includes(panel.id) ? 20 : 10 }}
                 onMouseDown={(e) => {
-                  if (placementMode || measureMode) return;
+                  if (deleteMode) {
+                    e.stopPropagation();
+                    setPanels((prev) => prev.filter((item) => item.id !== panel.id));
+                    return;
+                  }
+                  if (placementMode || measureMode || deleteMode) return;
                   onMouseDown(e, panel.id);
                 }}
                 onDoubleClick={(e) => { e.stopPropagation(); setPanels((prev) => prev.map((item) => item.id === panel.id ? { ...item, width: item.height, height: item.width, rotation: item.rotation === 90 ? 0 : 90 } : item)); }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (placementMode || measureMode) return;
+                  if (placementMode || measureMode || deleteMode) return;
                   if (e.shiftKey) {
                     setSelectedPanels((prev) => prev.includes(panel.id) ? prev.filter((id) => id !== panel.id) : [...prev, panel.id]);
                   } else {
@@ -530,7 +598,8 @@ Rules:
             <div>1. העלה הדמיה</div>
             <div>2. לחץ "דגום מסגרת" וגרור על פנל אחד</div>
             <div>3. לחץ "מברשת פנלים" ועבור עם העכבר על המסגרות</div>
-            <div>4. בחר סטרינג בצד ושמור</div>
+            <div>4. לחץ "סימון למחיקה" כדי למחוק פנלים בגרירה</div>
+            <div>5. בחר סטרינג בצד ושמור</div>
           </div>
 
           {selectedPanels.length > 0 && (

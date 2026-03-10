@@ -132,33 +132,33 @@ export default function PanelLayoutView({ site, inverters }) {
   });
 
   return (
-    <div className="rounded-xl overflow-hidden border border-slate-800 bg-slate-950" style={{ direction: 'ltr' }}>
+    <div className="rounded-xl overflow-hidden border border-slate-200 bg-white" style={{ direction: 'ltr' }}>
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex-wrap gap-2" dir="rtl">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-white border-b border-slate-200 flex-wrap gap-2" dir="rtl">
         <div className="flex items-center gap-2">
-          <h3 className="font-bold text-sm text-white">לייאאוט פנלים - Live</h3>
-          <Badge className="text-[10px] bg-green-900/60 text-green-400 border-green-700 border">
+          <h3 className="font-bold text-sm text-slate-900">לייאאוט פנלים - Live</h3>
+          <Badge className="text-[10px] bg-green-50 text-green-700 border-green-200 border">
             {Object.values(panelData).filter(d => d.watts > 0).length}/{layout.panels.length} פעיל
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-300 hover:text-white" onClick={() => setShowWatts(!showWatts)}>
+          <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-600 hover:text-slate-900" onClick={() => setShowWatts(!showWatts)}>
             {showWatts ? 'הסתר ואט' : 'הצג ואט'}
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-300 hover:text-white" onClick={() => setZoom(z => Math.max(0.3, +(z - 0.1).toFixed(1)))}>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-600 hover:text-slate-900" onClick={() => setZoom(z => Math.max(0.3, +(z - 0.1).toFixed(1)))}>
             <ZoomOut className="w-3.5 h-3.5" />
           </Button>
-          <span className="text-[10px] text-slate-400 w-8 text-center">{Math.round(zoom * 100)}%</span>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-300 hover:text-white" onClick={() => setZoom(z => Math.min(2, +(z + 0.1).toFixed(1)))}>
+          <span className="text-[10px] text-slate-500 w-8 text-center">{Math.round(zoom * 100)}%</span>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-600 hover:text-slate-900" onClick={() => setZoom(z => Math.min(2, +(z + 0.1).toFixed(1)))}>
             <ZoomIn className="w-3.5 h-3.5" />
           </Button>
           <Link to={createPageUrl('PanelLayoutEditor') + `?siteId=${siteId}`}>
-            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-slate-300 hover:text-white">
+            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-slate-600 hover:text-slate-900">
               <Maximize2 className="w-3 h-3" /> מסך מלא
             </Button>
           </Link>
           <Link to={createPageUrl('PanelLayoutEditor') + `?siteId=${siteId}`}>
-            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-slate-300 hover:text-white">
+            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-slate-600 hover:text-slate-900">
               <Pencil className="w-3 h-3" /> ערוך
             </Button>
           </Link>
@@ -166,17 +166,25 @@ export default function PanelLayoutView({ site, inverters }) {
       </div>
 
       {/* Canvas */}
-      <div className="overflow-auto" style={{ maxHeight: 650, background: 'radial-gradient(ellipse at center, #0f1e36 0%, #070e1a 100%)' }}>
+      <div className="overflow-auto bg-slate-100" style={{ maxHeight: 650 }}>
         <div
           className="relative"
           style={{
             width: (layout.canvas_width || 1200) * zoom,
             height: (layout.canvas_height || 800) * zoom,
             minWidth: '100%',
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)`,
-            backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
+            backgroundColor: '#ffffff',
+            backgroundImage: layout.background_image_url
+              ? `url('${layout.background_image_url}')`
+              : `linear-gradient(rgba(148,163,184,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.12) 1px, transparent 1px)`,
+            backgroundSize: layout.background_image_url ? 'contain' : `${20 * zoom}px ${20 * zoom}px`,
+            backgroundRepeat: layout.background_image_url ? 'no-repeat' : 'repeat',
+            backgroundPosition: 'center',
           }}
         >
+          {layout.background_image_url && (
+            <div style={{ position: 'absolute', inset: 0, backgroundColor: `rgba(255,255,255,${1 - (layout.background_opacity ?? 0.85)})`, pointerEvents: 'none' }} />
+          )}
           {layout.panels.map(p => {
             const data = panelData[p.id] || { watts: 0, string_id: p.string_id };
             const productionColor = getProductionColor(data.watts, maxWatts);
@@ -248,7 +256,7 @@ export default function PanelLayoutView({ site, inverters }) {
       </div>
 
       {/* Footer / Legend */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-900 border-t border-slate-800 flex-wrap gap-2" dir="rtl">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-white border-t border-slate-200 flex-wrap gap-2" dir="rtl">
         <div className="flex items-center gap-3 text-[10px] flex-wrap">
           {[['#22d3ee','גבוה'],['#0ea5e9','טוב'],['#3b82f6','בינוני'],['#8b5cf6','חלש'],['rgba(100,120,150,0.4)','לא מייצר']].map(([c, label]) => (
             <div key={label} className="flex items-center gap-1">
@@ -256,15 +264,15 @@ export default function PanelLayoutView({ site, inverters }) {
                 background: `linear-gradient(155deg, #1b3f6e, #071428)`,
                 border: `1.5px solid ${c}`,
               }} />
-              <span className="text-slate-400">{label}</span>
+              <span className="text-slate-500">{label}</span>
             </div>
           ))}
         </div>
         <div className="flex gap-3 text-[10px] flex-wrap">
           {Object.entries(stringStats).map(([sid, stat]) => (
-            <span key={sid} className="text-slate-400">
-              {sid} • {stat.inverter_port} • <span className="font-medium text-white">{(stat.total / 1000).toFixed(1)}kW</span>
-              {stat.matched_port ? <span className="text-slate-500"> • מזוהה כ-{stat.matched_port}</span> : <span className="text-amber-400"> • לא זוהתה יציאה</span>}
+            <span key={sid} className="text-slate-500">
+              {sid} • {stat.inverter_port} • <span className="font-medium text-slate-900">{(stat.total / 1000).toFixed(1)}kW</span>
+              {stat.matched_port ? <span className="text-slate-500"> • מזוהה כ-{stat.matched_port}</span> : <span className="text-amber-500"> • לא זוהתה יציאה</span>}
             </span>
           ))}
         </div>
