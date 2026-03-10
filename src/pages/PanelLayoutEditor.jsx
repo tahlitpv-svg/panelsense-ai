@@ -507,9 +507,10 @@ Rules:
         </div>
 
         <div className="flex-1 overflow-auto bg-slate-200">
+          <div className="min-w-full min-h-full flex justify-center items-start p-6">
           <div
             ref={canvasRef}
-            className="relative inline-block"
+            className="relative shrink-0"
             style={{
               width: canvasWidth * stageScale,
               height: canvasHeight * stageScale,
@@ -689,6 +690,7 @@ Rules:
                 />
               </div>
             ))}
+          </div>
           </div>
         </div>
 

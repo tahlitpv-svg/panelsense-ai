@@ -53,6 +53,7 @@ export default function PanelLayoutView({ site, inverters }) {
   const siteId = site?.id;
   const [zoom, setZoom] = useState(0.8);
   const [showWatts, setShowWatts] = useState(true);
+  const stringColors = Object.fromEntries((site?.string_configs || []).map((s, i) => [s.string_id, ['#22d3ee', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'][i % 10]]));
 
   const { data: layout } = useQuery({
     queryKey: ['panelLayout', siteId],
@@ -116,6 +117,8 @@ export default function PanelLayoutView({ site, inverters }) {
     );
   }
 
+  const stageScale = zoom * (layout?.background_scale || 1);
+
   // Calculate total and per-string stats
   const stringStats = (site?.string_configs || []).reduce((acc, sc) => {
     acc[sc.string_id] = { total: 0, count: 0, inverter_port: sc.inverter_port || '—', matched_port: null };
@@ -167,44 +170,52 @@ export default function PanelLayoutView({ site, inverters }) {
 
       {/* Canvas */}
       <div className="overflow-auto bg-slate-100" style={{ maxHeight: 650 }}>
+        <div className="min-w-full min-h-full flex justify-center items-start p-6">
         <div
-          className="relative"
+          className="relative shrink-0"
           style={{
-            width: (layout.canvas_width || 1200) * zoom,
-            height: (layout.canvas_height || 800) * zoom,
-            minWidth: '100%',
+            width: (layout.canvas_width || 1200) * stageScale,
+            height: (layout.canvas_height || 800) * stageScale,
             backgroundColor: '#ffffff',
             backgroundImage: layout.background_image_url
-              ? `url('${layout.background_image_url}')`
+              ? 'none'
               : `linear-gradient(rgba(148,163,184,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.12) 1px, transparent 1px)`,
-            backgroundSize: layout.background_image_url ? `${Math.round((layout.background_scale || 1) * 100)}% auto` : `${20 * zoom}px ${20 * zoom}px`,
-            backgroundRepeat: layout.background_image_url ? 'no-repeat' : 'repeat',
-            backgroundPosition: 'top center',
+            backgroundSize: `${20 * stageScale}px ${20 * stageScale}px`,
+            backgroundRepeat: 'repeat',
+            backgroundPosition: 'top left',
           }}
         >
           {layout.background_image_url && (
-            <div style={{ position: 'absolute', inset: 0, backgroundColor: `rgba(255,255,255,${1 - (layout.background_opacity ?? 0.85)})`, pointerEvents: 'none' }} />
+            <>
+              <img
+                src={layout.background_image_url}
+                alt="Simulation"
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }}
+              />
+              <div style={{ position: 'absolute', inset: 0, backgroundColor: `rgba(255,255,255,${1 - (layout.background_opacity ?? 0.85)})`, pointerEvents: 'none' }} />
+            </>
           )}
           {layout.panels.map(p => {
             const data = panelData[p.id] || { watts: 0, string_id: p.string_id };
             const productionColor = getProductionColor(data.watts, maxWatts);
+            const stringColor = stringColors[p.string_id] || '#94a3b8';
             const isLandscape = p.width > p.height;
             const cols = isLandscape ? 6 : 4;
             const rows = isLandscape ? 4 : 6;
             const colW = (100 / cols).toFixed(2);
             const rowH = (100 / rows).toFixed(2);
-            const scaledW = p.width * zoom;
-            const scaledH = p.height * zoom;
+            const scaledW = p.width * stageScale;
+            const scaledH = p.height * stageScale;
             const showLabel = scaledW > 22 && scaledH > 18;
-            const borderColor = productionColor || 'rgba(100,120,150,0.5)';
+            const borderColor = stringColor;
 
             return (
               <div
                 key={p.id}
                 className="absolute overflow-hidden"
                 style={{
-                  left: p.x * zoom,
-                  top: p.y * zoom,
+                  left: p.x * stageScale,
+                  top: p.y * stageScale,
                   width: scaledW,
                   height: scaledH,
                   background: `
@@ -216,7 +227,7 @@ export default function PanelLayoutView({ site, inverters }) {
                   border: `1.5px solid ${borderColor}`,
                   boxShadow: productionColor
                     ? `0 0 8px ${productionColor}44, inset 0 0 0 1px rgba(200,220,255,0.1)`
-                    : `inset 0 0 0 1px rgba(100,120,150,0.1)`,
+                    : `0 0 0 1px ${stringColor}33 inset`,
                   borderRadius: 1,
                 }}
                 title={`${p.string_id} #${p.panel_index}: ${data.watts > 0 ? data.watts + 'W' : 'לא מייצר'}`}
@@ -224,26 +235,26 @@ export default function PanelLayoutView({ site, inverters }) {
                 {/* Reflection shimmer */}
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '30%', background: 'linear-gradient(180deg,rgba(255,255,255,0.06) 0%,transparent 100%)', pointerEvents: 'none' }} />
                 {/* Production color strip at bottom */}
-                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: Math.max(2, Math.round(4 * zoom)), backgroundColor: productionColor || 'rgba(100,120,150,0.3)', }} />
+                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: Math.max(2, Math.round(4 * stageScale)), backgroundColor: stringColor, }} />
                 {/* Labels */}
                 {showLabel && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ paddingBottom: Math.max(2, Math.round(5 * zoom)) }}>
                     {showWatts && data.watts > 0 ? (
                       <>
-                        <span style={{ color: productionColor || 'rgba(200,220,255,0.6)', fontSize: Math.max(7, Math.round(10 * zoom)), fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.9)', lineHeight: 1 }}>
+                        <span style={{ color: productionColor || 'rgba(200,220,255,0.75)', fontSize: Math.max(7, Math.round(10 * stageScale)), fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.9)', lineHeight: 1 }}>
                           {data.watts}
                         </span>
                         {scaledH > 36 && (
-                          <span style={{ color: 'rgba(200,220,255,0.4)', fontSize: Math.max(5, Math.round(7 * zoom)), lineHeight: 1, marginTop: 1 }}>W</span>
+                          <span style={{ color: 'rgba(200,220,255,0.4)', fontSize: Math.max(5, Math.round(7 * stageScale)), lineHeight: 1, marginTop: 1 }}>W</span>
                         )}
                       </>
                     ) : (
-                      <span style={{ color: 'rgba(200,220,255,0.55)', fontSize: Math.max(7, Math.round(9 * zoom)), fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.9)', lineHeight: 1 }}>
+                      <span style={{ color: stringColor, fontSize: Math.max(7, Math.round(9 * stageScale)), fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.9)', lineHeight: 1 }}>
                         {p.string_id}
                       </span>
                     )}
                     {scaledH > 40 && (
-                      <span style={{ color: 'rgba(200,220,255,0.35)', fontSize: Math.max(5, Math.round(6 * zoom)), lineHeight: 1, marginTop: 1 }}>
+                      <span style={{ color: 'rgba(200,220,255,0.35)', fontSize: Math.max(5, Math.round(6 * stageScale)), lineHeight: 1, marginTop: 1 }}>
                         #{p.panel_index}
                       </span>
                     )}
@@ -252,6 +263,7 @@ export default function PanelLayoutView({ site, inverters }) {
               </div>
             );
           })}
+        </div>
         </div>
       </div>
 
