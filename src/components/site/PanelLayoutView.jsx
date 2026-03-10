@@ -95,7 +95,7 @@ export default function PanelLayoutView({ site, inverters }) {
   const siteId = site?.id;
   const [zoom, setZoom] = useState(1.15);
   const [showWatts, setShowWatts] = useState(true);
-  const stringColors = Object.fromEntries((site?.string_configs || []).map((s, i) => [s.string_id, ['#7dc6e8', '#7ecb9a', '#e8c36d', '#e59aa0', '#b8a7e8', '#e7a8c7', '#79d7df', '#b7d97a', '#e8b07d', '#94b8e8'][i % 10]]));
+  const stringColors = Object.fromEntries((site?.string_configs || []).map((s, i) => [s.string_id, ['#ef4444', '#f59e0b', '#22c55e', '#8b5cf6', '#f97316', '#e11d48', '#84cc16', '#14b8a6', '#a855f7', '#eab308'][i % 10]]));
 
   const { data: layout } = useQuery({
     queryKey: ['panelLayout', siteId],

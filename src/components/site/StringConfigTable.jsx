@@ -21,7 +21,7 @@ const ORIENTATION_LABELS = Object.fromEntries(ORIENTATIONS.map(o => [o.value, o.
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 
-export default function StringConfigTable({ strings, panelWatt, panelVoltage, panelAmperage, onChange }) {
+export default function StringConfigTable({ strings, panelWatt, panelVoltage, panelAmperage, inverterPortOptions = [], onChange }) {
   // Fetch global settings to get expected kWh/kWp per orientation
   const { data: systemSettings } = useQuery({
     queryKey: ['systemSettings'],
@@ -117,6 +117,10 @@ export default function StringConfigTable({ strings, panelWatt, panelVoltage, pa
     { num: 12, name: 'דצמבר', days: 31 },
   ];
 
+  const availablePortOptions = inverterPortOptions.length > 0
+    ? inverterPortOptions
+    : Array.from(new Set((strings || []).map((s) => s.inverter_port).filter(Boolean)));
+
   return (
     <Card className="p-5 border border-slate-200 shadow-sm bg-white">
       <div className="flex items-center justify-between mb-4">
@@ -148,12 +152,16 @@ export default function StringConfigTable({ strings, panelWatt, panelVoltage, pa
                     onChange={(e) => updateString(idx, 'string_id', e.target.value)}
                     className="w-20 h-8 text-sm font-bold border-slate-200"
                   />
-                  <Input
-                    value={s.inverter_port || ''}
-                    onChange={(e) => updateString(idx, 'inverter_port', e.target.value)}
-                    placeholder="PV1 / PV6"
-                    className="w-24 h-8 text-sm border-slate-200"
-                  />
+                  <Select value={s.inverter_port || ''} onValueChange={(v) => updateString(idx, 'inverter_port', v)}>
+                    <SelectTrigger className="w-28 h-8 text-sm border-slate-200 bg-white">
+                      <SelectValue placeholder="בחר יציאה" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availablePortOptions.map((option) => (
+                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Button variant="ghost" size="icon" onClick={() => removeString(idx)} className="w-7 h-7 text-red-400 hover:text-red-600 hover:bg-red-50">
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
@@ -226,12 +234,16 @@ export default function StringConfigTable({ strings, panelWatt, panelVoltage, pa
                       />
                     </td>
                     <td className="py-2 px-2">
-                      <Input
-                        value={s.inverter_port || ''}
-                        onChange={(e) => updateString(idx, 'inverter_port', e.target.value)}
-                        placeholder="PV1 / PV6"
-                        className="h-8 w-24 text-sm border-slate-200"
-                      />
+                      <Select value={s.inverter_port || ''} onValueChange={(v) => updateString(idx, 'inverter_port', v)}>
+                        <SelectTrigger className="h-8 w-28 text-sm border-slate-200 bg-white">
+                          <SelectValue placeholder="בחר יציאה" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availablePortOptions.map((option) => (
+                            <SelectItem key={option} value={option}>{option}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </td>
                     <td className="py-2 px-2">
                       <Input

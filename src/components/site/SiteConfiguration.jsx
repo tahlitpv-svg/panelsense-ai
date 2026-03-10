@@ -54,6 +54,20 @@ export default function SiteConfiguration({ site }) {
     }
   });
 
+  const { data: inverters = [] } = useQuery({
+    queryKey: ['siteInverters', site.id],
+    queryFn: () => base44.entities.Inverter.filter({ site_id: site.id }),
+    enabled: !!site?.id,
+  });
+
+  const inverterPortOptions = Array.from(new Set(
+    inverters.flatMap((inverter) => (inverter.mppt_strings || []).map((mppt) => mppt.string_id).filter(Boolean))
+  )).sort((a, b) => {
+    const aNum = Number((a || '').replace(/\D/g, ''));
+    const bNum = Number((b || '').replace(/\D/g, ''));
+    return aNum - bNum;
+  });
+
   const updateMutation = useMutation({
     mutationFn: (data) => base44.entities.Site.update(site.id, data),
     onSuccess: () => {
@@ -260,6 +274,7 @@ export default function SiteConfiguration({ site }) {
             panelWatt={parseFloat(config.panel_watt) || 0}
             panelVoltage={parseFloat(config.panel_voltage) || 0}
             panelAmperage={parseFloat(config.panel_amperage) || 0}
+            inverterPortOptions={inverterPortOptions}
             onChange={(newStrings) => setConfig({ ...config, string_configs: newStrings })}
           />
         </TabsContent>
