@@ -48,6 +48,10 @@ export default function Layout({ children, currentPageName }) {
     }
   }, []);
 
+  if (currentPageName === 'PanelLayoutEditor') {
+    return <div className="min-h-screen bg-slate-950">{children}</div>;
+  }
+
   return (
     <div className="min-h-screen flex flex-row-reverse overflow-hidden bg-slate-50 text-slate-900" dir="rtl">
 

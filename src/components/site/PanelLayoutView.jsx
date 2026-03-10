@@ -6,16 +6,47 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { ZoomIn, ZoomOut, Pencil, Grid3X3 } from "lucide-react";
+import { ZoomIn, ZoomOut, Pencil, Grid3X3, Maximize2 } from "lucide-react";
 
 function getProductionColor(wattage, maxWattage) {
-  if (!wattage || wattage <= 0) return null; // no production - show dark panel
+  if (!wattage || wattage <= 0) return null;
   const ratio = maxWattage > 0 ? wattage / maxWattage : 0;
-  if (ratio >= 0.8) return '#22d3ee'; // cyan
-  if (ratio >= 0.6) return '#0ea5e9'; // sky
-  if (ratio >= 0.4) return '#3b82f6'; // blue
-  if (ratio >= 0.2) return '#6366f1'; // indigo
-  return '#8b5cf6'; // violet (very low)
+  if (ratio >= 0.8) return '#22d3ee';
+  if (ratio >= 0.6) return '#0ea5e9';
+  if (ratio >= 0.4) return '#3b82f6';
+  if (ratio >= 0.2) return '#6366f1';
+  return '#8b5cf6';
+}
+
+function normalizePortToken(value = '') {
+  return value.toString().toUpperCase().replace(/\s+/g, '').replace(/[()_-]/g, '');
+}
+
+function buildPortCandidates(config) {
+  const digits = (config?.inverter_port || config?.string_id || '').toString().replace(/\D/g, '');
+  const candidates = new Set([
+    config?.inverter_port,
+    config?.string_id,
+    digits,
+    digits ? `PV${digits}` : null,
+    digits ? `MPPT${digits}` : null,
+    digits ? `STR${digits}` : null,
+  ].filter(Boolean).map(normalizePortToken));
+  return Array.from(candidates);
+}
+
+function findMatchingMppt(mpptEntries, config) {
+  const candidates = buildPortCandidates(config);
+  for (const [key, mppt] of mpptEntries) {
+    const normalizedKey = normalizePortToken(key);
+    const matched = candidates.find((candidate) =>
+      normalizedKey === candidate ||
+      normalizedKey.startsWith(candidate) ||
+      (candidate.length >= 3 && normalizedKey.includes(candidate))
+    );
+    if (matched) return { key, mppt };
+  }
+  return null;
 }
 
 export default function PanelLayoutView({ site, inverters }) {
@@ -31,47 +62,32 @@ export default function PanelLayoutView({ site, inverters }) {
 
   // Calculate per-panel wattage from MPPT string data
   const panelData = useMemo(() => {
-    if (!layout?.panels || !inverters?.length) return {};
+    if (!layout?.panels?.length) return {};
     const strings = site?.string_configs || [];
     const result = {};
 
-    // Gather all MPPT data from inverters
-    const mpptMap = {};
-    inverters.forEach(inv => {
-      (inv.mppt_strings || []).forEach(mppt => {
-        mpptMap[mppt.string_id] = mppt;
+    const mpptEntries = [];
+    inverters.forEach((inv) => {
+      (inv.mppt_strings || []).forEach((mppt) => {
+        if (mppt?.string_id) mpptEntries.push([mppt.string_id, mppt]);
       });
     });
 
-    // For each string, calculate per-panel wattage
-    strings.forEach(sc => {
-      const stringPanels = layout.panels.filter(p => p.string_id === sc.string_id);
+    strings.forEach((sc) => {
+      const stringPanels = layout.panels.filter((p) => p.string_id === sc.string_id);
       const numPanels = sc.num_panels || stringPanels.length || 1;
-
-      // Find matching MPPT - try exact match or partial match
-      let mppt = null;
-      const possibleIds = [sc.inverter_port, sc.string_id, sc.string_id?.replace('S', 'PV'), `PV${sc.string_id?.replace(/\D/g, '')}`].filter(Boolean);
-      for (const pid of possibleIds) {
-        if (mpptMap[pid]) { mppt = mpptMap[pid]; break; }
-      }
-      
-      // Try partial match if not found (e.g. user typed "PV6", api has "PV6 (MPPT3 Str2)")
-      if (!mppt && sc.inverter_port) {
-        const partialMatch = Object.keys(mpptMap).find(k => 
-          k.toLowerCase().startsWith(sc.inverter_port.toLowerCase() + ' ') || 
-          k.toLowerCase() === sc.inverter_port.toLowerCase()
-        );
-        if (partialMatch) mppt = mpptMap[partialMatch];
-      }
-
-      // Total string power in watts (V * A)
-      const totalStringPowerW = mppt ? (mppt.voltage_v || 0) * (mppt.current_a || 0) : 0;
+      const match = findMatchingMppt(mpptEntries, sc);
+      const totalStringPowerW = match
+        ? Math.round(((match.mppt.power_kw || (((match.mppt.voltage_v || 0) * (match.mppt.current_a || 0)) / 1000)) * 1000))
+        : 0;
       const perPanelW = numPanels > 0 ? totalStringPowerW / numPanels : 0;
 
-      stringPanels.forEach(p => {
+      stringPanels.forEach((p) => {
         result[p.id] = {
           watts: Math.round(perPanelW),
-          string_id: sc.string_id
+          string_id: sc.string_id,
+          inverter_port: sc.inverter_port || null,
+          matched_port: match?.key || null,
         };
       });
     });
@@ -101,11 +117,18 @@ export default function PanelLayoutView({ site, inverters }) {
   }
 
   // Calculate total and per-string stats
-  const stringStats = {};
-  Object.values(panelData).forEach(d => {
-    if (!stringStats[d.string_id]) stringStats[d.string_id] = { total: 0, count: 0 };
+  const stringStats = (site?.string_configs || []).reduce((acc, sc) => {
+    acc[sc.string_id] = { total: 0, count: 0, inverter_port: sc.inverter_port || '—', matched_port: null };
+    return acc;
+  }, {});
+
+  Object.values(panelData).forEach((d) => {
+    if (!stringStats[d.string_id]) {
+      stringStats[d.string_id] = { total: 0, count: 0, inverter_port: d.inverter_port || '—', matched_port: null };
+    }
     stringStats[d.string_id].total += d.watts;
     stringStats[d.string_id].count++;
+    if (d.matched_port) stringStats[d.string_id].matched_port = d.matched_port;
   });
 
   return (
@@ -129,6 +152,11 @@ export default function PanelLayoutView({ site, inverters }) {
           <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-300 hover:text-white" onClick={() => setZoom(z => Math.min(2, +(z + 0.1).toFixed(1)))}>
             <ZoomIn className="w-3.5 h-3.5" />
           </Button>
+          <Link to={createPageUrl('PanelLayoutEditor') + `?siteId=${siteId}`}>
+            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-slate-300 hover:text-white">
+              <Maximize2 className="w-3 h-3" /> מסך מלא
+            </Button>
+          </Link>
           <Link to={createPageUrl('PanelLayoutEditor') + `?siteId=${siteId}`}>
             <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-slate-300 hover:text-white">
               <Pencil className="w-3 h-3" /> ערוך
@@ -235,7 +263,8 @@ export default function PanelLayoutView({ site, inverters }) {
         <div className="flex gap-3 text-[10px] flex-wrap">
           {Object.entries(stringStats).map(([sid, stat]) => (
             <span key={sid} className="text-slate-400">
-              {sid}: <span className="font-medium text-white">{(stat.total / 1000).toFixed(1)}kW</span>
+              {sid} • {stat.inverter_port} • <span className="font-medium text-white">{(stat.total / 1000).toFixed(1)}kW</span>
+              {stat.matched_port ? <span className="text-slate-500"> • מזוהה כ-{stat.matched_port}</span> : <span className="text-amber-400"> • לא זוהתה יציאה</span>}
             </span>
           ))}
         </div>
