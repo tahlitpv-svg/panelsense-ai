@@ -492,11 +492,30 @@ Rules:
             onClick={() => setSelectedPanels([])}
             onMouseMove={(e) => {
               const point = getCanvasPoint(e);
-              setHoverPoint(point);
+              let nextPoint = point;
+
+              if (isBrushing && placementMode && brushStartPoint) {
+                const dx = point.x - brushStartPoint.x;
+                const dy = point.y - brushStartPoint.y;
+                let nextAxis = brushAxis;
+
+                if (!nextAxis && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+                  nextAxis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+                  setBrushAxis(nextAxis);
+                }
+
+                if (nextAxis === 'x') {
+                  nextPoint = { ...point, y: brushStartPoint.y };
+                } else if (nextAxis === 'y') {
+                  nextPoint = { ...point, x: brushStartPoint.x };
+                }
+              }
+
+              setHoverPoint(nextPoint);
               if (measureDraft) {
                 setMeasureDraft((prev) => prev ? { ...prev, endX: point.x, endY: point.y } : prev);
               } else if (isBrushing && placementMode) {
-                addPanelAtPoint(point.x, point.y);
+                addPanelAtPoint(nextPoint.x, nextPoint.y);
               } else if (isBrushing && deleteMode) {
                 removePanelAtPoint(point.x, point.y);
               }
