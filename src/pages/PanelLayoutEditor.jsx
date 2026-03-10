@@ -179,6 +179,8 @@ export default function PanelLayoutEditor() {
     const onUp = () => {
       setDragging(null);
       setIsBrushing(false);
+      setBrushStartPoint(null);
+      setBrushAxis(null);
       if (measureDraft) {
         const width = Math.abs(measureDraft.endX - measureDraft.startX);
         const height = Math.abs(measureDraft.endY - measureDraft.startY);
