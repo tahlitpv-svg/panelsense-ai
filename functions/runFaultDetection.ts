@@ -574,7 +574,8 @@ _אם התקלה לא תטופל._
 
       for (const site of sites) {
         const siteInverters = inverters.filter(inv => inv.site_id === site.id);
-        const stationSnapshots = site.solis_station_id ? (snapshotsByStation[site.solis_station_id] || {}) : {};
+        const snapKey = site.solis_station_id || (site.sungrow_station_id ? `sg_${site.sungrow_station_id}` : null);
+        const stationSnapshots = snapKey ? (snapshotsByStation[snapKey] || {}) : {};
         const graphData = stationSnapshots[dateKey] || null; // today's data
         const volatility = computeVolatilityIndex(graphData);
 
