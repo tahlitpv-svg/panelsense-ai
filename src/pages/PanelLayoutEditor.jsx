@@ -533,6 +533,8 @@ Rules:
               }
               if (placementMode) {
                 setIsBrushing(true);
+                setBrushStartPoint(point);
+                setBrushAxis(null);
                 addPanelAtPoint(point.x, point.y);
                 return;
               }
