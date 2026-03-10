@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { format } from 'date-fns';
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
@@ -60,7 +61,8 @@ function findMatchingMppt(mpptEntries, config, usedKeys = new Set()) {
   let bestMatch = null;
   let bestScore = -Infinity;
 
-  for (const [key, mppt] of mpptEntries) {
+  for (const entry of mpptEntries) {
+    const { key, mppt } = entry;
     if (usedKeys.has(key)) continue;
 
     const normalizedKey = normalizePortToken(key);
@@ -84,11 +86,46 @@ function findMatchingMppt(mpptEntries, config, usedKeys = new Set()) {
 
     if (score > bestScore) {
       bestScore = score;
-      bestMatch = { key, mppt, score };
+      bestMatch = { ...entry, score };
     }
   }
 
   return bestMatch;
+}
+
+function parseTimeLabelToMinutes(value = '') {
+  const timePart = String(value).includes(' ') ? String(value).split(' ')[1] : String(value);
+  const [h, m] = timePart.slice(0, 5).split(':').map(Number);
+  return ((h || 0) * 60) + (m || 0);
+}
+
+function calculatePortEnergyKwh(dayData = []) {
+  if (!Array.isArray(dayData) || dayData.length === 0) return {};
+
+  const rows = dayData
+    .map((item) => ({ ...item, minutes: parseTimeLabelToMinutes(item.timeStr || item.time || '') }))
+    .filter((item) => !Number.isNaN(item.minutes))
+    .sort((a, b) => a.minutes - b.minutes);
+
+  const energyByPort = {};
+
+  rows.forEach((row, index) => {
+    const next = rows[index + 1];
+    const intervalHours = next ? Math.max((next.minutes - row.minutes) / 60, 1 / 12) : 1 / 6;
+
+    Object.keys(row).forEach((key) => {
+      const voltageMatch = key.match(/^uPv(\d+)$/i);
+      if (!voltageMatch) return;
+      const portNum = voltageMatch[1];
+      const voltage = Number(row[key] || 0);
+      const current = Number(row[`iPv${portNum}`] || 0);
+      const powerKw = (voltage * current) / 1000;
+      const portKey = `PV${portNum}`;
+      energyByPort[portKey] = (energyByPort[portKey] || 0) + (powerKw * intervalHours);
+    });
+  });
+
+  return energyByPort;
 }
 
 export default function PanelLayoutView({ site, inverters }) {
@@ -103,6 +140,33 @@ export default function PanelLayoutView({ site, inverters }) {
     enabled: !!siteId
   });
 
+  const { data: inverterDayEnergy = {} } = useQuery({
+    queryKey: ['inverterDayEnergy', siteId, inverters.map(inv => inv.id).join(',')],
+    queryFn: async () => {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const results = await Promise.all(
+        inverters
+          .filter((inv) => inv?.solis_inverter_id && inv?.solis_sn)
+          .map(async (inv) => {
+            const res = await base44.functions.invoke('getSolisGraphData', {
+              endpoint: '/v1/api/inverterDay',
+              body: { id: inv.solis_inverter_id, sn: inv.solis_sn, time: today, timezone: 2 }
+            });
+            return {
+              inverterId: inv.id,
+              energyByPort: calculatePortEnergyKwh(res.data?.data || [])
+            };
+          })
+      );
+
+      return results.reduce((acc, item) => {
+        acc[item.inverterId] = item.energyByPort;
+        return acc;
+      }, {});
+    },
+    enabled: inverters.length > 0
+  });
+
   // Calculate per-panel wattage from MPPT string data
   const panelData = useMemo(() => {
     if (!layout?.panels?.length) return {};
@@ -112,7 +176,7 @@ export default function PanelLayoutView({ site, inverters }) {
     const mpptEntries = [];
     inverters.forEach((inv) => {
       (inv.mppt_strings || []).forEach((mppt) => {
-        if (mppt?.string_id) mpptEntries.push([mppt.string_id, mppt]);
+        if (mppt?.string_id) mpptEntries.push({ key: mppt.string_id, mppt, inverterId: inv.id });
       });
     });
 
@@ -140,6 +204,7 @@ export default function PanelLayoutView({ site, inverters }) {
           matched_port: match?.key || null,
           matched_current: match?.mppt?.current_a || 0,
           matched_voltage: match?.mppt?.voltage_v || 0,
+          matched_inverter_id: match?.inverterId || null,
         };
       });
     });
@@ -179,6 +244,7 @@ export default function PanelLayoutView({ site, inverters }) {
       matched_port: null,
       matched_current: 0,
       matched_voltage: 0,
+      matched_inverter_id: null,
       daily_kwh: 0,
     };
     return acc;
@@ -193,6 +259,7 @@ export default function PanelLayoutView({ site, inverters }) {
         matched_port: null,
         matched_current: 0,
         matched_voltage: 0,
+        matched_inverter_id: null,
         daily_kwh: 0,
       };
     }
@@ -201,16 +268,20 @@ export default function PanelLayoutView({ site, inverters }) {
     if (d.matched_port) stringStats[d.string_id].matched_port = d.matched_port;
     if (d.matched_current) stringStats[d.string_id].matched_current = d.matched_current;
     if (d.matched_voltage) stringStats[d.string_id].matched_voltage = d.matched_voltage;
+    if (d.matched_inverter_id) stringStats[d.string_id].matched_inverter_id = d.matched_inverter_id;
   });
 
-  const totalLivePowerW = Object.values(stringStats).reduce((sum, stat) => sum + stat.total, 0);
   const totalDailyYieldKwh = Number(site?.daily_yield_kwh || 0);
 
   Object.values(stringStats).forEach((stat) => {
-    stat.daily_kwh = totalLivePowerW > 0
-      ? (stat.total / totalLivePowerW) * totalDailyYieldKwh
-      : 0;
+    if (stat.matched_inverter_id && stat.matched_port) {
+      stat.daily_kwh = Number(inverterDayEnergy?.[stat.matched_inverter_id]?.[stat.matched_port] || 0);
+    } else {
+      stat.daily_kwh = 0;
+    }
   });
+
+  const totalStringsDailyKwh = Object.values(stringStats).reduce((sum, stat) => sum + stat.daily_kwh, 0);
 
   return (
     <div className="rounded-xl overflow-hidden border border-slate-200 bg-white" style={{ direction: 'ltr' }}>
@@ -380,7 +451,7 @@ export default function PanelLayoutView({ site, inverters }) {
               </div>
             ))}
           </div>
-          <div className="text-[11px] text-slate-500">סכום כל הסטרינגים = {totalDailyYieldKwh.toFixed(1)}kWh • הגדרה קבועה: הגדרות האתר ← פאנלים וסטרינגים ← עמודת "יציאה בממיר"</div>
+          <div className="text-[11px] text-slate-500">סכום סטרינגים בפועל = {totalStringsDailyKwh.toFixed(1)}kWh • ייצור אתר = {totalDailyYieldKwh.toFixed(1)}kWh • הגדרה קבועה: הגדרות האתר ← פאנלים וסטרינגים ← עמודת "יציאה בממיר"</div>
         </div>
       </div>
     </div>
