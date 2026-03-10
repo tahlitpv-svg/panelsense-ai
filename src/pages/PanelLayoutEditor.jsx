@@ -96,11 +96,9 @@ export default function PanelLayoutEditor() {
   const getPlacementRect = useCallback((x, y) => {
     const width = templateSize.width;
     const height = templateSize.height;
-    const nextX = Math.round((x - width / 2) / width) * width;
-    const nextY = Math.round((y - height / 2) / height) * height;
     return {
-      x: Math.max(0, Math.min(CANVAS_W - width, nextX)),
-      y: Math.max(0, Math.min(CANVAS_H - height, nextY)),
+      x: Math.max(0, Math.min(CANVAS_W - width, x - width / 2)),
+      y: Math.max(0, Math.min(CANVAS_H - height, y - height / 2)),
       width,
       height,
     };
