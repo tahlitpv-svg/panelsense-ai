@@ -49,7 +49,7 @@ export default function Layout({ children, currentPageName }) {
   }, []);
 
   if (currentPageName === 'PanelLayoutEditor') {
-    return <div className="min-h-screen bg-slate-950">{children}</div>;
+    return <div className="min-h-screen bg-slate-100">{children}</div>;
   }
 
   return (
