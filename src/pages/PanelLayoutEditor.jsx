@@ -512,9 +512,17 @@ Rules:
                 }
 
                 if (nextAxis === 'x') {
-                  nextPoint = { ...point, y: brushStartPoint.y };
+                  const stepCount = Math.round(dx / templateSize.width);
+                  nextPoint = {
+                    x: brushStartPoint.x + stepCount * templateSize.width,
+                    y: brushStartPoint.y,
+                  };
                 } else if (nextAxis === 'y') {
-                  nextPoint = { ...point, x: brushStartPoint.x };
+                  const stepCount = Math.round(dy / templateSize.height);
+                  nextPoint = {
+                    x: brushStartPoint.x,
+                    y: brushStartPoint.y + stepCount * templateSize.height,
+                  };
                 }
               }
 
