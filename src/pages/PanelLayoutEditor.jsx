@@ -353,8 +353,8 @@ Rules:
       const payload = {
         site_id: siteId,
         panels,
-        canvas_width: CANVAS_W,
-        canvas_height: CANVAS_H,
+        canvas_width: canvasWidth,
+        canvas_height: canvasHeight,
         background_image_url: nextBackgroundImageUrl,
         background_opacity: imageOpacity,
         background_scale: backgroundScale,
@@ -496,15 +496,15 @@ Rules:
             ref={canvasRef}
             className="relative"
             style={{
-              width: CANVAS_W * scale,
-              height: CANVAS_H * scale,
+              width: canvasWidth * scale,
+              height: canvasHeight * scale,
               backgroundColor: '#ffffff',
               backgroundImage: backgroundImage
-                ? `url('${backgroundImage}')`
+                ? 'none'
                 : 'linear-gradient(rgba(148,163,184,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.12) 1px, transparent 1px)',
-              backgroundSize: backgroundImage ? `${Math.round(backgroundScale * 100)}% auto` : `${20 * scale}px ${20 * scale}px`,
-              backgroundRepeat: backgroundImage ? 'no-repeat' : 'repeat',
-              backgroundPosition: 'top center',
+              backgroundSize: `${20 * scale}px ${20 * scale}px`,
+              backgroundRepeat: 'repeat',
+              backgroundPosition: 'top left',
               minWidth: '100%',
               minHeight: '100%',
             }}
@@ -592,7 +592,14 @@ Rules:
                 <img
                   src={backgroundImage}
                   alt="Simulation"
-                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill', pointerEvents: 'none' }}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: `${Math.round(backgroundScale * 100)}%`,
+                    height: 'auto',
+                    pointerEvents: 'none'
+                  }}
                 />
                 <div style={{ position: 'absolute', inset: 0, backgroundColor: `rgba(255,255,255,${1 - imageOpacity})`, pointerEvents: 'none' }} />
               </>
