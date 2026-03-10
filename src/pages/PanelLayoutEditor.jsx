@@ -84,6 +84,25 @@ export default function PanelLayoutEditor() {
     }
   }, [site, activeStringId]);
 
+  useEffect(() => {
+    if (!backgroundImage) {
+      setBackgroundDimensions({ width: CANVAS_W, height: CANVAS_H });
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      const width = CANVAS_W;
+      const ratio = img.naturalWidth > 0 ? img.naturalHeight / img.naturalWidth : CANVAS_H / CANVAS_W;
+      const height = Math.max(CANVAS_H, Math.round(width * ratio));
+      setBackgroundDimensions({ width, height });
+    };
+    img.src = backgroundImage;
+  }, [backgroundImage]);
+
+  const canvasWidth = backgroundImage ? backgroundDimensions.width : CANVAS_W;
+  const canvasHeight = backgroundImage ? backgroundDimensions.height : CANVAS_H;
+
   const stringColors = useMemo(() => Object.fromEntries((stringConfigs || []).map((s, i) => [s.string_id, COLORS[i % COLORS.length]])), [stringConfigs]);
   const panelCounts = useMemo(() => panels.reduce((acc, panel) => ({ ...acc, [panel.string_id]: (acc[panel.string_id] || 0) + 1 }), {}), [panels]);
 
@@ -99,12 +118,12 @@ export default function PanelLayoutEditor() {
     const width = templateSize.width;
     const height = templateSize.height;
     return {
-      x: Math.max(0, Math.min(CANVAS_W - width, x - width / 2)),
-      y: Math.max(0, Math.min(CANVAS_H - height, y - height / 2)),
+      x: Math.max(0, Math.min(canvasWidth - width, x - width / 2)),
+      y: Math.max(0, Math.min(canvasHeight - height, y - height / 2)),
       width,
       height,
     };
-  }, [templateSize]);
+  }, [templateSize, canvasWidth, canvasHeight]);
 
   const addPanelAtPoint = useCallback((x, y, stringId = activeStringId) => {
     if (!stringId) return;
@@ -169,11 +188,11 @@ export default function PanelLayoutEditor() {
       if (!hit) return panel;
       return {
         ...panel,
-        x: Math.max(0, Math.min(CANVAS_W - panel.width, snapToGrid((e.clientX - rect.left) / scale - hit.offsetX))),
-        y: Math.max(0, Math.min(CANVAS_H - panel.height, snapToGrid((e.clientY - rect.top) / scale - hit.offsetY))),
+        x: Math.max(0, Math.min(canvasWidth - panel.width, snapToGrid((e.clientX - rect.left) / scale - hit.offsetX))),
+        y: Math.max(0, Math.min(canvasHeight - panel.height, snapToGrid((e.clientY - rect.top) / scale - hit.offsetY))),
       };
     }));
-  }, [dragging, scale]);
+  }, [dragging, scale, canvasWidth, canvasHeight]);
 
   useEffect(() => {
     const onUp = () => {
@@ -568,7 +587,16 @@ Rules:
               addPanelAtPoint(point.x, point.y, stringId);
             }}
           >
-            {backgroundImage && <div style={{ position: 'absolute', inset: 0, backgroundColor: `rgba(255,255,255,${1 - imageOpacity})`, pointerEvents: 'none' }} />}
+            {backgroundImage && (
+              <>
+                <img
+                  src={backgroundImage}
+                  alt="Simulation"
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill', pointerEvents: 'none' }}
+                />
+                <div style={{ position: 'absolute', inset: 0, backgroundColor: `rgba(255,255,255,${1 - imageOpacity})`, pointerEvents: 'none' }} />
+              </>
+            )}
             {measureDraft && (
               <div
                 style={{
