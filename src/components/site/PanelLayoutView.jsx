@@ -9,14 +9,14 @@ import { createPageUrl } from "@/utils";
 import { ZoomIn, ZoomOut, Pencil, Grid3X3, Maximize2 } from "lucide-react";
 
 function getProductionColor(wattage, maxWattage) {
-  if (!wattage || wattage <= 0) return '#0b1f4d';
+  if (!wattage || wattage <= 0) return '#17345f';
   const ratio = maxWattage > 0 ? wattage / maxWattage : 0;
-  if (ratio >= 0.85) return '#60d8ff';
-  if (ratio >= 0.7) return '#39bdf8';
-  if (ratio >= 0.55) return '#1d9bf0';
-  if (ratio >= 0.4) return '#1577d6';
-  if (ratio >= 0.25) return '#125bb3';
-  return '#0e3f86';
+  if (ratio >= 0.85) return '#8fcdf2';
+  if (ratio >= 0.7) return '#6bb6e6';
+  if (ratio >= 0.55) return '#4f9bd3';
+  if (ratio >= 0.4) return '#3d7cbc';
+  if (ratio >= 0.25) return '#315fa0';
+  return '#274b82';
 }
 
 function hexToRgba(hex, alpha) {
@@ -77,7 +77,7 @@ export default function PanelLayoutView({ site, inverters }) {
   const siteId = site?.id;
   const [zoom, setZoom] = useState(0.8);
   const [showWatts, setShowWatts] = useState(true);
-  const stringColors = Object.fromEntries((site?.string_configs || []).map((s, i) => [s.string_id, ['#22d3ee', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'][i % 10]]));
+  const stringColors = Object.fromEntries((site?.string_configs || []).map((s, i) => [s.string_id, ['#7dc6e8', '#7ecb9a', '#e8c36d', '#e59aa0', '#b8a7e8', '#e7a8c7', '#79d7df', '#b7d97a', '#e8b07d', '#94b8e8'][i % 10]]));
 
   const { data: layout } = useQuery({
     queryKey: ['panelLayout', siteId],
@@ -226,8 +226,8 @@ export default function PanelLayoutView({ site, inverters }) {
             const data = panelData[p.id] || { watts: 0, string_id: p.string_id };
             const productionColor = getProductionColor(data.watts, maxWatts);
             const stringColor = stringColors[p.string_id] || '#94a3b8';
-            const subtleStringColor = hexToRgba(stringColor, 0.18);
-            const strongStringColor = hexToRgba(stringColor, 0.75);
+            const subtleStringColor = hexToRgba(stringColor, 0.1);
+            const strongStringColor = hexToRgba(stringColor, 0.55);
             const isLandscape = p.width > p.height;
             const cols = isLandscape ? 6 : 4;
             const rows = isLandscape ? 4 : 6;
@@ -254,8 +254,8 @@ export default function PanelLayoutView({ site, inverters }) {
                   `,
                   backgroundSize: `${colW}% ${rowH}%, ${colW}% ${rowH}%, 100% 100%`,
                   border: `1.5px solid ${borderColor}`,
-                  boxShadow: `0 0 0 999px ${subtleStringColor} inset, 0 0 8px ${hexToRgba(productionColor, 0.22)}`,
-                  outline: `1px solid ${hexToRgba(stringColor, 0.35)}`,
+                  boxShadow: `0 0 0 999px ${subtleStringColor} inset, 0 0 6px ${hexToRgba(productionColor, 0.12)}`,
+                  outline: `1px solid ${hexToRgba(stringColor, 0.22)}`,
                   borderRadius: 1,
                 }}
                 title={`${p.string_id} #${p.panel_index}: ${data.watts > 0 ? data.watts + 'W' : 'לא מייצר'}`}
