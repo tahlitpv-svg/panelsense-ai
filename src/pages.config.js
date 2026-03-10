@@ -52,7 +52,6 @@ import Alerts from './pages/Alerts';
 import Dashboard from './pages/Dashboard';
 import Faults from './pages/Faults';
 import FleetMap from './pages/FleetMap';
-import PanelLayoutEditor from './pages/PanelLayoutEditor';
 import Reports from './pages/Reports';
 import SiteDetail from './pages/SiteDetail';
 import SiteDetails from './pages/SiteDetails';
@@ -68,7 +67,6 @@ export const PAGES = {
     "Dashboard": Dashboard,
     "Faults": Faults,
     "FleetMap": FleetMap,
-    "PanelLayoutEditor": PanelLayoutEditor,
     "Reports": Reports,
     "SiteDetail": SiteDetail,
     "SiteDetails": SiteDetails,
