@@ -13,7 +13,7 @@ const PANEL_W = 40;
 const PANEL_H = 60;
 const GRID_SIZE = 10;
 const CANVAS_W = 1600;
-const CANVAS_H = 1000;
+const CANVAS_H = 1400;
 const COLORS = ['#22d3ee', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'];
 
 const snapToGrid = (value) => Math.round(value / GRID_SIZE) * GRID_SIZE;
@@ -45,6 +45,7 @@ export default function PanelLayoutEditor() {
   const [backgroundImage, setBackgroundImage] = useState(null);
   const [backgroundImageUrl, setBackgroundImageUrl] = useState(null);
   const [backgroundFile, setBackgroundFile] = useState(null);
+  const [backgroundScale, setBackgroundScale] = useState(1);
   const [imageOpacity, setImageOpacity] = useState(0.85);
   const [saving, setSaving] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -65,6 +66,9 @@ export default function PanelLayoutEditor() {
     }
     if (existingLayout?.background_opacity != null) {
       setImageOpacity(existingLayout.background_opacity);
+    }
+    if (existingLayout?.background_scale != null) {
+      setBackgroundScale(existingLayout.background_scale);
     }
   }, [existingLayout]);
 
@@ -332,6 +336,7 @@ Rules:
         canvas_height: CANVAS_H,
         background_image_url: nextBackgroundImageUrl,
         background_opacity: imageOpacity,
+        background_scale: backgroundScale,
       };
       if (existingLayout?.id) {
         await base44.entities.PanelLayout.update(existingLayout.id, payload);
@@ -381,6 +386,14 @@ Rules:
             <span>גודל דגימה:</span>
             <span className="font-bold text-slate-900">{templateSize.width}×{templateSize.height}</span>
           </div>
+
+          {backgroundImage && (
+            <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600">
+              <span>סקייל הדמיה</span>
+              <input type="range" min="0.6" max="2.5" step="0.05" value={backgroundScale} onChange={(e) => setBackgroundScale(Number(e.target.value))} className="w-24 accent-cyan-500" />
+              <span className="font-bold text-slate-900 w-10 text-center">{Math.round(backgroundScale * 100)}%</span>
+            </div>
+          )}
 
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
           <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 gap-1.5" onClick={() => fileRef.current?.click()}>
@@ -468,9 +481,9 @@ Rules:
               backgroundImage: backgroundImage
                 ? `url('${backgroundImage}')`
                 : 'linear-gradient(rgba(148,163,184,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.12) 1px, transparent 1px)',
-              backgroundSize: backgroundImage ? 'contain' : `${20 * scale}px ${20 * scale}px`,
+              backgroundSize: backgroundImage ? `${Math.round(backgroundScale * 100)}% auto` : `${20 * scale}px ${20 * scale}px`,
               backgroundRepeat: backgroundImage ? 'no-repeat' : 'repeat',
-              backgroundPosition: 'center',
+              backgroundPosition: 'top center',
               minWidth: '100%',
               minHeight: '100%',
             }}

@@ -177,9 +177,9 @@ export default function PanelLayoutView({ site, inverters }) {
             backgroundImage: layout.background_image_url
               ? `url('${layout.background_image_url}')`
               : `linear-gradient(rgba(148,163,184,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.12) 1px, transparent 1px)`,
-            backgroundSize: layout.background_image_url ? 'contain' : `${20 * zoom}px ${20 * zoom}px`,
+            backgroundSize: layout.background_image_url ? `${Math.round((layout.background_scale || 1) * 100)}% auto` : `${20 * zoom}px ${20 * zoom}px`,
             backgroundRepeat: layout.background_image_url ? 'no-repeat' : 'repeat',
-            backgroundPosition: 'center',
+            backgroundPosition: 'top center',
           }}
         >
           {layout.background_image_url && (
