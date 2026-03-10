@@ -6,7 +6,7 @@ export default function StringPortMapPanel({ strings, stringColors, panelCounts,
     <div className="space-y-3">
       <div>
         <h3 className="font-bold text-sm text-white">שיוך סטרינג ליציאת ממיר</h3>
-        <p className="text-[11px] text-slate-500 mt-1">לדוגמה: PV3 / MPPT3 / PV6 (לפי מה שמופיע בממיר)</p>
+        <p className="text-[11px] text-slate-500 mt-1">לדוגמה: PV3 / MPPT3 / PV6</p>
       </div>
 
       <div className="space-y-2">
