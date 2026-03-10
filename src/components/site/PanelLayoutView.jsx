@@ -250,13 +250,13 @@ export default function PanelLayoutView({ site, inverters }) {
                   background: `
                     linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
                     linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px),
-                    linear-gradient(180deg, ${hexToRgba(productionColor, 0.88)} 0%, ${hexToRgba(productionColor, 0.96)} 100%)
+                    linear-gradient(180deg, ${productionColor} 0%, ${productionColor} 100%)
                   `,
                   backgroundSize: `${colW}% ${rowH}%, ${colW}% ${rowH}%, 100% 100%`,
                   border: `2.5px solid ${stringColor}`,
-                  boxShadow: `0 0 0 999px ${subtleStringColor} inset, 0 0 0 1px ${hexToRgba(stringColor, 0.28)}`,
+                  boxShadow: `0 0 0 1px ${hexToRgba(stringColor, 0.28)}`,
                   outline: `1px solid ${hexToRgba(stringColor, 0.18)}`,
-                  opacity: 0.95,
+                  opacity: 1,
                   borderRadius: 1,
                 }}
                 title={`${p.string_id} #${p.panel_index}: ${data.watts > 0 ? data.watts + 'W' : 'לא מייצר'}`}
