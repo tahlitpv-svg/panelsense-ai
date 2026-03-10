@@ -271,6 +271,7 @@ export default function PanelLayoutView({ site, inverters }) {
     if (d.matched_inverter_id) stringStats[d.string_id].matched_inverter_id = d.matched_inverter_id;
   });
 
+  const totalLivePowerW = Object.values(stringStats).reduce((sum, stat) => sum + stat.total, 0);
   const totalDailyYieldKwh = Number(site?.daily_yield_kwh || 0);
 
   Object.values(stringStats).forEach((stat) => {
@@ -281,7 +282,14 @@ export default function PanelLayoutView({ site, inverters }) {
     }
   });
 
-  const totalStringsDailyKwh = Object.values(stringStats).reduce((sum, stat) => sum + stat.daily_kwh, 0);
+  let totalStringsDailyKwh = Object.values(stringStats).reduce((sum, stat) => sum + stat.daily_kwh, 0);
+
+  if (totalStringsDailyKwh === 0 && totalLivePowerW > 0 && totalDailyYieldKwh > 0) {
+    Object.values(stringStats).forEach((stat) => {
+      stat.daily_kwh = (stat.total / totalLivePowerW) * totalDailyYieldKwh;
+    });
+    totalStringsDailyKwh = Object.values(stringStats).reduce((sum, stat) => sum + stat.daily_kwh, 0);
+  }
 
   return (
     <div className="rounded-xl overflow-hidden border border-slate-200 bg-white" style={{ direction: 'ltr' }}>
