@@ -34,7 +34,9 @@ export default function SiteDetails() {
   const { data: inverters = [] } = useQuery({
     queryKey: ['inverters', siteId],
     queryFn: () => base44.entities.Inverter.filter({ site_id: siteId }),
-    enabled: !!siteId
+    enabled: !!siteId,
+    staleTime: 0,
+    refetchInterval: 60000
   });
 
   const { data: systemSettings } = useQuery({
