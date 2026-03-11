@@ -141,7 +141,7 @@ export default function PanelLayoutView({ site, inverters }) {
   });
 
   const { data: inverterDayEnergy = {} } = useQuery({
-    queryKey: ['inverterDayEnergy', siteId, inverters.map(inv => inv.id).join(',')],
+    queryKey: ['inverterDayEnergy', siteId, inverters.map(inv => inv.id).join(','), format(new Date(), 'yyyy-MM-dd')],
     queryFn: async () => {
       const today = format(new Date(), 'yyyy-MM-dd');
       const results = await Promise.all(
