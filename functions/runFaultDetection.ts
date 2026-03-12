@@ -670,8 +670,7 @@ _אם התקלה לא תטופל._
         status: inv.status,
         temperature_c: inv.temperature_c,
         current_ac_power_kw: inv.current_ac_power_kw,
-        phase_voltages: inv.phase_voltages,
-        mppt_strings: inv.mppt_strings
+        phase_voltages_ac: inv.phase_voltages  // AC phase voltages only
       }));
 
       let matchedFt = null;
