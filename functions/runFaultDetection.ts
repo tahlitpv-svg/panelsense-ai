@@ -601,7 +601,7 @@ _אם התקלה לא תטופל._
           }
         }
 
-        if (hasNotes || hasImages) {
+        if ((hasNotes || hasImages) && ft.alert_type !== 'phase_voltage_out_of_range') {
           const llmResult = await evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility);
           if (llmResult !== null) {
             log.push(`[${ft.name}] LLM for ${site.name}: ${llmResult.fault_detected ? 'FAULT' : 'OK'} - ${llmResult.reason}`);
