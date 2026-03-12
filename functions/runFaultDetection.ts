@@ -334,8 +334,7 @@ Deno.serve(async (req) => {
         current_ac_power_kw: inv.current_ac_power_kw,
         daily_yield_kwh: inv.daily_yield_kwh,
         efficiency_percent: inv.efficiency_percent,
-        phase_voltages: inv.phase_voltages,
-        mppt_strings: inv.mppt_strings
+        phase_voltages_ac: inv.phase_voltages  // AC phase voltages L1/L2/L3 only - NOT DC string voltages
       }));
 
       const hasRefImages = ft.reference_images && ft.reference_images.length > 0;
