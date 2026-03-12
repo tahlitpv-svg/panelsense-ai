@@ -182,9 +182,9 @@ Deno.serve(async (req) => {
       const maxValue = Math.max(...values);
       if (maxValue < acCapacityKw * 0.5) return 0; // system not producing enough to evaluate
       
-      // Find the longest run where power is "flat" = within 3% of a consistent level AND below AC capacity
-      // "Flat" means all values in a window are within 3% of their own mean
-      const WINDOW_POINTS = 12; // 1 hour at 5-min intervals
+      // Find the longest run where power is "flat" = within a small band at a consistent level AND below AC capacity
+      // Real derating/fan faults are not always a perfect 1-hour shelf, so allow a shorter window
+      const WINDOW_POINTS = 6; // 30 minutes at 5-min intervals
       let maxFlatRunPercent = 0;
       
       for (let start = 0; start <= values.length - WINDOW_POINTS; start++) {
@@ -194,7 +194,7 @@ Deno.serve(async (req) => {
         if (avg >= acCapacityKw * 0.98) continue; // at or above AC capacity = normal operation
         
         const maxDev = Math.max(...window.map(v => Math.abs(v - avg) / avg));
-        if (maxDev < 0.03) { // flat within 3%
+        if (maxDev < 0.05) { // flat within 5%
           const percentOfAc = (avg / acCapacityKw) * 100;
           if (percentOfAc < 98 && percentOfAc > 50) {
             maxFlatRunPercent = Math.max(maxFlatRunPercent, percentOfAc);
@@ -929,8 +929,8 @@ function evaluateRule(rule, site, inverters, expectedFraction, volatility, expec
     if (operator === 'less_than') return volatility < value;
     if (operator === 'less_than_percent_of_expected') {
       // Fan fault: check for recurring comb/derating drop pattern in last 20 days
-      // Require 7+ days with the pattern to avoid false positives from occasional cloud artifacts
-      return (cyclicDropDays || 0) >= 7;
+      // 3+ matching days is enough to flag a recurring issue without waiting too long
+      return (cyclicDropDays || 0) >= 3;
     }
     return false;
   }
