@@ -595,16 +595,20 @@ _אם התקלה לא תטופל._
           }
         }
 
-        // LLM: run if has notes/images AND fault not yet detected by rules
-        // This covers: (a) no rules at all, (b) rules failed but notes exist (catches manual-trained faults like fan/temp)
-        if ((hasNotes || hasImages) && !faultDetected) {
-          const llmResult = await evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility);
-          if (llmResult !== null) {
-            if (llmResult.fault_detected) {
-              faultDetected = true;
-              faultReason = llmResult.reason;
+        // LLM: Pure LLM detection - ONLY when no rules defined, uses detection_notes / reference_images
+        if ((hasNotes || hasImages) && !hasRules && !faultDetected) {
+          const hasAnomaly = volatility > 30 || (site.current_efficiency ?? 100) < 80 || (site.current_power_kw ?? 0) < 0.1;
+          if (hasAnomaly) {
+            const llmResult = await evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility);
+            if (llmResult !== null) {
+              if (llmResult.fault_detected) {
+                faultDetected = true;
+                faultReason = llmResult.reason;
+              }
+              log.push(`[${ft.name}] LLM for ${site.name}: ${llmResult.fault_detected ? 'FAULT' : 'OK'} - ${llmResult.reason}`);
             }
-            log.push(`[${ft.name}] LLM for ${site.name}: ${llmResult.fault_detected ? 'FAULT' : 'OK'} - ${llmResult.reason}`);
+          } else {
+            log.push(`[${ft.name}] LLM skipped for ${site.name} - no anomaly signal`);
           }
         }
 
