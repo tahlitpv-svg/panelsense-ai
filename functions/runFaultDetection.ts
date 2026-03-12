@@ -405,7 +405,7 @@ ${todayGraphSummary}
 
         if (!existingAlert) {
           const message = faultReason || ft.description || ft.name;
-          await db.entities.Alert.create({
+          const newAlert = await db.entities.Alert.create({
             site_id: site.id,
             site_name: site.name,
             type: ft.alert_type,
@@ -414,6 +414,8 @@ ${todayGraphSummary}
             fault_type_name: ft.name,
             is_resolved: false
           });
+          // Add to openAlerts in-memory so subsequent checks (SOLIS_STATUS) don't create duplicates
+          openAlerts.push({ ...(newAlert || {}), site_id: site.id, fault_type_name: ft.name, is_resolved: false });
           log.push(`[${ft.name}] Alert created for site: ${site.name} - ${message}`);
 
           // Send notifications to site owner only
