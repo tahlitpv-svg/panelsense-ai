@@ -347,7 +347,10 @@ Deno.serve(async (req) => {
 ⚠️ חשוב מאוד: תפקידך הוא לבדוק האם התקלה הספציפית "${ft.name}" קיימת לפי ההגדרה שניתנה. אל תמציא תקלות אחרות, אל תאבחן בעיות שלא ביקשו, ורק ענה true אם יש עדות ברורה לפי הקריטריונים שלהלן.
 ${imageInstruction}
 
-הוראות זיהוי התקלה "${ft.name}":
+חוקי הזיהוי המוגדרים לתקלה:
+${JSON.stringify(ft.detection_rules || [], null, 2)}
+
+הוראות/הנחות זיהוי לתקלה "${ft.name}":
 ${ft.detection_notes || 'אין הוראות טקסט - השתמש בתמונות הלדוגמה המצורפות כדי להבין את דפוס התקלה'}
 
 נתוני האתר כרגע (${new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}):
@@ -556,6 +559,7 @@ _אם התקלה לא תטופל._
       return reasons.length > 0 ? reasons.join(', ') : 'זוהה לפי חוקי זיהוי';
     }
 
+    const faultTypesToCheck = [];
     for (const ft of activeFaultTypes) {
       if (!isWithinCheckHours(ft)) {
         const from = ft.check_hour_from ?? 6;
@@ -573,18 +577,21 @@ _אם התקלה לא תטופל._
         continue;
       }
 
-      for (const site of sites) {
-        const siteInverters = inverters.filter(inv => inv.site_id === site.id);
-        const snapKey = site.solis_station_id || (site.sungrow_station_id ? `sg_${site.sungrow_station_id}` : null);
-        const stationSnapshots = snapKey ? (snapshotsByStation[snapKey] || {}) : {};
-        const graphData = stationSnapshots[dateKey] || null; // today's data
-        const volatility = computeVolatilityIndex(graphData);
+      faultTypesToCheck.push({ ft, hasRules, hasImages, hasNotes });
+    }
 
+    for (const site of sites) {
+      const siteInverters = inverters.filter(inv => inv.site_id === site.id);
+      const snapKey = site.solis_station_id || (site.sungrow_station_id ? `sg_${site.sungrow_station_id}` : null);
+      const stationSnapshots = snapKey ? (snapshotsByStation[snapKey] || {}) : {};
+      const graphData = stationSnapshots[dateKey] || null;
+      const volatility = computeVolatilityIndex(graphData);
+
+      for (const { ft, hasRules, hasImages, hasNotes } of faultTypesToCheck) {
         let faultDetected = false;
         let faultReason = '';
 
         if (hasRules) {
-          // Rule-based check first
           const ruleResult = evaluateRules(ft, site, siteInverters, volatility, stationSnapshots);
           if (ruleResult !== null) {
             faultDetected = ruleResult;
@@ -594,24 +601,20 @@ _אם התקלה לא תטופל._
           }
         }
 
-        // LLM: Pure LLM detection - ONLY when no rules defined, uses detection_notes / reference_images
-        if ((hasNotes || hasImages) && !hasRules && !faultDetected) {
-          const hasAnomaly = volatility > 30 || (site.current_efficiency ?? 100) < 80 || (site.current_power_kw ?? 0) < 0.1;
-          if (hasAnomaly) {
-            const llmResult = await evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility);
-            if (llmResult !== null) {
-              if (llmResult.fault_detected) {
-                faultDetected = true;
-                faultReason = llmResult.reason;
-              }
-              log.push(`[${ft.name}] LLM for ${site.name}: ${llmResult.fault_detected ? 'FAULT' : 'OK'} - ${llmResult.reason}`);
+        if (hasNotes || hasImages) {
+          const llmResult = await evaluateWithLLM(ft, site, siteInverters, stationSnapshots, volatility);
+          if (llmResult !== null) {
+            log.push(`[${ft.name}] LLM for ${site.name}: ${llmResult.fault_detected ? 'FAULT' : 'OK'} - ${llmResult.reason}`);
+
+            if (!hasRules && llmResult.fault_detected) {
+              faultDetected = true;
+              faultReason = llmResult.reason;
+            } else if (hasRules && faultDetected && llmResult.reason) {
+              faultReason = llmResult.reason;
             }
-          } else {
-            log.push(`[${ft.name}] LLM skipped for ${site.name} - no anomaly signal`);
           }
         }
 
-        // Handle alert creation/resolution
         await handleAlertResult(ft, site, faultDetected, faultReason, openAlerts, triggered, log, db, now);
       }
     }
