@@ -76,7 +76,10 @@ export default function ActiveAlertsList() {
       setDetectionResult(res.data);
       queryClient.invalidateQueries(['activeAlerts']);
     } catch (e) {
-      setDetectionResult({ error: e.message });
+      const message = e?.message?.includes('Network Error')
+        ? 'הבדיקה הידנית נמשכה יותר מדי זמן ונקטעה. המנוע האוטומטי ממשיך לרוץ ברקע.'
+        : e.message;
+      setDetectionResult({ error: message });
     } finally {
       setRunningDetection(false);
     }
