@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
       db.entities.Site.list(),
       db.entities.Inverter.list(),
       db.entities.Alert.filter({ is_resolved: false }),
-      db.entities.SiteGraphSnapshot.list() // all historical snapshots for LLM context
+      db.entities.SiteGraphSnapshot.list('-created_date', 3000) // only recent snapshots needed for last-20-day analysis
     ]);
 
     // Map snapshots by station_id -> date_key -> data (last 20 days)
