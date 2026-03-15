@@ -754,6 +754,14 @@ ${JSON.stringify(faultTypeSummaries, null, 2)}
 
       if (!matchedFt) continue;
 
+      // CRITICAL: respect the matched fault type's check hours - do NOT create alerts outside the defined window
+      if (!isWithinCheckHours(matchedFt)) {
+        const from = matchedFt.check_hour_from ?? 6;
+        const to = matchedFt.check_hour_to ?? 20;
+        log.push(`[SOLIS_STATUS] ${site.name} → ${matchedFt.name} skipped - outside check hours (${from}:00-${to}:00, current: ${localHour}:${String(localMinute).padStart(2,'0')})`);
+        continue;
+      }
+
       // Create alert using the matched FaultType
       const message = matchReason || matchedFt.description || matchedFt.name;
       await db.entities.Alert.create({
