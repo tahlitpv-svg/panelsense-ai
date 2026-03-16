@@ -101,34 +101,42 @@ Deno.serve(async (req) => {
   const psRtRes = await sgPost(base_url, '/openapi/getPowerStationRealTimeData', conn.config, token, user_id, { ps_id: PS_ID });
   results.endpoints.getPowerStationRealTimeData = psRtRes;
 
-  // Summarize key findings
-  const summary = {
-    ps_id: PS_ID,
-    base_url,
-    auth_method,
-    stationListEntry_keys: Object.keys(results.endpoints.stationListEntry || {}),
-    stationListEntry_values: results.endpoints.stationListEntry,
-    stationDetail_code: results.endpoints.stationDetail?.result_code,
-    stationDetail_data: results.endpoints.stationDetail?.result_data,
-    getPsDeviceList_code: results.endpoints.getPsDeviceList?.result_code,
-    getPsDeviceList_data: results.endpoints.getPsDeviceList?.result_data,
-    getDeviceList_code: results.endpoints.getDeviceList?.result_code,
-    getDeviceList_data: results.endpoints.getDeviceList?.result_data,
-    getPsDeviceAttrList_code: results.endpoints.getPsDeviceAttrList?.result_code,
-    getPsDeviceAttrList_data: results.endpoints.getPsDeviceAttrList?.result_data,
-    queryDeviceInfo_code: results.endpoints.queryDeviceInfo?.result_code,
-    queryDeviceInfo_data: results.endpoints.queryDeviceInfo?.result_data,
-    queryDeviceRealTimeData_psIdOnly_code: results.endpoints.queryDeviceRealTimeData_psIdOnly?.result_code,
-    queryDeviceRealTimeData_psIdOnly_data: results.endpoints.queryDeviceRealTimeData_psIdOnly?.result_data,
-    getPsDeviceList_type1_code: results.endpoints.getPsDeviceList_type1?.result_code,
-    getPsDeviceList_type1_data: results.endpoints.getPsDeviceList_type1?.result_data,
-    getDeviceRealTimeData_code: results.endpoints.getDeviceRealTimeData?.result_code,
-    getDeviceRealTimeData_data: results.endpoints.getDeviceRealTimeData?.result_data,
-    queryMutiPointDataList_code: results.endpoints.queryMutiPointDataList?.result_code,
-    queryMutiPointDataList_data: results.endpoints.queryMutiPointDataList?.result_data,
-    getPowerStationRealTimeData_code: results.endpoints.getPowerStationRealTimeData?.result_code,
-    getPowerStationRealTimeData_data: results.endpoints.getPowerStationRealTimeData?.result_data,
-  };
+  // Return only result codes + small data samples to avoid truncation
+  const urlParams = new URL(req.url).searchParams;
+  const mode = urlParams.get('mode') || 'codes';
 
-  return Response.json(summary, { headers: { 'Content-Type': 'application/json' } });
+  if (mode === 'station') {
+    return Response.json({
+      stationListEntry: results.endpoints.stationListEntry,
+      stationDetail_code: results.endpoints.stationDetail?.result_code,
+      stationDetail_data: results.endpoints.stationDetail?.result_data,
+      getPowerStationRealTimeData_code: results.endpoints.getPowerStationRealTimeData?.result_code,
+      getPowerStationRealTimeData_data: results.endpoints.getPowerStationRealTimeData?.result_data,
+    });
+  }
+
+  if (mode === 'devices') {
+    return Response.json({
+      getPsDeviceList: results.endpoints.getPsDeviceList,
+      getDeviceList: results.endpoints.getDeviceList,
+      getPsDeviceList_type1: results.endpoints.getPsDeviceList_type1,
+      getPsDeviceAttrList: results.endpoints.getPsDeviceAttrList,
+      queryDeviceInfo: results.endpoints.queryDeviceInfo,
+    });
+  }
+
+  if (mode === 'realtime') {
+    return Response.json({
+      queryDeviceRealTimeData_psIdOnly: results.endpoints.queryDeviceRealTimeData_psIdOnly,
+      getDeviceRealTimeData: results.endpoints.getDeviceRealTimeData,
+      queryMutiPointDataList: results.endpoints.queryMutiPointDataList,
+    });
+  }
+
+  // Default: just codes
+  const summary = {};
+  for (const [k, v] of Object.entries(results.endpoints)) {
+    summary[k] = { result_code: v?.result_code, result_msg: v?.result_msg, has_data: !!v?.result_data, data_keys: Object.keys(v?.result_data || {}) };
+  }
+  return Response.json({ ps_id: PS_ID, base_url, auth_method, endpoint_codes: summary });
 });
