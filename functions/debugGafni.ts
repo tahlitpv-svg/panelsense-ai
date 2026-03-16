@@ -102,8 +102,9 @@ Deno.serve(async (req) => {
   results.endpoints.getPowerStationRealTimeData = psRtRes;
 
   // Return only result codes + small data samples to avoid truncation
-  const urlParams = new URL(req.url).searchParams;
-  const mode = urlParams.get('mode') || 'codes';
+  let bodyJson = {};
+  try { bodyJson = await req.clone().json(); } catch(e) {}
+  const mode = bodyJson.mode || 'codes';
 
   if (mode === 'station') {
     return Response.json({
