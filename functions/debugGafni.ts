@@ -169,8 +169,9 @@ Deno.serve(async (req) => {
     return Response.json({
       queryDeviceRealTimeData_psIdOnly: results.endpoints.queryDeviceRealTimeData_psIdOnly,
       getDeviceRealTimeData: results.endpoints.getDeviceRealTimeData,
+      getDeviceRealTimeData_sn_dt1: results.endpoints.getDeviceRealTimeData_sn_dt1,
+      getDeviceRealTimeData_sn_dt11: results.endpoints.getDeviceRealTimeData_sn_dt11,
       getDeviceRealTimeData_dt1: results.endpoints.getDeviceRealTimeData_dt1,
-      getDeviceRealTimeData_dt11: results.endpoints.getDeviceRealTimeData_dt11,
 
       queryDeviceRealTimeData_withPsKey: results.endpoints.queryDeviceRealTimeData_withPsKey,
       queryMutiPointDataList: results.endpoints.queryMutiPointDataList,
