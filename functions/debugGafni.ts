@@ -6,10 +6,6 @@ function md5(str) {
 }
 
 async function sungrowLogin(config) {
-  if (config.auth_method === 'oauth2' && config.oauth_access_token) {
-    const baseUrl = config.oauth_base_url || config.base_url || 'https://gateway.isolarcloud.eu';
-    return { token: config.oauth_access_token, user_id: config.oauth_user_id || '', base_url: baseUrl.replace(/\/$/, ''), auth_method: 'oauth2' };
-  }
   const baseUrl = (config.base_url || 'https://gateway.isolarcloud.eu').replace(/\/$/, '');
   const res = await fetch(`${baseUrl}/openapi/login`, {
     method: 'POST',
@@ -18,14 +14,14 @@ async function sungrowLogin(config) {
   });
   const data = await res.json();
   if (!data?.result_data?.token) throw new Error('Login failed: ' + JSON.stringify(data));
-  return { token: data.result_data.token, user_id: data.result_data.user_id, base_url: baseUrl, auth_method: 'login' };
+  return { token: data.result_data.token, user_id: data.result_data.user_id, base_url: baseUrl };
 }
 
 async function sgPost(base_url, path, config, token, user_id, body = {}) {
   const res = await fetch(`${base_url}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-access-key': config.app_secret, 'sys_code': '901', 'lang': '_en_US' },
-    body: JSON.stringify({ appkey: config.app_key, token, user_id, req_serial_num: Date.now().toString(36), ...body })
+    body: JSON.stringify({ appkey: config.app_key, token, user_id, req_serial_num: Date.now().toString(36) + Math.random().toString(36).slice(2), ...body })
   });
   const text = await res.text();
   try { return JSON.parse(text); } catch (e) { return { raw: text }; }
@@ -36,153 +32,68 @@ Deno.serve(async (req) => {
   const db = base44.asServiceRole;
 
   const PS_ID = '5106390';
+  const PS_KEY = '5106390_11_0_0';
+
+  let bodyJson = {};
+  try { bodyJson = await req.json(); } catch(e) {}
+  const mode = bodyJson.mode || 'codes';
 
   const connections = await db.entities.ApiConnection.filter({ provider: 'sungrow' });
   if (!connections.length) return Response.json({ error: 'No Sungrow connection found' });
 
   const conn = connections[0];
-  const { token, user_id, base_url, auth_method } = await sungrowLogin(conn.config);
+  const { token, user_id, base_url } = await sungrowLogin(conn.config);
 
-  const results = { ps_id: PS_ID, base_url, auth_method, endpoints: {} };
+  if (mode === 'pskey') {
+    const SN = 'A2262930454'; // Real inverter SN (SG50CX)
+    const INV_PS_KEY = '5106390_1_1_1'; // Inverter ps_key from getDeviceList
+    // Common Sungrow inverter point IDs
+    const POINTS = [13003, 13119, 13150, 13009, 13010, 13011, 13012, 13013, 13014, 13015, 13016, 13017, 13018, 13019, 13020, 13021, 13022, 13023, 13024, 13025, 13026, 13027, 13028, 13029, 13030, 13031, 13032, 13033, 13034, 13035, 13036, 13037, 13038, 13039, 13040, 13143, 13144, 13145, 13146];
+    const [r1, r2, r3, r4, r5] = await Promise.all([
+      sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, { ps_key_list: [INV_PS_KEY], device_type: 1, point_id_list: POINTS }),
+      sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, { sn_list: [SN], device_type: 1, point_id_list: POINTS }),
+      // Try with uuid
+      sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, { uuid_list: [2232000], device_type: 1, point_id_list: POINTS }),
+      // Try queryMutiPointDataList (station level) with inverter ps_key
+      sgPost(base_url, '/openapi/queryMutiPointDataList', conn.config, token, user_id, { ps_id: PS_ID, ps_key_list: [INV_PS_KEY], point_id_list: POINTS }),
+      // Try getPsDeviceAttrList without E900 workaround
+      sgPost(base_url, '/openapi/getPsDeviceAttrList', conn.config, token, user_id, { ps_id: PS_ID, device_type: 1 }),
+    ]);
+    return Response.json({ invPsKey_result: r1, sn_result: r2, uuid_result: r3, mutiPoint_invKey: r4, psDeviceAttrList: r5 });
+  }
 
-  // 1. Station list entry for Gafni
-  const listRes = await sgPost(base_url, '/openapi/getPowerStationList', conn.config, token, user_id, { curPage: 1, size: 200 });
-  const stations = listRes?.result_data?.pageList || listRes?.result_data?.list || [];
-  const gafniStation = stations.find(s => String(s.ps_id) === PS_ID);
-  results.endpoints.stationListEntry = gafniStation || 'NOT FOUND';
+  if (mode === 'commdev') {
+    // Get communication_dev_detail_list from stationDetail
+    const detailRes = await sgPost(base_url, '/openapi/getPowerStationDetail', conn.config, token, user_id, { ps_id: PS_ID });
+    const commDevList = detailRes?.result_data?.communication_dev_detail_list || [];
+    return Response.json({ result_code: detailRes?.result_code, comm_dev_count: commDevList.length, comm_dev_list: commDevList });
+  }
 
-  // 2. Station detail
-  const detailRes = await sgPost(base_url, '/openapi/getPowerStationDetail', conn.config, token, user_id, { ps_id: PS_ID });
-  results.endpoints.stationDetail = detailRes;
+  if (mode === 'getdevicelist_paged') {
+    const r = await sgPost(base_url, '/openapi/getDeviceList', conn.config, token, user_id, { ps_id: PS_ID, curPage: 1, size: 20 });
+    return Response.json(r);
+  }
 
-  // 3. getPsDeviceList
-  const devListRes = await sgPost(base_url, '/openapi/getPsDeviceList', conn.config, token, user_id, { ps_id: PS_ID });
-  results.endpoints.getPsDeviceList = devListRes;
+  if (mode === 'psrealtime') {
+    const r = await sgPost(base_url, '/openapi/getPowerStationRealTimeData', conn.config, token, user_id, { ps_id: PS_ID });
+    return Response.json(r);
+  }
 
-  // 4. getDeviceList
-  const devList2Res = await sgPost(base_url, '/openapi/getDeviceList', conn.config, token, user_id, { ps_id: PS_ID });
-  results.endpoints.getDeviceList = devList2Res;
+  // Default: show all codes
+  const [detail, devList, devListPaged, psRt] = await Promise.all([
+    sgPost(base_url, '/openapi/getPowerStationDetail', conn.config, token, user_id, { ps_id: PS_ID }),
+    sgPost(base_url, '/openapi/getPsDeviceList', conn.config, token, user_id, { ps_id: PS_ID }),
+    sgPost(base_url, '/openapi/getDeviceList', conn.config, token, user_id, { ps_id: PS_ID, curPage: 1, size: 20 }),
+    sgPost(base_url, '/openapi/getPowerStationRealTimeData', conn.config, token, user_id, { ps_id: PS_ID }),
+  ]);
 
-  // 5. queryPsProfit
-  const profitRes = await sgPost(base_url, '/openapi/queryPsProfit', conn.config, token, user_id, { ps_id: PS_ID });
-  results.endpoints.queryPsProfit = profitRes;
-
-  // 6. Try getPsDeviceAttrList
-  const attrRes = await sgPost(base_url, '/openapi/getPsDeviceAttrList', conn.config, token, user_id, { ps_id: PS_ID });
-  results.endpoints.getPsDeviceAttrList = attrRes;
-
-  // 7. Try queryDeviceInfo
-  const devInfoRes = await sgPost(base_url, '/openapi/queryDeviceInfo', conn.config, token, user_id, { ps_id: PS_ID });
-  results.endpoints.queryDeviceInfo = devInfoRes;
-
-  // 8. queryDeviceRealTimeData — try ps_id only (no device_sn)
-  const rtPsOnly = await sgPost(base_url, '/openapi/queryDeviceRealTimeData', conn.config, token, user_id, {
+  return Response.json({
     ps_id: PS_ID,
-    point_id_list: [13003, 13119, 13150, 13009, 13010, 13011, 13028, 13029, 13030, 13031, 13032, 13033, 13034, 13035]
+    ps_key: PS_KEY,
+    stationDetail: { code: detail?.result_code, msg: detail?.result_msg, comm_dev_count: detail?.result_data?.communication_dev_detail_list?.length },
+    getPsDeviceList: { code: devList?.result_code, msg: devList?.result_msg },
+    getDeviceList_paged: { code: devListPaged?.result_code, msg: devListPaged?.result_msg, data_keys: Object.keys(devListPaged?.result_data || {}) },
+    getPowerStationRealTimeData: { code: psRt?.result_code, msg: psRt?.result_msg, data_keys: Object.keys(psRt?.result_data || {}) },
+    hint: 'try modes: pskey, commdev, getdevicelist_paged, psrealtime'
   });
-  results.endpoints.queryDeviceRealTimeData_psIdOnly = rtPsOnly;
-
-  // 9. getPsDeviceList with device_type=1 (inverter)
-  const invListRes = await sgPost(base_url, '/openapi/getPsDeviceList', conn.config, token, user_id, { ps_id: PS_ID, device_type: 1 });
-  results.endpoints.getPsDeviceList_type1 = invListRes;
-
-  // 10. getDeviceRealTimeData (older endpoint)
-  const oldRtRes = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, { ps_id: PS_ID });
-  results.endpoints.getDeviceRealTimeData = oldRtRes;
-
-  // 11. queryMutiPointDataList — a common Sungrow endpoint for bulk point data
-  const multiPointRes = await sgPost(base_url, '/openapi/queryMutiPointDataList', conn.config, token, user_id, {
-    ps_id: PS_ID,
-    point_id_list: [13003, 13119, 13150, 13009, 13010, 13011, 13028, 13029, 13030, 13031]
-  });
-  results.endpoints.queryMutiPointDataList = multiPointRes;
-
-  // 12. getPowerStationRealTimeData
-  const psRtRes = await sgPost(base_url, '/openapi/getPowerStationRealTimeData', conn.config, token, user_id, { ps_id: PS_ID });
-  results.endpoints.getPowerStationRealTimeData = psRtRes;
-
-  // 13. getDeviceRealTimeData with ps_key_list + device_type=1 (inverter)
-  const psKey = results.endpoints.stationDetail?.result_data?.ps_key || `${PS_ID}_11_0_0`;
-
-  // Common Sungrow inverter point IDs: DC power, AC power, daily yield, total yield,
-  // temp, PV1-PV6 voltage/current, phase voltages, grid freq
-  const POINT_IDS = [13003, 13119, 13150, 13008, 13009, 13010, 13011, 13012, 13013,
-    13028, 13029, 13030, 13031, 13032, 13033, 13034, 13035, 13036, 13037,
-    13038, 13039, 13040, 13041, 13042, 13043, 13044, 13045, 13046,
-    13001, 13002, 13004, 13005, 13006, 13007, 13121, 13122, 13123, 13016, 13017, 13018];
-
-  const devSN = 'A2240135735';
-
-  // Try with sn_list
-  const devRtSn = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
-    sn_list: [devSN], device_type: 1, point_id_list: POINT_IDS
-  });
-  results.endpoints.getDeviceRealTimeData_sn_dt1 = devRtSn;
-
-  const devRtSnDt11 = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
-    sn_list: [devSN], device_type: 11, point_id_list: POINT_IDS
-  });
-  results.endpoints.getDeviceRealTimeData_sn_dt11 = devRtSnDt11;
-
-  // Try ps_key_list with sn
-  const devRtDt1 = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
-    ps_key_list: [psKey], sn_list: [devSN], device_type: 1, point_id_list: POINT_IDS
-  });
-  results.endpoints.getDeviceRealTimeData_dt1 = devRtDt1;
-
-  // 14. queryDeviceRealTimeData with ps_key
-  const rtWithPsKeyRes = await sgPost(base_url, '/openapi/queryDeviceRealTimeData', conn.config, token, user_id, {
-    ps_id: PS_ID,
-    ps_key: psKey,
-    point_id_list: [13003, 13119, 13150, 13009, 13010, 13011, 13028, 13029, 13030, 13031, 13032, 13033]
-  });
-  results.endpoints.queryDeviceRealTimeData_withPsKey = rtWithPsKeyRes;
-
-  // Return only result codes + small data samples to avoid truncation
-  let bodyJson = {};
-  try { bodyJson = await req.clone().json(); } catch(e) {}
-  const mode = bodyJson.mode || 'codes';
-
-  if (mode === 'station') {
-    return Response.json({
-      stationListEntry_curr_power: results.endpoints.stationListEntry?.curr_power,
-      stationListEntry_today_energy: results.endpoints.stationListEntry?.today_energy,
-      stationDetail_code: results.endpoints.stationDetail?.result_code,
-      stationDetail_ps_key: results.endpoints.stationDetail?.result_data?.ps_key,
-      stationDetail_communication_dev_detail_list: results.endpoints.stationDetail?.result_data?.communication_dev_detail_list,
-      getPowerStationRealTimeData_code: results.endpoints.getPowerStationRealTimeData?.result_code,
-      getPowerStationRealTimeData_data: results.endpoints.getPowerStationRealTimeData?.result_data,
-    });
-  }
-
-  if (mode === 'devices') {
-    return Response.json({
-      getPsDeviceList: results.endpoints.getPsDeviceList,
-      getDeviceList: results.endpoints.getDeviceList,
-      getPsDeviceList_type1: results.endpoints.getPsDeviceList_type1,
-      getPsDeviceAttrList: results.endpoints.getPsDeviceAttrList,
-      queryDeviceInfo: results.endpoints.queryDeviceInfo,
-    });
-  }
-
-  if (mode === 'realtime') {
-    return Response.json({
-      queryDeviceRealTimeData_psIdOnly: results.endpoints.queryDeviceRealTimeData_psIdOnly,
-      getDeviceRealTimeData: results.endpoints.getDeviceRealTimeData,
-      getDeviceRealTimeData_sn_dt1: results.endpoints.getDeviceRealTimeData_sn_dt1,
-      getDeviceRealTimeData_sn_dt11: results.endpoints.getDeviceRealTimeData_sn_dt11,
-      getDeviceRealTimeData_dt1: results.endpoints.getDeviceRealTimeData_dt1,
-
-      queryDeviceRealTimeData_withPsKey: results.endpoints.queryDeviceRealTimeData_withPsKey,
-      queryMutiPointDataList: results.endpoints.queryMutiPointDataList,
-      ps_key_used: results.endpoints.stationDetail?.result_data?.ps_key,
-    });
-  }
-
-  // Default: just codes
-  const summary = {};
-  for (const [k, v] of Object.entries(results.endpoints)) {
-    summary[k] = { result_code: v?.result_code, result_msg: v?.result_msg, has_data: !!v?.result_data, data_keys: Object.keys(v?.result_data || {}) };
-  }
-  return Response.json({ ps_id: PS_ID, base_url, auth_method, endpoint_codes: summary });
 });
