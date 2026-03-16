@@ -285,54 +285,87 @@ Deno.serve(async (req) => {
               const devId = String(dev.dev_id || dev.device_id || dev.id || '');
               if (!devSn && !devId) continue;
 
-              // Fetch device real-time data - try multiple endpoints
-              let devData = {};
+              // Fetch device real-time data via queryDeviceRealTimeData with point_id_list
+              // Point IDs: 13003=AC Power, 13119=Daily Yield, 13150=Temperature
+              // 13009=U_AB(L1), 13010=U_BC(L2), 13011=U_CA(L3)
+              // PV1-PV12 Voltage: 13028,13030,13032,13034,13036,13038,13040,13042,13044,13046,13048,13050
+              // PV1-PV12 Current: 13029,13031,13033,13035,13037,13039,13041,13043,13045,13047,13049,13051
+              const POINT_IDS = [
+                13003, 13119, 13150,        // AC power, daily yield, temperature
+                13009, 13010, 13011,        // Phase voltages L1/L2/L3
+                13028, 13029,               // PV1 V/I
+                13030, 13031,               // PV2 V/I
+                13032, 13033,               // PV3 V/I
+                13034, 13035,               // PV4 V/I
+                13036, 13037,               // PV5 V/I
+                13038, 13039,               // PV6 V/I
+                13040, 13041,               // PV7 V/I
+                13042, 13043,               // PV8 V/I
+                13044, 13045,               // PV9 V/I
+                13046, 13047,               // PV10 V/I
+                13048, 13049,               // PV11 V/I
+                13050, 13051,               // PV12 V/I
+              ];
+
+              let pointMap = {}; // point_id -> value
               try {
-                let rtRes = await sungrowPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, { dev_sn: devSn, ps_id: psId });
-                console.log(`[syncSungrow] getDeviceRealTimeData sn=${devSn} code=${rtRes?.result_code}`);
-                if (rtRes?.result_code === '1' || rtRes?.result_code === 1) {
-                  devData = rtRes?.result_data || {};
-                } else {
-                  // Try with dev_id
-                  rtRes = await sungrowPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, { dev_id: devId, ps_id: psId });
-                  console.log(`[syncSungrow] getDeviceRealTimeData by dev_id=${devId} code=${rtRes?.result_code}`);
-                  if (rtRes?.result_code === '1' || rtRes?.result_code === 1) {
-                    devData = rtRes?.result_data || {};
+                // Try by device_sn first, then by device_id
+                const bodies = [
+                  { ps_id: psId, device_sn: devSn, point_id_list: POINT_IDS },
+                  { ps_id: psId, dev_sn: devSn, point_id_list: POINT_IDS },
+                  { ps_id: psId, device_id: devId, point_id_list: POINT_IDS },
+                  { ps_id: psId, dev_id: devId, point_id_list: POINT_IDS },
+                ];
+                for (const reqBody of bodies) {
+                  if (Object.keys(pointMap).length > 0) break;
+                  const rtRes = await sungrowPost(base_url, '/openapi/queryDeviceRealTimeData', conn.config, token, user_id, reqBody);
+                  const code = String(rtRes?.result_code || '');
+                  console.log(`[syncSungrow] queryDeviceRealTimeData sn=${devSn} code=${code}`);
+                  if (code === '1') {
+                    // Response can be array of {point_id, value} or object keyed by point_id
+                    const rd = rtRes.result_data;
+                    if (Array.isArray(rd)) {
+                      rd.forEach(p => { if (p.point_id !== undefined) pointMap[String(p.point_id)] = p.value; });
+                    } else if (rd && typeof rd === 'object') {
+                      // Could be { device_sn: { point_id: value } } or flat { point_id: value }
+                      const inner = rd[devSn] || rd[devId] || rd;
+                      if (typeof inner === 'object') {
+                        Object.entries(inner).forEach(([k, v]) => { pointMap[String(k)] = v; });
+                      }
+                    }
+                    if (Object.keys(pointMap).length > 0) {
+                      console.log(`[syncSungrow] Got ${Object.keys(pointMap).length} point values for sn=${devSn}`);
+                    }
                   }
-                }
-                if (Object.keys(devData).length > 0) {
-                  console.log(`[syncSungrow] devData keys: ${JSON.stringify(Object.keys(devData).slice(0, 20))}`);
                 }
               } catch(e) { console.log(`[syncSungrow] rtData error: ${e.message}`); }
 
-              // Parse inverter real-time values
-              function parseDevField(key) {
-                const v = devData[key];
-                return v !== undefined ? (parseFloat(v) || 0) : 0;
+              function getPoint(id) {
+                const v = pointMap[String(id)];
+                return v !== undefined && v !== null ? (parseFloat(v) || 0) : 0;
               }
 
-              const acPower = parseDevField('p_ac') || parseDevField('total_active_power') || parseDevField('pac');
-              const dcPower = parseDevField('total_dc_power') || parseDevField('p_dc');
-              const temp = devData['temperature'] !== undefined ? parseFloat(devData['temperature']) : null;
-              const dailyYieldInv = parseDevField('daily_yield_energy') || parseDevField('today_yield');
+              const acPower = getPoint(13003);
+              const dcPower = 0; // calculated below from PV strings
+              const temp = pointMap['13150'] !== undefined ? parseFloat(pointMap['13150']) || null : null;
+              const dailyYieldInv = getPoint(13119);
 
-              // MPPT strings
+              // MPPT strings from PV1-PV12 point IDs
+              const pvVoltPoints = [13028,13030,13032,13034,13036,13038,13040,13042,13044,13046,13048,13050];
+              const pvCurrPoints = [13029,13031,13033,13035,13037,13039,13041,13043,13045,13047,13049,13051];
               const mpptStrings = [];
-              for (let i = 1; i <= 32; i++) {
-                const v = devData[`mppt_${i}_volt`] || devData[`pv${i}_volt`] || devData[`u_pv${i}`];
-                const a = devData[`mppt_${i}_curr`] || devData[`pv${i}_curr`] || devData[`i_pv${i}`];
-                if (v === undefined) break;
-                const vNum = parseFloat(v) || 0;
-                const aNum = parseFloat(a) || 0;
+              for (let i = 0; i < pvVoltPoints.length; i++) {
+                const vNum = getPoint(pvVoltPoints[i]);
+                const aNum = getPoint(pvCurrPoints[i]);
                 if (vNum === 0 && aNum === 0) continue;
-                mpptStrings.push({ string_id: `PV${i}`, voltage_v: vNum, current_a: aNum, power_kw: parseFloat(((vNum * aNum) / 1000).toFixed(3)) });
+                mpptStrings.push({ string_id: `PV${i + 1}`, voltage_v: vNum, current_a: aNum, power_kw: parseFloat(((vNum * aNum) / 1000).toFixed(3)) });
               }
 
-              // Phase voltages
+              // Phase voltages (L1=U_AB, L2=U_BC, L3=U_CA)
               const phase_voltages = {
-                l1: parseDevField('ab_volt') || parseDevField('phase_a_volt') || parseDevField('u_ac1'),
-                l2: parseDevField('bc_volt') || parseDevField('phase_b_volt') || parseDevField('u_ac2'),
-                l3: parseDevField('ca_volt') || parseDevField('phase_c_volt') || parseDevField('u_ac3'),
+                l1: getPoint(13009),
+                l2: getPoint(13010),
+                l3: getPoint(13011),
               };
 
               const efficiency = dcPower > 0 ? parseFloat(((acPower / dcPower) * 100).toFixed(1)) : 0;
