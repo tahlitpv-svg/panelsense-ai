@@ -44,7 +44,7 @@ export default function Layout({ children, currentPageName }) {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     if (code && currentPageName !== 'SungrowAuth') {
-      window.location.href = createPageUrl('SungrowAuth') + '&code=' + encodeURIComponent(code);
+      window.location.href = createPageUrl('SungrowAuth') + '?code=' + encodeURIComponent(code);
     }
   }, []);
 
