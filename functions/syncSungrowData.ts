@@ -378,7 +378,7 @@ Deno.serve(async (req) => {
                 model: dev.dev_model || dev.model || '',
                 rated_power_kw: parseFloat(dev.dev_capacity || dev.rated_power || 0) || 0,
                 current_ac_power_kw: acPower,
-                current_dc_power_kw: dcPower,
+                current_dc_power_kw: totalDcPower,
                 efficiency_percent: efficiency,
                 temperature_c: temp,
                 status: devStatus,
