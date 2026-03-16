@@ -152,7 +152,11 @@ Deno.serve(async (req) => {
     return Response.json({
       queryDeviceRealTimeData_psIdOnly: results.endpoints.queryDeviceRealTimeData_psIdOnly,
       getDeviceRealTimeData: results.endpoints.getDeviceRealTimeData,
+      getDeviceRealTimeData_psKey: results.endpoints.getDeviceRealTimeData_psKey,
+      getDeviceRealTimeData_full: results.endpoints.getDeviceRealTimeData_full,
+      queryDeviceRealTimeData_withPsKey: results.endpoints.queryDeviceRealTimeData_withPsKey,
       queryMutiPointDataList: results.endpoints.queryMutiPointDataList,
+      ps_key_used: results.endpoints.stationDetail?.result_data?.ps_key,
     });
   }
 
