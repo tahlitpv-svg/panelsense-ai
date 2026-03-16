@@ -101,21 +101,25 @@ Deno.serve(async (req) => {
   const psRtRes = await sgPost(base_url, '/openapi/getPowerStationRealTimeData', conn.config, token, user_id, { ps_id: PS_ID });
   results.endpoints.getPowerStationRealTimeData = psRtRes;
 
-  // 13. getDeviceRealTimeData with ps_key_list from stationDetail
+  // 13. getDeviceRealTimeData with ps_key_list + device_type=1 (inverter)
   const psKey = results.endpoints.stationDetail?.result_data?.ps_key || `${PS_ID}_11_0_0`;
-  const devRtWithKeyRes = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
-    ps_key_list: [psKey]
-  });
-  results.endpoints.getDeviceRealTimeData_psKey = devRtWithKeyRes;
 
-  // 14. getDeviceRealTimeData with both ps_id and ps_key_list
-  const devRtFullRes = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
-    ps_id: PS_ID,
-    ps_key_list: [psKey]
+  const devRtDt1 = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
+    ps_key_list: [psKey], device_type: 1
   });
-  results.endpoints.getDeviceRealTimeData_full = devRtFullRes;
+  results.endpoints.getDeviceRealTimeData_dt1 = devRtDt1;
 
-  // 15. queryDeviceRealTimeData with ps_key
+  const devRtDt11 = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
+    ps_key_list: [psKey], device_type: 11
+  });
+  results.endpoints.getDeviceRealTimeData_dt11 = devRtDt11;
+
+  const devRtDt1PsId = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
+    ps_id: PS_ID, ps_key_list: [psKey], device_type: 1
+  });
+  results.endpoints.getDeviceRealTimeData_dt1_psId = devRtDt1PsId;
+
+  // 14. queryDeviceRealTimeData with ps_key
   const rtWithPsKeyRes = await sgPost(base_url, '/openapi/queryDeviceRealTimeData', conn.config, token, user_id, {
     ps_id: PS_ID,
     ps_key: psKey,
