@@ -101,5 +101,34 @@ Deno.serve(async (req) => {
   const psRtRes = await sgPost(base_url, '/openapi/getPowerStationRealTimeData', conn.config, token, user_id, { ps_id: PS_ID });
   results.endpoints.getPowerStationRealTimeData = psRtRes;
 
-  return Response.json(results, { headers: { 'Content-Type': 'application/json' } });
+  // Summarize key findings
+  const summary = {
+    ps_id: PS_ID,
+    base_url,
+    auth_method,
+    stationListEntry_keys: Object.keys(results.endpoints.stationListEntry || {}),
+    stationListEntry_values: results.endpoints.stationListEntry,
+    stationDetail_code: results.endpoints.stationDetail?.result_code,
+    stationDetail_data: results.endpoints.stationDetail?.result_data,
+    getPsDeviceList_code: results.endpoints.getPsDeviceList?.result_code,
+    getPsDeviceList_data: results.endpoints.getPsDeviceList?.result_data,
+    getDeviceList_code: results.endpoints.getDeviceList?.result_code,
+    getDeviceList_data: results.endpoints.getDeviceList?.result_data,
+    getPsDeviceAttrList_code: results.endpoints.getPsDeviceAttrList?.result_code,
+    getPsDeviceAttrList_data: results.endpoints.getPsDeviceAttrList?.result_data,
+    queryDeviceInfo_code: results.endpoints.queryDeviceInfo?.result_code,
+    queryDeviceInfo_data: results.endpoints.queryDeviceInfo?.result_data,
+    queryDeviceRealTimeData_psIdOnly_code: results.endpoints.queryDeviceRealTimeData_psIdOnly?.result_code,
+    queryDeviceRealTimeData_psIdOnly_data: results.endpoints.queryDeviceRealTimeData_psIdOnly?.result_data,
+    getPsDeviceList_type1_code: results.endpoints.getPsDeviceList_type1?.result_code,
+    getPsDeviceList_type1_data: results.endpoints.getPsDeviceList_type1?.result_data,
+    getDeviceRealTimeData_code: results.endpoints.getDeviceRealTimeData?.result_code,
+    getDeviceRealTimeData_data: results.endpoints.getDeviceRealTimeData?.result_data,
+    queryMutiPointDataList_code: results.endpoints.queryMutiPointDataList?.result_code,
+    queryMutiPointDataList_data: results.endpoints.queryMutiPointDataList?.result_data,
+    getPowerStationRealTimeData_code: results.endpoints.getPowerStationRealTimeData?.result_code,
+    getPowerStationRealTimeData_data: results.endpoints.getPowerStationRealTimeData?.result_data,
+  };
+
+  return Response.json(summary, { headers: { 'Content-Type': 'application/json' } });
 });
