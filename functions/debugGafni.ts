@@ -101,6 +101,28 @@ Deno.serve(async (req) => {
   const psRtRes = await sgPost(base_url, '/openapi/getPowerStationRealTimeData', conn.config, token, user_id, { ps_id: PS_ID });
   results.endpoints.getPowerStationRealTimeData = psRtRes;
 
+  // 13. getDeviceRealTimeData with ps_key_list from stationDetail
+  const psKey = results.endpoints.stationDetail?.result_data?.ps_key || `${PS_ID}_11_0_0`;
+  const devRtWithKeyRes = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
+    ps_key_list: [psKey]
+  });
+  results.endpoints.getDeviceRealTimeData_psKey = devRtWithKeyRes;
+
+  // 14. getDeviceRealTimeData with both ps_id and ps_key_list
+  const devRtFullRes = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
+    ps_id: PS_ID,
+    ps_key_list: [psKey]
+  });
+  results.endpoints.getDeviceRealTimeData_full = devRtFullRes;
+
+  // 15. queryDeviceRealTimeData with ps_key
+  const rtWithPsKeyRes = await sgPost(base_url, '/openapi/queryDeviceRealTimeData', conn.config, token, user_id, {
+    ps_id: PS_ID,
+    ps_key: psKey,
+    point_id_list: [13003, 13119, 13150, 13009, 13010, 13011, 13028, 13029, 13030, 13031, 13032, 13033]
+  });
+  results.endpoints.queryDeviceRealTimeData_withPsKey = rtWithPsKeyRes;
+
   // Return only result codes + small data samples to avoid truncation
   let bodyJson = {};
   try { bodyJson = await req.clone().json(); } catch(e) {}
