@@ -368,7 +368,8 @@ Deno.serve(async (req) => {
                 l3: getPoint(13011),
               };
 
-              const efficiency = dcPower > 0 ? parseFloat(((acPower / dcPower) * 100).toFixed(1)) : 0;
+              const totalDcPower = mpptStrings.reduce((sum, s) => sum + s.power_kw, 0);
+              const efficiency = totalDcPower > 0 ? parseFloat(((acPower / totalDcPower) * 100).toFixed(1)) : 0;
               const devStatus = (dev.dev_status || dev.status) === 1 ? 'online' : (dev.dev_status || dev.status) === 2 ? 'warning' : 'offline';
 
               const invData = {
