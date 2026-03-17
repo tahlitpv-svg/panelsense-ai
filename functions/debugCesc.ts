@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
-import { createHmac } from 'node:crypto';
 
 Deno.serve(async (req) => {
   try {
@@ -9,84 +8,40 @@ Deno.serve(async (req) => {
 
     const APP_KEY = '253955251';
     const APP_SECRET = 'ihbBwNEj6ZNWGhGRT';
-    const USERNAME = 'tahlitpv@gmail.com';
-    const PASSWORD = 'Aa123456';
 
-    const body = new URLSearchParams({
-      username: USERNAME,
-      password: PASSWORD,
+    const params = new URLSearchParams({
+      username:   APP_KEY,
+      password:   APP_SECRET,
       grant_type: 'password',
-      client_id: 'csp-web'
+      client_id:  'csp-web'
     });
 
-    const results = [];
+    // Try 1: http
+    const res1 = await fetch('http://openapi.inteless.com/v1/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    });
+    const text1 = await res1.text();
+    const headers1 = {};
+    for (const [k,v] of res1.headers.entries()) headers1[k] = v;
 
-    // Test with # separator format (discovered from server error)
-    {
-      const timestamp = Date.now().toString();
-      const nonce = crypto.randomUUID();
-      const formParamsSorted = `client_id=csp-web&grant_type=password&password=${PASSWORD}&username=${USERNAME}`;
-      const pathForSign = `/v1/oauth/token?${formParamsSorted}`;
-      const stringToSign = [
-        'POST', '*/*', '', 'application/x-www-form-urlencoded', '',
-        `x-ca-key:${APP_KEY}`, `x-ca-nonce:${nonce}`, `x-ca-timestamp:${timestamp}`,
-        pathForSign
-      ].join('#');
-      const sig = createHmac('sha256', APP_SECRET).update(stringToSign, 'utf8').digest('base64');
-      const res = await fetch('http://openapi.inteless.com/v1/oauth/token', {
-        method: 'POST',
-        redirect: 'follow',
-        headers: {
-          'Accept': '*/*',
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'X-Ca-Key': APP_KEY,
-          'X-Ca-Signature': sig,
-          'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
-          'X-Ca-Timestamp': timestamp,
-          'X-Ca-Nonce': nonce,
-        },
-        body: body.toString()
-      });
-      const text = await res.text();
-      const rh = {};
-      for (const [k, v] of res.headers.entries()) rh[k] = v;
-      results.push({ attempt: 'hash_format_v1_in_path', status: res.status, body: text.substring(0, 500), responseHeaders: rh, stringToSign: stringToSign.substring(0, 200) });
-    }
+    // Try 2: https
+    const res2 = await fetch('https://openapi.inteless.com/v1/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    });
+    const text2 = await res2.text();
+    const headers2 = {};
+    for (const [k,v] of res2.headers.entries()) headers2[k] = v;
 
-    // Test same but without redirect:follow (manual)
-    {
-      const timestamp = Date.now().toString();
-      const nonce = crypto.randomUUID();
-      const formParamsSorted = `client_id=csp-web&grant_type=password&password=${PASSWORD}&username=${USERNAME}`;
-      const pathForSign = `/v1/oauth/token?${formParamsSorted}`;
-      const stringToSign = [
-        'POST', '*/*', '', 'application/x-www-form-urlencoded', '',
-        `x-ca-key:${APP_KEY}`, `x-ca-nonce:${nonce}`, `x-ca-timestamp:${timestamp}`,
-        pathForSign
-      ].join('#');
-      const sig = createHmac('sha256', APP_SECRET).update(stringToSign, 'utf8').digest('base64');
-      const res = await fetch('http://openapi.inteless.com/v1/oauth/token', {
-        method: 'POST',
-        redirect: 'manual',
-        headers: {
-          'Accept': '*/*',
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'X-Ca-Key': APP_KEY,
-          'X-Ca-Signature': sig,
-          'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
-          'X-Ca-Timestamp': timestamp,
-          'X-Ca-Nonce': nonce,
-        },
-        body: body.toString()
-      });
-      const text = await res.text();
-      const rh = {};
-      for (const [k, v] of res.headers.entries()) rh[k] = v;
-      results.push({ attempt: 'hash_format_manual_redirect', status: res.status, body: text.substring(0, 500), responseHeaders: rh });
-    }
+    return Response.json({
+      http: { status: res1.status, body: text1, headers: headers1 },
+      https: { status: res2.status, body: text2, headers: headers2 }
+    });
 
-    return Response.json({ results });
   } catch (e) {
-    return Response.json({ error: e.message }, { status: 500 });
+    return Response.json({ error: e.message, stack: e.stack }, { status: 500 });
   }
 });
