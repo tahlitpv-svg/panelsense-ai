@@ -21,30 +21,7 @@ Deno.serve(async (req) => {
 
     const results = [];
 
-    // Test 3: HTTP + Full signature + capture response headers
-    {
-      const timestamp = Date.now().toString();
-      const nonce = crypto.randomUUID();
-      const signHeaders = `x-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}`;
-      const stringToSign = `POST\n\n\napplication/x-www-form-urlencoded\n\n${signHeaders}\n/v1/oauth/token`;
-      const sig = createHmac('sha256', APP_SECRET).update(stringToSign, 'utf8').digest('base64');
-      const res = await fetch('http://openapi.inteless.com/v1/oauth/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'X-Ca-Key': APP_KEY,
-          'X-Ca-Signature': sig,
-          'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
-          'X-Ca-Timestamp': timestamp,
-          'X-Ca-Nonce': nonce,
-        },
-        body: body.toString()
-      });
-      const text = await res.text();
-      const rh = {};
-      for (const [k, v] of res.headers.entries()) rh[k] = v;
-      results.push({ attempt: 'http_full_sig', status: res.status, body: text.substring(0, 500), responseHeaders: rh, stringToSign });
-    }
+    // skip
 
     // Test 4: HTTPS plain no sig
     {
