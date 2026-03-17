@@ -46,14 +46,14 @@ Deno.serve(async (req) => {
       results.push({ attempt: 'client_id_as_appkey', status: res.status, body: text.substring(0, 500) });
     }
 
-    // Test 3: HTTPS + Full signature
+    // Test 3: HTTP + Full signature + capture response headers
     {
       const timestamp = Date.now().toString();
       const nonce = crypto.randomUUID();
       const signHeaders = `x-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}`;
       const stringToSign = `POST\n\n\napplication/x-www-form-urlencoded\n\n${signHeaders}\n/v1/oauth/token`;
       const sig = createHmac('sha256', APP_SECRET).update(stringToSign, 'utf8').digest('base64');
-      const res = await fetch('https://openapi.inteless.com/v1/oauth/token', {
+      const res = await fetch('http://openapi.inteless.com/v1/oauth/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -66,7 +66,9 @@ Deno.serve(async (req) => {
         body: body.toString()
       });
       const text = await res.text();
-      results.push({ attempt: 'full_sig_v1_path', status: res.status, body: text.substring(0, 500), stringToSign });
+      const rh = {};
+      for (const [k, v] of res.headers.entries()) rh[k] = v;
+      results.push({ attempt: 'http_full_sig', status: res.status, body: text.substring(0, 500), responseHeaders: rh, stringToSign });
     }
 
     // Test 4: HTTPS plain no sig
