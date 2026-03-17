@@ -85,13 +85,13 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const db = base44.asServiceRole;
 
-    // Get credentials from ApiConnection entity
+    // Get credentials from ApiConnection entity (fallback to hardcoded)
     const connections = await db.entities.ApiConnection.filter({ provider: 'cesc', is_active: true });
-    let username = APP_KEY;
-    let password = APP_SECRET;
+    let username = ELINTER_USERNAME;
+    let password = ELINTER_PASSWORD;
     if (connections.length > 0 && connections[0].config) {
-      username = connections[0].config.app_key || APP_KEY;
-      password = connections[0].config.app_secret || APP_SECRET;
+      username = connections[0].config.username || ELINTER_USERNAME;
+      password = connections[0].config.password || ELINTER_PASSWORD;
     }
 
     const token = await elinterLogin(username, password);
