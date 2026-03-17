@@ -105,16 +105,14 @@ Deno.serve(async (req) => {
       results.push({ attempt: 'https_sig_form_in_url', status: res.status, body: text.substring(0, 500), stringToSign });
     }
 
-    // Test 6: HTTP with body params in URL for signature
+    // Test 6: sig with /oauth/token (no v1) in URL string
     {
       const timestamp = Date.now().toString();
       const nonce = crypto.randomUUID();
       const signedHeadersStr = `x-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}`;
-      const formParamsSorted = `client_id=csp-web&grant_type=password&password=${PASSWORD}&username=${USERNAME}`;
-      const urlForSign = `/v1/oauth/token?${formParamsSorted}`;
-      const stringToSign = `POST\n\n\napplication/x-www-form-urlencoded\n\n${signedHeadersStr}\n${urlForSign}`;
+      const stringToSign = `POST\n\n\napplication/x-www-form-urlencoded\n\n${signedHeadersStr}\n/oauth/token`;
       const sig = createHmac('sha256', APP_SECRET).update(stringToSign, 'utf8').digest('base64');
-      const res = await fetch('http://openapi.inteless.com/v1/oauth/token', {
+      const res = await fetch('https://openapi.inteless.com/v1/oauth/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -127,7 +125,30 @@ Deno.serve(async (req) => {
         body: body.toString()
       });
       const text = await res.text();
-      results.push({ attempt: 'http_sig_form_in_url', status: res.status, body: text.substring(0, 500), stringToSign });
+      results.push({ attempt: 'https_sig_no_v1_in_url', status: res.status, body: text.substring(0, 500), stringToSign });
+    }
+
+    // Test 7: sig with X-Ca-Key only in headers (minimal)
+    {
+      const timestamp = Date.now().toString();
+      const nonce = crypto.randomUUID();
+      const signedHeadersStr = `x-ca-key:${APP_KEY}`;
+      const stringToSign = `POST\n\n\napplication/x-www-form-urlencoded\n\n${signedHeadersStr}\n/v1/oauth/token`;
+      const sig = createHmac('sha256', APP_SECRET).update(stringToSign, 'utf8').digest('base64');
+      const res = await fetch('https://openapi.inteless.com/v1/oauth/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-Ca-Key': APP_KEY,
+          'X-Ca-Signature': sig,
+          'X-Ca-Signature-Headers': 'x-ca-key',
+          'X-Ca-Timestamp': timestamp,
+          'X-Ca-Nonce': nonce,
+        },
+        body: body.toString()
+      });
+      const text = await res.text();
+      results.push({ attempt: 'https_sig_key_only', status: res.status, body: text.substring(0, 500), stringToSign });
     }
 
     return Response.json({ results });
