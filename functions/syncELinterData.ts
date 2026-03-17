@@ -41,6 +41,7 @@ function buildSignedHeaders(method, path, contentType = '') {
 async function elinterLogin(username, password) {
   const formParams = { username, password, grant_type: 'password', client_id: 'csp-web' };
   const sortedKeys = Object.keys(formParams).sort();
+  // Server expects unencoded @ in query string for signature
   const sortedQuery = sortedKeys.map(k => `${k}=${formParams[k]}`).join('&');
   const pathWithQuery = `/v1/oauth/token?${sortedQuery}`;
 
