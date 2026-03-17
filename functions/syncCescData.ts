@@ -66,10 +66,10 @@ async function cescLogin(appKey, appSecret, username, password) {
 }
 
 async function cescGet(path, accessToken, appKey, appSecret, queryParams = {}) {
-  const queryStr = Object.keys(queryParams).sort().map(k => `${k}=${encodeURIComponent(queryParams[k])}`).join('&');
+  const queryStr = Object.keys(queryParams).sort().map(k => `${k}=${queryParams[k]}`).join('&');
   const fullPath = queryStr ? `${path}?${queryStr}` : path;
 
-  const headers = buildCescHeaders('GET', path, appKey, appSecret, queryParams);
+  const headers = buildCescHeaders('GET', fullPath, appKey, appSecret, '');
   headers['Authorization'] = `Bearer ${accessToken}`;
 
   const res = await fetch(`${BASE_URL}${fullPath}`, { method: 'GET', headers });
