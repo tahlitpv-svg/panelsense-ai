@@ -72,12 +72,7 @@ async function cescGet(path, accessToken, appKey, appSecret, queryParams = {}) {
   const headers = buildCescHeaders('GET', `/v1${fullPath}`, appKey, appSecret, '');
   headers['Authorization'] = `Bearer ${accessToken}`;
 
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 15000);
-  let res;
-  try {
-    res = await fetch(`${BASE_URL}${fullPath}`, { method: 'GET', headers, signal: ctrl.signal });
-  } finally { clearTimeout(t); }
+  const res = await fetch(`${BASE_URL}${fullPath}`, { method: 'GET', headers });
   try { return await res.json(); } catch { return null; }
 }
 
