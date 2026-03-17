@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 import { createHmac } from 'node:crypto';
 
-const BASE_URL = 'http://openapi.inteless.com/v1';
+const BASE_URL = 'https://openapi.inteless.com/v1';
 
 function buildCescHeaders(method, path, appKey, appSecret, contentType = '', queryParams = {}) {
   const timestamp = Date.now().toString();
@@ -47,14 +47,14 @@ async function cescLogin(appKey, appSecret, username, password) {
     client_id: 'csp-web'
   });
 
-  // Form params must be included in the path for signing (as query string), with /v1 prefix
+  // Form params must be included in the path for signing (as query string)
   const formParamsSorted = `client_id=csp-web&grant_type=password&password=${password}&username=${username}`;
-  const pathForSign = `/v1/oauth/token?${formParamsSorted}`;
-  const headers = buildCescHeaders('POST', pathForSign, appKey, appSecret, 'application/x-www-form-urlencoded');
+  const path = `/oauth/token?${formParamsSorted}`;
+  const headers = buildCescHeaders('POST', path, appKey, appSecret, 'application/x-www-form-urlencoded');
   headers['Content-Type'] = 'application/x-www-form-urlencoded';
 
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 10000);
+  const t = setTimeout(() => ctrl.abort(), 15000);
   let res;
   try {
     res = await fetch(`${BASE_URL}/oauth/token`, { method: 'POST', headers, body: body.toString(), signal: ctrl.signal });
@@ -75,7 +75,12 @@ async function cescGet(path, accessToken, appKey, appSecret, queryParams = {}) {
   const headers = buildCescHeaders('GET', fullPath, appKey, appSecret, '');
   headers['Authorization'] = `Bearer ${accessToken}`;
 
-  const res = await fetch(`${BASE_URL}${fullPath}`, { method: 'GET', headers });
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 15000);
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}${fullPath}`, { method: 'GET', headers, signal: ctrl.signal });
+  } finally { clearTimeout(t); }
   try { return await res.json(); } catch { return null; }
 }
 
