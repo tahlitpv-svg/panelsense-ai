@@ -188,7 +188,7 @@ async function testCesc(config) {
     const res = await fetch(`http://openapi.inteless.com/v1${path}`, {
       method: 'POST',
       headers: {
-        'Accept': '*/*',
+        'Accept': 'application/json',
         'Content-Type': 'application/x-www-form-urlencoded',
         'X-Ca-Key': config.app_key,
         'X-Ca-Signature': signature,
@@ -200,13 +200,18 @@ async function testCesc(config) {
       body: body.toString()
     });
 
-    const data = await res.json();
-    console.log(`[testCesc] status=${res.status} code=${data?.code} token=${!!data?.access_token}`);
+    const text = await res.text();
+    console.log(`[testCesc] status=${res.status} body=${text.substring(0, 500)}`);
+
+    let data;
+    try { data = JSON.parse(text); } catch(e) {
+      return { success: false, message: `תגובה לא תקינה מהשרת (HTTP ${res.status}): ${text.substring(0, 200)}` };
+    }
 
     if (data?.access_token) {
       return { success: true, message: `חיבור E-Linter/cesc הצליח! Token type: ${data.token_type || 'Bearer'}` };
     } else {
-      return { success: false, message: `שגיאת התחברות: ${data?.message || JSON.stringify(data)}` };
+      return { success: false, message: `שגיאת התחברות: ${data?.message || data?.error_description || JSON.stringify(data)}` };
     }
   } catch (e) {
     return { success: false, message: `שגיאת רשת: ${e.message}` };
