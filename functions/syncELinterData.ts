@@ -4,6 +4,8 @@ import { createHmac } from 'node:crypto';
 const ELINTER_BASE = 'http://openapi.inteless.com/v1';
 const APP_KEY = '253955251';
 const APP_SECRET = 'ihbBwNEj6ZNWGhGRT';
+const ELINTER_USERNAME = 'tahlitpv@gmail.com';
+const ELINTER_PASSWORD = 'Aa123456';
 
 // Build HMAC-SHA256 signed headers for E-Linter / Inteless API gateway
 function buildSignedHeaders(method, path, contentType = '') {
