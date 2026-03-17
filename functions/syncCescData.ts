@@ -50,10 +50,10 @@ async function cescLogin(appKey, appSecret, username, password) {
   headers['Content-Type'] = 'application/x-www-form-urlencoded';
 
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 10000);
+  const t = setTimeout(() => ctrl.abort(), 15000);
   let res;
   try {
-    res = await fetch(`${BASE_URL}/oauth/token`, { method: 'POST', headers, body: body.toString(), signal: ctrl.signal });
+    res = await fetch(`${BASE_URL}/oauth/token`, { method: 'POST', headers, body: body.toString(), signal: ctrl.signal, redirect: 'follow' });
   } finally { clearTimeout(t); }
 
   console.log(`[cescLogin] status=${res.status} content-type=${res.headers.get('content-type')}`);
