@@ -52,19 +52,14 @@ Deno.serve(async (req) => {
     console.log('[debug] stringToSign:', stringToSign);
     console.log('[debug] sig:', sig);
 
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 15000);
     let res, text, responseHeaders = {};
-    try {
-      res = await fetch('http://openapi.inteless.com/v1/oauth/token', {
-        method: 'POST',
-        headers,
-        body: body.toString(),
-        signal: ctrl.signal
-      });
-      text = await res.text();
-      for (const [k, v] of res.headers.entries()) responseHeaders[k] = v;
-    } finally { clearTimeout(t); }
+    res = await fetch('http://openapi.inteless.com/v1/oauth/token', {
+      method: 'POST',
+      headers,
+      body: body.toString(),
+    });
+    text = await res.text();
+    for (const [k, v] of res.headers.entries()) responseHeaders[k] = v;
 
     return Response.json({ status: res?.status, body: text?.substring(0, 500), responseHeaders, stringToSign, sig });
   } catch (e) {
