@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
     const PASSWORD = 'Aa123456';
 
     const formParamsSorted = `client_id=csp-web&grant_type=password&password=${PASSWORD}&username=${USERNAME}`;
-    const path = `/oauth/token?${formParamsSorted}`;
+    const path = `/v1/oauth/token?${formParamsSorted}`;
 
     const timestamp = Date.now().toString();
     const nonce = crypto.randomUUID();
