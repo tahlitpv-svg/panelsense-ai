@@ -3,12 +3,18 @@ import { createHmac } from 'node:crypto';
 
 const BASE_URL = 'http://openapi.inteless.com/v1';
 
-function buildCescHeaders(method, path, appKey, appSecret, contentType = '') {
+function buildCescHeaders(method, path, appKey, appSecret, contentType = '', queryParams = {}) {
   const timestamp = Date.now().toString();
   const nonce = crypto.randomUUID();
 
+  // Sort query params alphabetically and build URL string
+  const sortedKeys = Object.keys(queryParams).sort();
+  const urlStr = sortedKeys.length > 0
+    ? path + '?' + sortedKeys.map(k => `${k}=${queryParams[k]}`).join('&')
+    : path;
+
   // Format discovered from server error response:
-  // METHOD#Accept##ContentType##x-ca-key:val#x-ca-nonce:val#x-ca-timestamp:val#/path?params
+  // METHOD#Accept#ContentMD5#ContentType#Date#x-ca-key:val#x-ca-nonce:val#x-ca-timestamp:val#/path?params
   const stringToSign = [
     method.toUpperCase(),
     '*/*',          // Accept
@@ -18,7 +24,7 @@ function buildCescHeaders(method, path, appKey, appSecret, contentType = '') {
     `x-ca-key:${appKey}`,
     `x-ca-nonce:${nonce}`,
     `x-ca-timestamp:${timestamp}`,
-    path
+    urlStr
   ].join('#');
 
   const signature = createHmac('sha256', appSecret).update(stringToSign, 'utf8').digest('base64');
@@ -41,24 +47,17 @@ async function cescLogin(appKey, appSecret, username, password) {
     client_id: 'csp-web'
   });
 
-  // Form params must be included in the path for signing (as query string), with /v1 prefix
+  // Form params must be included in the path for signing (as query string)
+  // Server expects the full path including /v1 prefix
   const formParamsSorted = `client_id=csp-web&grant_type=password&password=${password}&username=${username}`;
-  const pathForSign = `/v1/oauth/token?${formParamsSorted}`;
-  console.log(`[cescLogin] building headers for path: ${pathForSign.substring(0, 80)}`);
-  const headers = buildCescHeaders('POST', pathForSign, appKey, appSecret, 'application/x-www-form-urlencoded');
-  console.log(`[cescLogin] headers built, fetching...`);
+  const path = `/v1/oauth/token?${formParamsSorted}`;
+  const headers = buildCescHeaders('POST', path, appKey, appSecret, 'application/x-www-form-urlencoded');
   headers['Content-Type'] = 'application/x-www-form-urlencoded';
 
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 15000);
-  let res;
-  try {
-    res = await fetch(`${BASE_URL}/oauth/token`, { method: 'POST', headers, body: body.toString(), signal: ctrl.signal, redirect: 'follow' });
-  } finally { clearTimeout(t); }
+  const res = await fetch(`${BASE_URL}/oauth/token`, { method: 'POST', headers, body: body.toString() });
 
-  console.log(`[cescLogin] status=${res.status} content-type=${res.headers.get('content-type')}`);
   const text = await res.text();
-  console.log(`[cescLogin] body_len=${text.length} body=${text.substring(0, 300)}`);
+  console.log(`[cescLogin] status=${res.status} body=${text.substring(0, 300)}`);
   let data;
   try { data = JSON.parse(text); } catch(e) { throw new Error(`Login parse error: ${text.substring(0,200)}`); }
   if (!data?.access_token) throw new Error(`Login failed: ${data?.message || JSON.stringify(data)}`);
@@ -68,23 +67,26 @@ async function cescLogin(appKey, appSecret, username, password) {
 async function cescGet(path, accessToken, appKey, appSecret, queryParams = {}) {
   const queryStr = Object.keys(queryParams).sort().map(k => `${k}=${queryParams[k]}`).join('&');
   const fullPath = queryStr ? `${path}?${queryStr}` : path;
-  const pathForSign = `/v1${fullPath}`; // server expects /v1/... in stringToSign
 
-  const headers = buildCescHeaders('GET', pathForSign, appKey, appSecret, '');
+  // Sign with /v1 prefix (server requires full path in signature)
+  const headers = buildCescHeaders('GET', `/v1${fullPath}`, appKey, appSecret, '');
   headers['Authorization'] = `Bearer ${accessToken}`;
 
-  const res = await fetch(`${BASE_URL}${fullPath}`, { method: 'GET', headers });
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 15000);
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}${fullPath}`, { method: 'GET', headers, signal: ctrl.signal });
+  } finally { clearTimeout(t); }
   try { return await res.json(); } catch { return null; }
 }
 
 Deno.serve(async (req) => {
-  console.log('[syncCesc] START');
   try {
     const base44 = createClientFromRequest(req);
     const db = base44.asServiceRole;
 
     const connections = await db.entities.ApiConnection.filter({ provider: 'cesc' });
-    console.log(`[syncCesc] found ${connections.length} connections`);
     if (!connections.length) return Response.json({ success: true, message: 'No cesc connections', synced: 0 });
 
     let totalUpdated = 0;
