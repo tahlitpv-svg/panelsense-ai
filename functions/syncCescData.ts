@@ -53,7 +53,7 @@ async function cescLogin(appKey, appSecret, username, password) {
   const headers = buildCescHeaders('POST', path, appKey, appSecret, 'application/x-www-form-urlencoded');
   headers['Content-Type'] = 'application/x-www-form-urlencoded';
 
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${BASE_URL}/oauth/token`, {
     method: 'POST',
     headers,
     body: body.toString()
