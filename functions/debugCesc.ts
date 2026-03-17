@@ -21,31 +21,6 @@ Deno.serve(async (req) => {
 
     const results = [];
 
-    // Test 1: HTTP plain with all response headers
-    {
-      const res = await fetch('http://openapi.inteless.com/v1/oauth/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body.toString()
-      });
-      const text = await res.text();
-      const responseHeaders = {};
-      for (const [k, v] of res.headers.entries()) responseHeaders[k] = v;
-      results.push({ attempt: 'plain_post', status: res.status, body: text.substring(0, 500), responseHeaders });
-    }
-
-    // Test 2: HTTP with different client_id
-    {
-      const b2 = new URLSearchParams({ username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: APP_KEY });
-      const res = await fetch('http://openapi.inteless.com/v1/oauth/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: b2.toString()
-      });
-      const text = await res.text();
-      results.push({ attempt: 'client_id_as_appkey', status: res.status, body: text.substring(0, 500) });
-    }
-
     // Test 3: HTTP + Full signature + capture response headers
     {
       const timestamp = Date.now().toString();
