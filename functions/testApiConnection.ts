@@ -31,6 +31,8 @@ Deno.serve(async (req) => {
       testResult = await testSungrow(conn.config);
     } else if (conn.provider === 'solis') {
       testResult = await testSolis(conn.config);
+    } else if (conn.provider === 'cesc') {
+      testResult = await testCesc(conn.config);
     } else {
       testResult = { success: false, message: 'ספק זה עדיין לא נתמך לבדיקה אוטומטית' };
     }

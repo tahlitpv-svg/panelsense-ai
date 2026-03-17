@@ -76,6 +76,20 @@ const PROVIDERS = [
     ]
   },
   {
+    id: 'cesc',
+    name: 'CESC / E-Linter',
+    logo: '⚡',
+    color: 'orange',
+    description: 'E-Linter PV-CSP Platform (cesc inverters)',
+    fields: [
+      { key: 'app_key', label: 'App Key', placeholder: '253955251', sensitive: false },
+      { key: 'app_secret', label: 'App Secret', placeholder: 'ihbBwNEj6ZNWGhGRT', sensitive: true },
+      { key: 'user_account', label: 'Username', placeholder: 'שם משתמש בפלטפורמה', sensitive: false },
+      { key: 'user_password', label: 'Password', placeholder: 'סיסמה', sensitive: true }
+    ],
+    link: { url: 'http://www.e-linter.com', label: 'E-Linter Platform →' }
+  },
+  {
     id: 'custom',
     name: 'API מותאם אישית',
     logo: '🔧',
