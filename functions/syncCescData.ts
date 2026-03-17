@@ -59,8 +59,10 @@ async function cescLogin(appKey, appSecret, username, password) {
     body: body.toString()
   });
 
-  const data = await res.json();
-  console.log(`[cescLogin] status=${res.status} code=${data?.code}`);
+  const text = await res.text();
+  console.log(`[cescLogin] status=${res.status} body=${text.substring(0, 300)}`);
+  let data;
+  try { data = JSON.parse(text); } catch(e) { throw new Error(`Login parse error: ${text.substring(0,200)}`); }
   if (!data?.access_token) throw new Error(`Login failed: ${data?.message || JSON.stringify(data)}`);
   return data.access_token;
 }
