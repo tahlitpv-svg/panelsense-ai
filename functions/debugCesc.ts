@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
 
     const results = [];
 
-    // Test 1: Plain POST, no auth headers
+    // Test 1: HTTP plain with all response headers
     {
       const res = await fetch('http://openapi.inteless.com/v1/oauth/token', {
         method: 'POST',
@@ -29,21 +29,21 @@ Deno.serve(async (req) => {
         body: body.toString()
       });
       const text = await res.text();
-      results.push({ attempt: 'plain_post', status: res.status, body: text.substring(0, 500) });
+      const responseHeaders = {};
+      for (const [k, v] of res.headers.entries()) responseHeaders[k] = v;
+      results.push({ attempt: 'plain_post', status: res.status, body: text.substring(0, 500), responseHeaders });
     }
 
-    // Test 2: With X-Ca-Key
+    // Test 2: HTTP with different client_id
     {
+      const b2 = new URLSearchParams({ username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: APP_KEY });
       const res = await fetch('http://openapi.inteless.com/v1/oauth/token', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'X-Ca-Key': APP_KEY,
-        },
-        body: body.toString()
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: b2.toString()
       });
       const text = await res.text();
-      results.push({ attempt: 'with_xcakey', status: res.status, body: text.substring(0, 500) });
+      results.push({ attempt: 'client_id_as_appkey', status: res.status, body: text.substring(0, 500) });
     }
 
     // Test 3: HTTPS + Full signature
