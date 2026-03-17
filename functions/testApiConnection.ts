@@ -170,55 +170,87 @@ async function testCesc(config) {
     return { success: false, message: 'חסרים פרטי חיבור: App Key, App Secret, Username, Password' };
   }
 
-  try {
-    const timestamp = Date.now().toString();
-    const nonce = crypto.randomUUID();
-    const path = '/oauth/token';
-    const headersStr = `x-ca-key:${config.app_key}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}`;
-    // Per E-Linter docs: HTTPMethod\nAccept\nContent-MD5\nContent-Type\nDate\nHeaders\nUrl
-    // Accept is empty for form POST, Date is empty (using timestamp in headers instead)
-    const stringToSign = ['POST', '', '', 'application/x-www-form-urlencoded', '', headersStr, path].join('\n');
-    const signature = createHmac('sha256', config.app_secret).update(stringToSign, 'utf8').digest('base64');
-    console.log(`[testCesc] stringToSign=${JSON.stringify(stringToSign)} sig=${signature}`);
+  const body = new URLSearchParams({
+    username: config.user_account,
+    password: config.user_password,
+    grant_type: 'password',
+    client_id: 'csp-web'
+  });
 
-    const body = new URLSearchParams({
-      username: config.user_account,
-      password: config.user_password,
-      grant_type: 'password',
-      client_id: 'csp-web'
-    });
-
-    const res = await fetch(`http://openapi.inteless.com/v1${path}`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'X-Ca-Key': config.app_key,
-        'X-Ca-Signature': signature,
-        'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
-        'X-Ca-Timestamp': timestamp,
-        'X-Ca-Nonce': nonce,
-        'X-Ca-Stage': 'RELEASE'
-      },
-      body: body.toString()
-    });
-
-    const text = await res.text();
-    console.log(`[testCesc] status=${res.status} body=${text.substring(0, 500)}`);
-
-    let data;
-    try { data = JSON.parse(text); } catch(e) {
-      return { success: false, message: `תגובה לא תקינה מהשרת (HTTP ${res.status}): ${text.substring(0, 200)}` };
+  // Try multiple approaches
+  const attempts = [
+    // Attempt 1: No signature (plain OAuth)
+    async () => {
+      const res = await fetch(`http://openapi.inteless.com/v1/oauth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString()
+      });
+      const text = await res.text();
+      console.log(`[cesc attempt1] status=${res.status} body=${text.substring(0, 300)}`);
+      return { status: res.status, text };
+    },
+    // Attempt 2: With X-Ca-Key only (no signature)
+    async () => {
+      const res = await fetch(`http://openapi.inteless.com/v1/oauth/token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-Ca-Key': config.app_key,
+          'X-Ca-Stage': 'RELEASE'
+        },
+        body: body.toString()
+      });
+      const text = await res.text();
+      console.log(`[cesc attempt2] status=${res.status} body=${text.substring(0, 300)}`);
+      return { status: res.status, text };
+    },
+    // Attempt 3: Full HMAC-SHA256 signature with correct string format
+    async () => {
+      const timestamp = Date.now().toString();
+      const nonce = crypto.randomUUID();
+      const signHeaders = `x-ca-key:${config.app_key}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}`;
+      // stringToSign = Method\nAccept\nContent-MD5\nContent-Type\nDate\nCustomHeaders\nUrl
+      const stringToSign = `POST\n\n\napplication/x-www-form-urlencoded\n\n${signHeaders}\n/oauth/token`;
+      const sig = createHmac('sha256', config.app_secret).update(stringToSign, 'utf8').digest('base64');
+      console.log(`[cesc attempt3] stringToSign=${JSON.stringify(stringToSign)}`);
+      const res = await fetch(`http://openapi.inteless.com/v1/oauth/token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-Ca-Key': config.app_key,
+          'X-Ca-Signature': sig,
+          'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
+          'X-Ca-Timestamp': timestamp,
+          'X-Ca-Nonce': nonce,
+          'X-Ca-Stage': 'RELEASE'
+        },
+        body: body.toString()
+      });
+      const text = await res.text();
+      console.log(`[cesc attempt3] status=${res.status} body=${text.substring(0, 300)}`);
+      return { status: res.status, text };
     }
+  ];
 
-    if (data?.access_token) {
-      return { success: true, message: `חיבור E-Linter/cesc הצליח! Token type: ${data.token_type || 'Bearer'}` };
-    } else {
-      return { success: false, message: `שגיאת התחברות: ${data?.message || data?.error_description || JSON.stringify(data)}` };
+  for (let i = 0; i < attempts.length; i++) {
+    try {
+      const { status, text } = await attempts[i]();
+      if (!text) continue;
+      let data;
+      try { data = JSON.parse(text); } catch { continue; }
+      if (data?.access_token) {
+        return { success: true, message: `חיבור E-Linter/cesc הצליח! (attempt ${i+1})` };
+      }
+      if (status !== 403 && data?.message) {
+        return { success: false, message: `שגיאת ${status}: ${data.message || data.error_description || JSON.stringify(data)}` };
+      }
+    } catch (e) {
+      console.log(`[cesc attempt${i+1}] error: ${e.message}`);
     }
-  } catch (e) {
-    return { success: false, message: `שגיאת רשת: ${e.message}` };
   }
+
+  return { success: false, message: 'כל ניסיונות החיבור נכשלו (403). בדוק App Key ו-App Secret.' };
 }
 
 function computeMd5Base64(content) {
