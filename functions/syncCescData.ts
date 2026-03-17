@@ -47,8 +47,10 @@ async function cescLogin(appKey, appSecret, username, password) {
     client_id: 'csp-web'
   });
 
-  const path = '/oauth/token';
-  const headers = buildCescHeaders('POST', path, appKey, appSecret);
+  // Form params must be included in the path for signing (as query string)
+  const formParamsSorted = `client_id=csp-web&grant_type=password&password=${password}&username=${username}`;
+  const path = `/oauth/token?${formParamsSorted}`;
+  const headers = buildCescHeaders('POST', path, appKey, appSecret, 'application/x-www-form-urlencoded');
   headers['Content-Type'] = 'application/x-www-form-urlencoded';
 
   const res = await fetch(`${BASE_URL}${path}`, {
