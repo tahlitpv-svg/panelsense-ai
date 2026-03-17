@@ -175,8 +175,11 @@ async function testCesc(config) {
     const nonce = crypto.randomUUID();
     const path = '/oauth/token';
     const headersStr = `x-ca-key:${config.app_key}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}`;
-    const stringToSign = ['POST', '*/*', '', 'application/x-www-form-urlencoded', '', headersStr, path].join('\n');
+    // Per E-Linter docs: HTTPMethod\nAccept\nContent-MD5\nContent-Type\nDate\nHeaders\nUrl
+    // Accept is empty for form POST, Date is empty (using timestamp in headers instead)
+    const stringToSign = ['POST', '', '', 'application/x-www-form-urlencoded', '', headersStr, path].join('\n');
     const signature = createHmac('sha256', config.app_secret).update(stringToSign, 'utf8').digest('base64');
+    console.log(`[testCesc] stringToSign=${JSON.stringify(stringToSign)} sig=${signature}`);
 
     const body = new URLSearchParams({
       username: config.user_account,
