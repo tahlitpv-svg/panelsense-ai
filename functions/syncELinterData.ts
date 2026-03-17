@@ -1,22 +1,60 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createHmac } from 'node:crypto';
 
 const ELINTER_BASE = 'http://openapi.inteless.com/v1';
 const APP_KEY = '253955251';
 const APP_SECRET = 'ihbBwNEj6ZNWGhGRT';
 
-async function elinterLogin() {
-  const params = new URLSearchParams({
-    username:   APP_KEY,
-    password:   APP_SECRET,
-    grant_type: 'password',
-    client_id:  'csp-web'
-  });
+// Build HMAC-SHA256 signed headers for E-Linter / Inteless API gateway
+function buildSignedHeaders(method, path, contentType = '') {
+  const timestamp = Date.now().toString();
+  const nonce = crypto.randomUUID();
+
+  const headersToSign = `x-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}`;
+  const stringToSign = [
+    method.toUpperCase(),
+    '*/*',
+    '',
+    contentType,
+    '',
+    headersToSign,
+    path
+  ].join('\n');
+
+  const sig = createHmac('sha256', APP_SECRET).update(stringToSign, 'utf8').digest('base64');
+
+  return {
+    'Accept': '*/*',
+    'Content-Type': contentType || undefined,
+    'X-Ca-Key': APP_KEY,
+    'X-Ca-Nonce': nonce,
+    'X-Ca-Timestamp': timestamp,
+    'X-Ca-Signature': sig,
+    'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
+  };
+}
+
+async function elinterLogin(username, password) {
+  const formParams = { username, password, grant_type: 'password', client_id: 'csp-web' };
+  const sortedKeys = Object.keys(formParams).sort();
+  const sortedQuery = sortedKeys.map(k => `${k}=${formParams[k]}`).join('&');
+  const pathWithQuery = `/v1/oauth/token?${sortedQuery}`;
+
+  const headers = buildSignedHeaders('POST', pathWithQuery, 'application/x-www-form-urlencoded');
+
+  const body = new URLSearchParams(formParams).toString();
   const res = await fetch(`${ELINTER_BASE}/oauth/token`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params.toString()
+    headers,
+    body
   });
-  const data = await res.json();
+
+  const text = await res.text();
+  if (!text) throw new Error(`E-Linter login: empty response (status ${res.status}), x-ca-error: ${res.headers.get('x-ca-error-message') || 'none'}`);
+
+  let data;
+  try { data = JSON.parse(text); } catch { throw new Error(`E-Linter login parse error: ${text.substring(0, 200)}`); }
+
   if (!data?.access_token) throw new Error(`E-Linter login failed: ${JSON.stringify(data)}`);
   console.log('[elinter] Login OK');
   return data.access_token;
@@ -24,16 +62,37 @@ async function elinterLogin() {
 
 async function elGet(token, path, params = {}) {
   const query = new URLSearchParams(params).toString();
+  const fullPath = `/v1${path}${query ? '?' + query : ''}`;
+  const signedHeaders = buildSignedHeaders('GET', fullPath);
   const url = `${ELINTER_BASE}${path}${query ? '?' + query : ''}`;
-  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-  try { return await res.json(); } catch { return null; }
+
+  const res = await fetch(url, {
+    headers: {
+      ...signedHeaders,
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  const text = await res.text();
+  if (!text) return null;
+  try { return JSON.parse(text); } catch { return null; }
 }
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const db = base44.asServiceRole;
-    const token = await elinterLogin();
+
+    // Get credentials from ApiConnection entity
+    const connections = await db.entities.ApiConnection.filter({ provider: 'cesc', is_active: true });
+    let username = APP_KEY;
+    let password = APP_SECRET;
+    if (connections.length > 0 && connections[0].config) {
+      username = connections[0].config.app_key || APP_KEY;
+      password = connections[0].config.app_secret || APP_SECRET;
+    }
+
+    const token = await elinterLogin(username, password);
 
     let page = 1;
     let allInverters = [];
@@ -60,14 +119,14 @@ Deno.serve(async (req) => {
 
         let site = null;
         if (plantId) {
-          const byId = await db.entities.Site.filter({ elinter_plant_id: String(plantId) });
+          const byId = await db.entities.Site.filter({ cesc_plant_id: String(plantId) });
           if (byId.length > 0) site = byId[0];
         }
         if (!site && plantName) {
           const all = await db.entities.Site.list();
           site = all.find(s => s.name?.trim() === plantName.trim()) || null;
           if (site && plantId) {
-            await db.entities.Site.update(site.id, { elinter_plant_id: String(plantId) });
+            await db.entities.Site.update(site.id, { cesc_plant_id: String(plantId) });
           }
         }
 
@@ -108,7 +167,7 @@ Deno.serve(async (req) => {
           daily_yield_kwh:     etoday,
           mppt_strings:        mpptStrings,
           phase_voltages,
-          elinter_sn:          sn,
+          cesc_inverter_sn:    sn,
         };
 
         if (site) {
@@ -123,7 +182,7 @@ Deno.serve(async (req) => {
           totalUpdated++;
         }
 
-        const existing = await db.entities.Inverter.filter({ elinter_sn: sn });
+        const existing = await db.entities.Inverter.filter({ cesc_inverter_sn: sn });
         if (existing.length > 0) {
           await db.entities.Inverter.update(existing[0].id, invData);
         } else {
