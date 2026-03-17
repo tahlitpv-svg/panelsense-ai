@@ -78,11 +78,13 @@ async function cescGet(path, accessToken, appKey, appSecret, queryParams = {}) {
 }
 
 Deno.serve(async (req) => {
+  console.log('[syncCesc] START');
   try {
     const base44 = createClientFromRequest(req);
     const db = base44.asServiceRole;
 
     const connections = await db.entities.ApiConnection.filter({ provider: 'cesc' });
+    console.log(`[syncCesc] found ${connections.length} connections`);
     if (!connections.length) return Response.json({ success: true, message: 'No cesc connections', synced: 0 });
 
     let totalUpdated = 0;
