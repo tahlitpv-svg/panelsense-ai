@@ -105,7 +105,34 @@ Deno.serve(async (req) => {
       results.push({ attempt: 'https_sig_form_in_url', status: res.status, body: text.substring(0, 500), stringToSign });
     }
 
-    // Test 6: sig with /oauth/token (no v1) in URL string
+    // Test 6: Alibaba Cloud style - Content-MD5 included even if empty
+    {
+      const timestamp = Date.now().toString();
+      const nonce = crypto.randomUUID();
+      // Alibaba Cloud: headers in stringToSign MUST match X-Ca-Signature-Headers exactly, sorted
+      // and the format is HeaderKey:HeaderValue\n (last one no \n)
+      const signedHeadersStr = `x-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}`;
+      // URL = /v1/oauth/token (path only, no form params for POST with x-www-form-urlencoded)
+      const stringToSign = `POST\napplication/json\n\napplication/x-www-form-urlencoded\n\n${signedHeadersStr}\n/v1/oauth/token`;
+      const sig = createHmac('sha256', APP_SECRET).update(stringToSign, 'utf8').digest('base64');
+      const res = await fetch('https://openapi.inteless.com/v1/oauth/token', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-Ca-Key': APP_KEY,
+          'X-Ca-Signature': sig,
+          'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
+          'X-Ca-Timestamp': timestamp,
+          'X-Ca-Nonce': nonce,
+        },
+        body: body.toString()
+      });
+      const text = await res.text();
+      results.push({ attempt: 'alibaba_accept_in_sign', status: res.status, body: text.substring(0, 500), stringToSign });
+    }
+
+    // Test 6b: sig with /oauth/token (no v1) in URL string
     {
       const timestamp = Date.now().toString();
       const nonce = crypto.randomUUID();
