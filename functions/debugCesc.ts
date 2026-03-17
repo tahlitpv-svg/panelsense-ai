@@ -107,7 +107,36 @@ Deno.serve(async (req) => {
       results.push({ attempt: 'https_sig_form_in_url', status: res.status, body: text.substring(0, 500), stringToSign });
     }
 
-    // Test 6: Alibaba Cloud style - Content-MD5 included even if empty
+    // Test 6: CORRECT FORMAT from server error: POST#*/*##CT##\nHeaders#Url with form params
+    // Server shows: POST#*/*##application/x-www-form-urlencoded##x-ca-key:...#x-ca-nonce:...#x-ca-timestamp:...#/v1/oauth/token?params
+    // So separator is # not \n, and Accept is */*
+    {
+      const timestamp = Date.now().toString();
+      const nonce = crypto.randomUUID();
+      const formParamsSorted = `client_id=csp-web&grant_type=password&password=${PASSWORD}&username=${USERNAME}`;
+      // Build exactly what server expects (# separator)
+      const stringToSign = `POST#*/*##application/x-www-form-urlencoded##x-ca-key:${APP_KEY}#x-ca-nonce:${nonce}#x-ca-timestamp:${timestamp}#/v1/oauth/token?${formParamsSorted}`;
+      const sig = createHmac('sha256', APP_SECRET).update(stringToSign, 'utf8').digest('base64');
+      const res = await fetch('http://openapi.inteless.com/v1/oauth/token', {
+        method: 'POST',
+        headers: {
+          'Accept': '*/*',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-Ca-Key': APP_KEY,
+          'X-Ca-Signature': sig,
+          'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
+          'X-Ca-Timestamp': timestamp,
+          'X-Ca-Nonce': nonce,
+        },
+        body: body.toString()
+      });
+      const text = await res.text();
+      const rh = {};
+      for (const [k, v] of res.headers.entries()) rh[k] = v;
+      results.push({ attempt: 'CORRECT_HASH_FORMAT', status: res.status, body: text.substring(0, 500), responseHeaders: rh, stringToSign });
+    }
+
+    // Test 6b: Alibaba Cloud style - Content-MD5 included even if empty
     {
       const timestamp = Date.now().toString();
       const nonce = crypto.randomUUID();
