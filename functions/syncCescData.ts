@@ -53,11 +53,12 @@ async function cescLogin(appKey, appSecret, username, password) {
   const headers = buildCescHeaders('POST', path, appKey, appSecret, 'application/x-www-form-urlencoded');
   headers['Content-Type'] = 'application/x-www-form-urlencoded';
 
-  const res = await fetch(`${BASE_URL}/oauth/token`, {
-    method: 'POST',
-    headers,
-    body: body.toString()
-  });
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 15000);
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}/oauth/token`, { method: 'POST', headers, body: body.toString(), signal: ctrl.signal });
+  } finally { clearTimeout(t); }
 
   const text = await res.text();
   console.log(`[cescLogin] status=${res.status} body=${text.substring(0, 300)}`);
