@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
     const t = setTimeout(() => ctrl.abort(), 15000);
     let res, text, responseHeaders = {};
     try {
-      res = await fetch('https://openapi.inteless.com/v1/oauth/token', {
+      res = await fetch('http://openapi.inteless.com/v1/oauth/token', {
         method: 'POST',
         headers,
         body: body.toString(),
