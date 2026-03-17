@@ -8,20 +8,22 @@ const ELINTER_USERNAME = 'tahlitpv@gmail.com';
 const ELINTER_PASSWORD = 'Aa123456';
 
 // Build HMAC-SHA256 signed headers for E-Linter / Inteless API gateway
+// Server expects # separator and unencoded @ in query params
 function buildSignedHeaders(method, path, contentType = '') {
   const timestamp = Date.now().toString();
   const nonce = crypto.randomUUID();
 
-  const headersToSign = `x-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}`;
   const stringToSign = [
     method.toUpperCase(),
     '*/*',
     '',
     contentType,
     '',
-    headersToSign,
+    `x-ca-key:${APP_KEY}`,
+    `x-ca-nonce:${nonce}`,
+    `x-ca-timestamp:${timestamp}`,
     path
-  ].join('\n');
+  ].join('#');
 
   const sig = createHmac('sha256', APP_SECRET).update(stringToSign, 'utf8').digest('base64');
 
