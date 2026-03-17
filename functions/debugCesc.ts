@@ -7,10 +7,16 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const APP_KEY = '253955251';
-    const APP_SECRET = 'ihbBwNEj6ZNWGhGRT';
-    const USERNAME = 'tahlitpv@gmail.com';
-    const PASSWORD = 'Aa123456';
+    const db = base44.asServiceRole;
+    const connections = await db.entities.ApiConnection.filter({ provider: 'cesc' });
+    if (!connections.length) return Response.json({ error: 'No cesc connection found' });
+    const { app_key, app_secret, user_account, user_password } = connections[0].config || {};
+    console.log('[debug] config keys:', { app_key, app_secret: app_secret?.substring(0,5)+'...', user_account, user_password: user_password?.substring(0,3)+'...' });
+
+    const APP_KEY = app_key || '253955251';
+    const APP_SECRET = app_secret || 'ihbBwNEj6ZNWGhGRT';
+    const USERNAME = user_account || 'tahlitpv@gmail.com';
+    const PASSWORD = user_password || 'Aa123456';
 
     const formParamsSorted = `client_id=csp-web&grant_type=password&password=${PASSWORD}&username=${USERNAME}`;
     const path = `/v1/oauth/token?${formParamsSorted}`;
