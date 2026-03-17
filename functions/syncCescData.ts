@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 import { createHmac } from 'node:crypto';
 
-const BASE_URL = 'https://openapi.inteless.com/v1';
+const BASE_URL = 'http://openapi.inteless.com/v1';
 
 function buildCescHeaders(method, path, appKey, appSecret, contentType = '') {
   const timestamp = Date.now().toString();
