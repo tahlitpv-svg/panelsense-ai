@@ -3,7 +3,7 @@ import { createHmac } from 'node:crypto';
 
 const BASE_URL = 'http://openapi.inteless.com/v1';
 
-function buildCescHeaders(method, path, appKey, appSecret, queryParams = {}) {
+function buildCescHeaders(method, path, appKey, appSecret, contentType = '', queryParams = {}) {
   const timestamp = Date.now().toString();
   const nonce = crypto.randomUUID();
 
@@ -13,17 +13,19 @@ function buildCescHeaders(method, path, appKey, appSecret, queryParams = {}) {
     ? path + '?' + sortedKeys.map(k => `${k}=${queryParams[k]}`).join('&')
     : path;
 
-  // Build string to sign: Method\nAccept\nContent-MD5\nContent-Type\nDate\nHeaders\nUrl
-  const headersStr = `x-ca-key:${appKey}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}`;
+  // Format discovered from server error response:
+  // METHOD#Accept#ContentMD5#ContentType#Date#x-ca-key:val#x-ca-nonce:val#x-ca-timestamp:val#/path?params
   const stringToSign = [
     method.toUpperCase(),
-    '*/*',        // Accept
-    '',           // Content-MD5 (empty for GET)
-    '',           // Content-Type (empty for GET)
-    '',           // Date (empty)
-    headersStr,
+    '*/*',          // Accept
+    '',             // Content-MD5 (empty)
+    contentType,    // Content-Type (empty for GET, set for POST)
+    '',             // Date (empty)
+    `x-ca-key:${appKey}`,
+    `x-ca-nonce:${nonce}`,
+    `x-ca-timestamp:${timestamp}`,
     urlStr
-  ].join('\n');
+  ].join('#');
 
   const signature = createHmac('sha256', appSecret).update(stringToSign, 'utf8').digest('base64');
 
@@ -34,7 +36,6 @@ function buildCescHeaders(method, path, appKey, appSecret, queryParams = {}) {
     'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
     'X-Ca-Timestamp': timestamp,
     'X-Ca-Nonce': nonce,
-    'X-Ca-Stage': 'RELEASE'
   };
 }
 
