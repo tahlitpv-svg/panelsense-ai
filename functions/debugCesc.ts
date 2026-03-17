@@ -46,14 +46,14 @@ Deno.serve(async (req) => {
       results.push({ attempt: 'with_xcakey', status: res.status, body: text.substring(0, 500) });
     }
 
-    // Test 3: Full signature
+    // Test 3: HTTPS + Full signature
     {
       const timestamp = Date.now().toString();
       const nonce = crypto.randomUUID();
       const signHeaders = `x-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}`;
       const stringToSign = `POST\n\n\napplication/x-www-form-urlencoded\n\n${signHeaders}\n/v1/oauth/token`;
       const sig = createHmac('sha256', APP_SECRET).update(stringToSign, 'utf8').digest('base64');
-      const res = await fetch('http://openapi.inteless.com/v1/oauth/token', {
+      const res = await fetch('https://openapi.inteless.com/v1/oauth/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
