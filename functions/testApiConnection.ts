@@ -165,6 +165,54 @@ async function testSolis(config) {
   }
 }
 
+async function testCesc(config) {
+  if (!config?.app_key || !config?.app_secret || !config?.user_account || !config?.user_password) {
+    return { success: false, message: 'חסרים פרטי חיבור: App Key, App Secret, Username, Password' };
+  }
+
+  try {
+    const timestamp = Date.now().toString();
+    const nonce = crypto.randomUUID();
+    const path = '/oauth/token';
+    const headersStr = `x-ca-key:${config.app_key}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}`;
+    const stringToSign = ['POST', '*/*', '', 'application/x-www-form-urlencoded', '', headersStr, path].join('\n');
+    const signature = createHmac('sha256', config.app_secret).update(stringToSign, 'utf8').digest('base64');
+
+    const body = new URLSearchParams({
+      username: config.user_account,
+      password: config.user_password,
+      grant_type: 'password',
+      client_id: 'csp-web'
+    });
+
+    const res = await fetch(`http://openapi.inteless.com/v1${path}`, {
+      method: 'POST',
+      headers: {
+        'Accept': '*/*',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-Ca-Key': config.app_key,
+        'X-Ca-Signature': signature,
+        'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
+        'X-Ca-Timestamp': timestamp,
+        'X-Ca-Nonce': nonce,
+        'X-Ca-Stage': 'RELEASE'
+      },
+      body: body.toString()
+    });
+
+    const data = await res.json();
+    console.log(`[testCesc] status=${res.status} code=${data?.code} token=${!!data?.access_token}`);
+
+    if (data?.access_token) {
+      return { success: true, message: `חיבור E-Linter/cesc הצליח! Token type: ${data.token_type || 'Bearer'}` };
+    } else {
+      return { success: false, message: `שגיאת התחברות: ${data?.message || JSON.stringify(data)}` };
+    }
+  } catch (e) {
+    return { success: false, message: `שגיאת רשת: ${e.message}` };
+  }
+}
+
 function computeMd5Base64(content) {
   return createHash('md5').update(content, 'utf8').digest('base64');
 }
