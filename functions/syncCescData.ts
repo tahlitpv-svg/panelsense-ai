@@ -65,8 +65,9 @@ async function cescLogin(appKey, appSecret, username, password) {
 async function cescGet(path, accessToken, appKey, appSecret, queryParams = {}) {
   const queryStr = Object.keys(queryParams).sort().map(k => `${k}=${queryParams[k]}`).join('&');
   const fullPath = queryStr ? `${path}?${queryStr}` : path;
+  const pathForSign = `/v1${fullPath}`; // server expects /v1/... in stringToSign
 
-  const headers = buildCescHeaders('GET', fullPath, appKey, appSecret, '');
+  const headers = buildCescHeaders('GET', pathForSign, appKey, appSecret, '');
   headers['Authorization'] = `Bearer ${accessToken}`;
 
   const res = await fetch(`${BASE_URL}${fullPath}`, { method: 'GET', headers });
