@@ -233,8 +233,36 @@ Deno.serve(async (req) => {
               };
 
               const existing = await db.entities.Inverter.filter({ sungrow_device_sn: devSn });
-              if (existing.length > 0) await db.entities.Inverter.update(existing[0].id, invData);
-              else await db.entities.Inverter.create(invData);
+              let invId = existing[0]?.id;
+              if (existing.length > 0) {
+                await db.entities.Inverter.update(existing[0].id, invData);
+              } else {
+                const newInv = await db.entities.Inverter.create(invData);
+                invId = newInv.id;
+              }
+              
+              if (invId && Object.keys(pointMap).length > 0) {
+                try {
+                   const now = new Date();
+                   const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(now);
+                   const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now).slice(0, 5);
+                   const snaps = await db.entities.InverterGraphSnapshot.filter({ inverter_id: invId, date_key: todayKey });
+                   const pt = { time: timeLabel, ...pointMap };
+                   if (snaps.length > 0) {
+                     const data = (snaps[0].data || []).filter(p => p.time !== timeLabel);
+                     data.push(pt);
+                     data.sort((a, b) => a.time.localeCompare(b.time));
+                     await db.entities.InverterGraphSnapshot.update(snaps[0].id, { data });
+                   } else {
+                     await db.entities.InverterGraphSnapshot.create({
+                       inverter_id: invId,
+                       date_key: todayKey,
+                       data: [pt]
+                     });
+                   }
+                } catch (e) { console.log(`[syncSungrow] Inverter snapshot error: ${e.message}`); }
+              }
+              
               console.log(`[syncSungrow] Inverter ${devSn}: AC=${acPower}kW strings=${mpptStrings.length}`);
             }
           } catch (e) { console.log(`[syncSungrow] Inverter error ps_id=${psId}: ${e.message}`); }
