@@ -246,46 +246,32 @@ Deno.serve(async (req) => {
         const invQuery = await db.entities.Inverter.filter({ solis_inverter_id: inv.id });
         const existingInv = invQuery.length > 0 ? invQuery[0] : null;
 
-        let dbInv;
+        let invId = existingInv?.id;
         if (existingInv) {
           await db.entities.Inverter.update(existingInv.id, invData);
-          dbInv = existingInv;
         } else {
-          dbInv = await db.entities.Inverter.create(invData);
+          const newInv = await db.entities.Inverter.create(invData);
+          invId = newInv.id;
         }
-
-        // Inverter Graph Snapshot
-        try {
-          const snapData = {
-            time: timeLabel,
-            pac: invData.current_ac_power_kw,
-            temperature: invData.temperature_c,
-            l1: invData.phase_voltages.l1,
-            l2: invData.phase_voltages.l2,
-            l3: invData.phase_voltages.l3
-          };
-          invData.mppt_strings.forEach(s => {
-            const strNum = s.string_id.replace('PV', '');
-            snapData[`uPv${strNum}`] = s.voltage_v;
-            snapData[`iPv${strNum}`] = s.current_a;
-          });
-
-          const snaps = await db.entities.InverterGraphSnapshot.filter({ inverter_id: dbInv.id, date_key: dateKey });
-          if (snaps.length > 0) {
-            const pts = (snaps[0].data || []).filter(p => p.time !== timeLabel);
-            if (snapData.pac > 0 || pts.length > 0) {
-              pts.push(snapData);
-              pts.sort((a, b) => a.time.localeCompare(b.time));
-              await db.entities.InverterGraphSnapshot.update(snaps[0].id, { data: pts });
-            }
-          } else {
-            await db.entities.InverterGraphSnapshot.create({
-              inverter_id: dbInv.id,
-              date_key: dateKey,
-              data: [snapData]
-            });
-          }
-        } catch(e) { console.log(`[syncSolisData] Inv snapshot err: ${e.message}`); }
+        
+        if (invId && detail) {
+          try {
+             const snaps = await db.entities.InverterGraphSnapshot.filter({ inverter_id: invId, date_key: dateKey });
+             const pt = { time: timeLabel, ...detail };
+             if (snaps.length > 0) {
+               const data = (snaps[0].data || []).filter(p => p.time !== timeLabel);
+               data.push(pt);
+               data.sort((a, b) => a.time.localeCompare(b.time));
+               await db.entities.InverterGraphSnapshot.update(snaps[0].id, { data });
+             } else {
+               await db.entities.InverterGraphSnapshot.create({
+                 inverter_id: invId,
+                 date_key: dateKey,
+                 data: [pt]
+               });
+             }
+          } catch (e) { console.log(`[syncSolisData] Inverter snapshot error: ${e.message}`); }
+        }
 
         invertersSync++;
       }
