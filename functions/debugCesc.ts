@@ -174,10 +174,9 @@ Deno.serve(async (req) => {
     const working = summary.filter(r => r.success);
 
     return Response.json({
-      login: loginReport,
+      login_ok: { 'csp-web': loginCsp.token_ok || !!loginCsp.token, 'openapi': loginOpenapi.token_ok || !!loginOpenapi.token },
       summary,
-      working_endpoints: working,
-      full_results: results
+      working_endpoints: working
     });
 
   } catch (e) {
