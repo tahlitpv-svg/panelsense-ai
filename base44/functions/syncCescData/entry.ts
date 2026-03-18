@@ -188,11 +188,33 @@ Deno.serve(async (req) => {
                  invData.phase_voltages = { l1: 0, l2: 0, l3: 0 };
                }
 
+               let invId = existingInv?.id;
                try {
                  if (existingInv) {
                    await db.entities.Inverter.update(existingInv.id, invData);
                  } else {
-                   await db.entities.Inverter.create(invData);
+                   const newInv = await db.entities.Inverter.create(invData);
+                   invId = newInv.id;
+                 }
+                 
+                 if (invId && Object.keys(detail).length > 0) {
+                   const now = new Date();
+                   const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(now);
+                   const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now).slice(0, 5);
+                   const snaps = await db.entities.InverterGraphSnapshot.filter({ inverter_id: invId, date_key: todayKey });
+                   const pt = { time: timeLabel, ...detail };
+                   if (snaps.length > 0) {
+                     const data = (snaps[0].data || []).filter(p => p.time !== timeLabel);
+                     data.push(pt);
+                     data.sort((a, b) => a.time.localeCompare(b.time));
+                     await db.entities.InverterGraphSnapshot.update(snaps[0].id, { data });
+                   } else {
+                     await db.entities.InverterGraphSnapshot.create({
+                       inverter_id: invId,
+                       date_key: todayKey,
+                       data: [pt]
+                     });
+                   }
                  }
                } catch (invErr) {
                  console.log(`[syncCesc] Failed to save inverter ${inv.sn}:`, invErr.message);
