@@ -7,8 +7,8 @@ const USERNAME = 'm.b.g.shilo@gmail.com';
 const PASSWORD = 'Cesc2024';
 const BASE_URL = 'http://openapi.inteless.com';
 
-async function login() {
-  const body = JSON.stringify({ username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: 'csp-web' });
+async function login(clientId = 'csp-web') {
+  const body = JSON.stringify({ username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: clientId });
   const md5 = createHash('md5').update(body).digest('base64');
   const nonce = crypto.randomUUID();
   const path = '/oauth/token';
@@ -29,7 +29,8 @@ async function login() {
     body
   });
   const data = await res.json();
-  return { token: data?.data?.access_token || data?.access_token, raw: data };
+  const token = data?.data?.access_token || data?.access_token;
+  return { token, status: res.status, raw: data };
 }
 
 function sortedQueryPath(path) {
@@ -58,9 +59,9 @@ function buildGetHeaders(path) {
   };
 }
 
-async function apiGet(token, path) {
+async function apiGet(token, path, label) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 4000);
+  const timeout = setTimeout(() => controller.abort(), 5000);
   try {
     const { headers: signedHeaders, textToSign } = buildGetHeaders(path);
     const res = await fetch(`${BASE_URL}${path}`, {
@@ -72,10 +73,48 @@ async function apiGet(token, path) {
     const errMsg = res.headers.get('x-ca-error-message') || null;
     let json = null;
     try { json = JSON.parse(text); } catch {}
-    return { status: res.status, body: json || text.substring(0, 300), errMsg, textToSign };
+    return { label, path, status: res.status, errMsg, body: json || text.substring(0, 400), textToSign };
   } catch(e) {
     clearTimeout(timeout);
-    return { error: e.message };
+    return { label, path, error: e.message };
+  }
+}
+
+async function apiPost(token, path, bodyObj, label) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const nonce = crypto.randomUUID();
+    const timestamp = Date.now().toString();
+    const bodyStr = JSON.stringify(bodyObj);
+    const md5 = createHash('md5').update(bodyStr).digest('base64');
+    const textToSign = `POST\n*/*\n${md5}\napplication/json\n\nx-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}\n${path}`;
+    const signature = createHmac('sha256', APP_SECRET).update(textToSign).digest('base64');
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': '*/*',
+        'Content-MD5': md5,
+        'X-Ca-Key': APP_KEY,
+        'X-Ca-Nonce': nonce,
+        'X-Ca-Timestamp': timestamp,
+        'X-Ca-Signature': signature,
+        'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
+        'Authorization': `Bearer ${token}`
+      },
+      body: bodyStr,
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    const text = await res.text();
+    const errMsg = res.headers.get('x-ca-error-message') || null;
+    let json = null;
+    try { json = JSON.parse(text); } catch {}
+    return { label, path, method: 'POST', status: res.status, errMsg, body: json || text.substring(0, 400), textToSign };
+  } catch(e) {
+    clearTimeout(timeout);
+    return { label, path, method: 'POST', error: e.message };
   }
 }
 
@@ -85,65 +124,62 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const body = await req.json().catch(() => ({}));
-    const mode = body.mode || 'login';
+    // Login with both client_ids
+    const [loginCsp, loginOpenapi] = await Promise.all([
+      login('csp-web'),
+      login('openapi')
+    ]);
 
-    const { token, raw: loginRaw } = await login();
-    if (!token) return Response.json({ error: 'Login failed', loginRaw }, { status: 500 });
+    const loginReport = {
+      'csp-web': { status: loginCsp.status, token_ok: !!loginCsp.token, token_preview: loginCsp.token?.substring(0,60), raw: loginCsp.raw },
+      'openapi': { status: loginOpenapi.status, token_ok: !!loginOpenapi.token, token_preview: loginOpenapi.token?.substring(0,60), raw: loginOpenapi.raw }
+    };
 
-    if (mode === 'login') {
-      // Decode JWT payload to see what's inside
-      const parts = token.split('.');
-      let payload = null;
-      if (parts.length === 3) {
-        try {
-          const padded = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-          payload = JSON.parse(atob(padded));
-        } catch {}
-      }
-      return Response.json({ login: 'OK', token_preview: token.substring(0, 60), loginRaw, jwt_payload: payload });
+    const token = loginCsp.token || loginOpenapi.token;
+    if (!token) {
+      return Response.json({ login: loginReport, error: 'Both logins failed' });
     }
 
-    if (mode === 'plant') {
-      const result = await apiGet(token, '/v1/plant/page?lan=en&pageNum=1&pageSize=10');
-      return Response.json({ path: '/v1/plant/page?lan=en', result });
-    }
+    // Test all endpoints in parallel
+    const results = await Promise.all([
+      // Plant endpoints - GET
+      apiGet(token, '/v1/plant/list?lan=en&pageNum=1&pageSize=10', 'GET /v1/plant/list'),
+      apiGet(token, '/v1/plant/page?lan=en&pageNum=1&pageSize=10', 'GET /v1/plant/page'),
+      apiGet(token, '/v1/plant/list?pageNum=1&pageSize=10', 'GET /v1/plant/list (no lan)'),
 
-    if (mode === 'inverter') {
-      const plantId = body.plantId || null;
-      const path = plantId
-        ? `/v1/inverter/list?pageNum=1&pageSize=10&plantId=${plantId}`
-        : '/v1/inverter/list?pageNum=1&pageSize=10';
-      const result = await apiGet(token, path);
-      return Response.json({ path, result });
-    }
+      // Plant endpoints - POST
+      apiPost(token, '/v1/plant/list', { pageNum: 1, pageSize: 10, lan: 'en' }, 'POST /v1/plant/list'),
+      apiPost(token, '/v1/plant/page', { pageNum: 1, pageSize: 10, lan: 'en' }, 'POST /v1/plant/page'),
 
-    if (mode === 'post_plant') {
-      // Try POST to plant list
-      const nonce = crypto.randomUUID();
-      const timestamp = Date.now().toString();
-      const bodyStr = JSON.stringify({ pageNum: 1, pageSize: 10, lan: 'en' });
-      const md5 = createHash('md5').update(bodyStr).digest('base64');
-      const path = '/v1/plant/page';
-      const textToSign = `POST\n*/*\n${md5}\napplication/json\n\nx-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}\n${path}`;
-      const signature = createHmac('sha256', APP_SECRET).update(textToSign).digest('base64');
-      const res = await fetch(`${BASE_URL}${path}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Content-MD5': md5, 'X-Ca-Key': APP_KEY, 'X-Ca-Nonce': nonce, 'X-Ca-Timestamp': timestamp, 'X-Ca-Signature': signature, 'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp', 'Authorization': `Bearer ${token}` },
-        body: bodyStr
-      });
-      const text = await res.text();
-      let json = null; try { json = JSON.parse(text); } catch {}
-      return Response.json({ status: res.status, body: json || text.substring(0, 300), errMsg: res.headers.get('x-ca-error-message') });
-    }
+      // Inverter endpoints - GET
+      apiGet(token, '/v1/inverter/list?lan=en&pageNum=1&pageSize=10', 'GET /v1/inverter/list'),
+      apiGet(token, '/v1/device/list?lan=en&pageNum=1&pageSize=10', 'GET /v1/device/list'),
 
-    if (mode === 'device') {
-      const path = body.path || '/v1/device/page?pageNum=1&pageSize=10';
-      const result = await apiGet(token, path);
-      return Response.json({ path, result });
-    }
+      // Try old-style endpoints (without /v1)
+      apiGet(token, '/plant/list?pageNum=1&pageSize=10', 'GET /plant/list (no v1)'),
+      apiGet(token, '/inverter/list?pageNum=1&pageSize=10', 'GET /inverter/list (no v1)'),
+    ]);
 
-    return Response.json({ error: 'Unknown mode. Use: login, plant, inverter, device' });
+    // Summarize
+    const summary = results.map(r => ({
+      label: r.label,
+      path: r.path,
+      method: r.method || 'GET',
+      status: r.status,
+      errMsg: r.errMsg,
+      success: r.status === 200 && !r.errMsg,
+      body_preview: JSON.stringify(r.body || r.error || '').substring(0, 200)
+    }));
+
+    const working = summary.filter(r => r.success);
+
+    return Response.json({
+      login: loginReport,
+      summary,
+      working_endpoints: working,
+      full_results: results
+    });
+
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });
   }
