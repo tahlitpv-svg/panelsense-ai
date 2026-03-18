@@ -167,6 +167,7 @@ export default function SiteDetails() {
                 stationId={site.solis_station_id}
                 sungrowStationId={site.sungrow_station_id}
                 sungrowConnectionId={site.sungrow_connection_id}
+                cescPlantId={site.cesc_plant_id}
               />
 
               {/* Tech Specs */}
