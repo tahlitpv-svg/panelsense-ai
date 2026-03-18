@@ -52,7 +52,7 @@ async function elinterLogin() {
 async function elGet(token, path, params = {}) {
   const query = new URLSearchParams(params).toString();
   const url = `${ELINTER_BASE}${path}${query ? '?' + query : ''}`;
-  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } });
   try { return await res.json(); } catch { return null; }
 }
 
