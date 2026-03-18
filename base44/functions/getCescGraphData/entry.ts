@@ -114,21 +114,19 @@ Deno.serve(async (req) => {
       const inv = inverters[0];
       // CESC endpoint for monthly: /v1/devices/{id}/energy-month?month=YYYY-MM
       const monthRes = await cescGet(token, `/v1/devices/${inv.id}/energy-month?month=${date}`, app_key, app_secret);
-      const dailyData = monthRes?.data || {};
+      const dailyList = monthRes?.data?.data_list || monthRes?.data?.list || [];
       
-      // Parse daily format (expecting keys like "01", "02", ..., "31")
-      const daysInMonth = new Date(date + '-01').getMonth() === new Date().getMonth() 
-        ? new Date().getDate() 
-        : new Date(new Date(date + '-01').getFullYear(), new Date(date + '-01').getMonth() + 1, 0).getDate();
-      
-      for (let day = 1; day <= daysInMonth; day++) {
-        const dd = String(day).padStart(2, '0');
-        const energy = parseFloat(dailyData[dd]) || 0;
-        data.push({
-          date_id: `${date}-${dd}`,
-          energy: energy
-        });
-      }
+      // Parse daily list (expecting items with {date, energy} or {date_id, energy})
+      dailyList.forEach(item => {
+        const dateKey = item.date || item.date_id || '';
+        const energy = parseFloat(item.energy) || 0;
+        if (dateKey && energy) {
+          data.push({
+            date_id: dateKey,
+            energy: energy
+          });
+        }
+      });
     }
 
     // For yearly: fetch monthly energy
