@@ -249,7 +249,6 @@ Deno.serve(async (req) => {
                 sungrow_ps_key:      psKey
               };
 
-              const existing = await db.entities.Inverter.filter({ sungrow_device_sn: devSn });
               let invId = existing[0]?.id;
               if (existing.length > 0) {
                 await db.entities.Inverter.update(existing[0].id, invData);
