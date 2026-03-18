@@ -131,11 +131,11 @@ Deno.serve(async (req) => {
                const detailRes = await cescGet(token, `/v1/devices/${inv.id}/real-time`, app_key, app_secret);
                const detail = detailRes?.data || {};
 
-               // Create/update inverter record
-               const existingInv = (await db.entities.Inverter.filter({ site_id: site.id, name: inv.name }))?.[0];
+               // Create/update inverter record - match by site_id + cesc_inverter_sn
+               const existingInv = (await db.entities.Inverter.filter({ site_id: site.id, cesc_inverter_sn: inv.sn }))?.[0];
                const invData = {
                  site_id: site.id,
-                 name: inv.name,
+                 name: inv.name || `Inverter_${inv.sn}`,
                  cesc_inverter_sn: inv.sn,
                  status: inv.status === 0 ? 'offline' : 'online',
                  current_ac_power_kw: (parseFloat(detail.pac) || 0) / 1000,
