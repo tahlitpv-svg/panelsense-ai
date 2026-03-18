@@ -47,6 +47,22 @@ export default function SiteDetails() {
     }
   });
 
+  // Fetch CESC inverter data if it's a CESC site
+  const { data: cescInverterData = {} } = useQuery({
+    queryKey: ['cescInverters', site?.cesc_plant_id, site?.cesc_connection_id],
+    queryFn: async () => {
+      if (!site?.cesc_plant_id || !site?.cesc_connection_id) return {};
+      const res = await base44.functions.invoke('getCescGraphData', {
+        cescPlantId: site.cesc_plant_id,
+        connectionId: site.cesc_connection_id,
+        timeframe: 'day'
+      });
+      return res.data || {};
+    },
+    enabled: !!site?.cesc_plant_id && !!site?.cesc_connection_id,
+    refetchInterval: 60000
+  });
+
   if (!site) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
