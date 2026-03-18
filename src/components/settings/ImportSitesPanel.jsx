@@ -82,6 +82,8 @@ export default function ImportSitesPanel({ conn, onClose }) {
           solis_sno: site.solis_sno || null,
           sungrow_station_id: site.sungrow_station_id || null,
           sungrow_connection_id: site.sungrow_station_id ? connectionId : null,
+          cesc_plant_id: site.cesc_plant_id || null,
+          cesc_connection_id: site.cesc_plant_id ? connectionId : null,
           status: 'online'
         });
         success++;
