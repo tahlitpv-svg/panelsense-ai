@@ -1,17 +1,37 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
-import { createHmac } from 'node:crypto';
+import { createHmac, createHash } from 'node:crypto';
 
 const APP_KEY = '253955251';
 const APP_SECRET = 'ihbBwNEj6ZNWGhGRT';
 const USERNAME = 'm.b.g.shilo@gmail.com';
-const PASSWORD = 'Aa123456';
+const PASSWORD = 'Cesc2024';
+const BASE_URL = 'http://openapi.inteless.com';
 
-function buildSignedHeaders(method, path, contentType) {
-  const timestamp = Date.now().toString();
+async function login() {
+  const body = JSON.stringify({ username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: 'openapi' });
+  const md5 = createHash('md5').update(body).digest('base64');
   const nonce = crypto.randomUUID();
-  const stringToSign = `${method}#*/*##${contentType}##x-ca-key:${APP_KEY}#x-ca-nonce:${nonce}#x-ca-timestamp:${timestamp}#${path}`;
-  const signature = createHmac('sha256', APP_SECRET).update(stringToSign, 'utf8').digest('base64');
-  return { timestamp, nonce, signature, stringToSign };
+  const path = '/oauth/token';
+  const textToSign = `POST\napplication/json\n${md5}\napplication/json\n\nx-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\n${path}`;
+  const signature = createHmac('sha256', APP_SECRET).update(textToSign).digest('base64');
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Content-MD5': md5, 'X-Ca-Key': APP_KEY, 'X-Ca-Nonce': nonce, 'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce', 'X-Ca-Signature': signature },
+    body
+  });
+  const data = await res.json();
+  return data?.data?.access_token;
+}
+
+async function apiGet(token, path) {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+  });
+  const text = await res.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch {}
+  return { status: res.status, body: json || text.substring(0, 500) };
 }
 
 Deno.serve(async (req) => {
@@ -20,59 +40,31 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const BASE_URL = 'http://openapi.inteless.com';
-    const ENDPOINT = '/v1/oauth/token';
-    const CONTENT_TYPE = 'application/x-www-form-urlencoded';
-    const bodyParams = { username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: 'csp-web' };
-    const sortedQuery = Object.keys(bodyParams).sort().map(k => `${k}=${bodyParams[k]}`).join('&');
-    const fullPath = `${ENDPOINT}?${sortedQuery}`;
-    const bodyStr = new URLSearchParams(bodyParams).toString();
+    const token = await login();
+    if (!token) return Response.json({ error: 'Login failed' }, { status: 500 });
 
-    const { timestamp, nonce, signature, stringToSign } = buildSignedHeaders('POST', fullPath, CONTENT_TYPE);
+    // Try various endpoints to find the correct ones
+    const [plants, inverters, devices, stations, v1Plants, v1Inverters] = await Promise.all([
+      apiGet(token, '/plant/list'),
+      apiGet(token, '/inverter/list'),
+      apiGet(token, '/device/list'),
+      apiGet(token, '/station/list'),
+      apiGet(token, '/v1/plant/list'),
+      apiGet(token, '/v1/inverter/list'),
+    ]);
 
-    const requestHeaders = {
-      'Accept': '*/*',
-      'Content-Type': CONTENT_TYPE,
-      'X-Ca-Key': APP_KEY,
-      'X-Ca-Nonce': nonce,
-      'X-Ca-Timestamp': timestamp,
-      'X-Ca-Signature': signature,
-      'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
-    };
-
-    const res = await fetch(`${BASE_URL}${ENDPOINT}`, {
-      method: 'POST',
-      headers: requestHeaders,
-      body: bodyStr,
+    return Response.json({
+      login: 'OK',
+      token_preview: token.substring(0, 50) + '...',
+      endpoints: {
+        '/plant/list': plants,
+        '/inverter/list': inverters,
+        '/device/list': devices,
+        '/station/list': stations,
+        '/v1/plant/list': v1Plants,
+        '/v1/inverter/list': v1Inverters,
+      }
     });
-
-    const responseBody = await res.text();
-    const responseHeaders = {};
-    for (const [k, v] of res.headers.entries()) responseHeaders[k] = v;
-
-    const report = {
-      "=== REQUEST ===": {
-        url: `${BASE_URL}${ENDPOINT}`,
-        method: "POST",
-        headers: requestHeaders,
-        body: bodyStr,
-        "string_to_sign (before HMAC)": stringToSign,
-        app_key: APP_KEY,
-        app_secret_used: APP_SECRET,
-      },
-      "=== RESPONSE ===": {
-        status: res.status,
-        status_text: res.statusText,
-        headers: responseHeaders,
-        body: responseBody || "(empty)",
-        error_message: res.headers.get('x-ca-error-message') || null,
-        server_string_to_sign: res.headers.get('x-ca-error-message')?.includes('StringToSign') 
-          ? res.headers.get('x-ca-error-message') 
-          : null,
-      },
-    };
-
-    return Response.json(report);
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });
   }
