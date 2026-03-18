@@ -5,7 +5,7 @@ const APP_KEY = '253955251';
 const APP_SECRET = 'ihbBwNEj6ZNWGhGRT';
 const USERNAME = 'm.b.g.shilo@gmail.com';
 const PASSWORD = 'Cesc2024';
-const BASE_URL = 'https://pv.inteless.com/api';
+const BASE_URL = 'https://openapi.inteless.com';
 
 async function login(clientId = 'csp-web') {
   const body = JSON.stringify({ username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: clientId });
@@ -140,27 +140,32 @@ Deno.serve(async (req) => {
       return Response.json({ login: loginReport, error: 'Both logins failed' });
     }
 
-    const USER_ID = '128411';
+    // DNS/connectivity probe
+    const probeUrls = [
+      'https://openapi.inteless.com',
+      'http://openapi.inteless.com',
+      'https://openapi-as.inteless.com',
+      'https://asia-openapi.inteless.com',
+    ];
 
-    // Test targeted endpoints with userId
-    const results = await Promise.all([
-      apiGet(token, `/v1/plant/list?lan=en&pageNum=1&pageSize=10&userId=${USER_ID}`, 'GET /v1/plant/list with userId'),
-      apiGet(token, `/v1/plant/page?lan=en&pageNum=1&pageSize=10&userId=${USER_ID}`, 'GET /v1/plant/page with userId'),
-      apiGet(token, `/v1/inverter/list?lan=en&pageNum=1&pageSize=10&userId=${USER_ID}`, 'GET /v1/inverter/list with userId'),
-      apiGet(token, `/v1/inverter/list?lan=en&pageNum=1&pageSize=10`, 'GET /v1/inverter/list no userId'),
-    ]);
+    const probes = await Promise.all(probeUrls.map(async url => {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 4000);
+      try {
+        const r = await fetch(`${url}/v1/plant/list?lan=en&pageNum=1&pageSize=10`, {
+          signal: ctrl.signal,
+          headers: { 'Accept': '*/*' }
+        });
+        clearTimeout(t);
+        const text = await r.text();
+        return { url, http_status: r.status, body_preview: text.substring(0, 200) };
+      } catch(e) {
+        clearTimeout(t);
+        return { url, error: e.message };
+      }
+    }));
 
-    return Response.json({
-      login_ok: true,
-      results: results.map(r => ({
-        label: r.label,
-        path: r.path,
-        status: r.status,
-        errMsg: r.errMsg,
-        body: r.body,
-        error: r.error || undefined
-      }))
-    });
+    return Response.json({ base_url_used: BASE_URL, login_ok: true, probes });
 
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });
