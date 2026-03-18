@@ -145,6 +145,7 @@ Deno.serve(async (req) => {
         label: r.label,
         status: r.status,
         errMsg: r.errMsg,
+        errCode: r.errCode,
         body: r.body,
         error: r.error || undefined
       }))
