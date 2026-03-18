@@ -18,7 +18,11 @@ async function elinterLogin() {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: params.toString()
   });
-  const data = await res.json();
+  const text = await res.text();
+  const xErr = res.headers.get('x-ca-error-message') || '';
+  console.log(`[elinter] Login status=${res.status} xErr="${xErr}" body=${text.substring(0, 300)}`);
+  if (!text) throw new Error(`Login returned empty body. Status=${res.status} xErr=${xErr}`);
+  const data = JSON.parse(text);
   if (!data?.access_token) throw new Error(`E-Linter login failed: ${JSON.stringify(data)}`);
   console.log('[elinter] Login OK');
   return data.access_token;
