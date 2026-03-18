@@ -8,6 +8,19 @@ const PASSWORD = 'Cesc2024';
 const AUTH_URL = 'https://pv.inteless.com';
 const BASE_URL = 'https://pv.inteless.com/api';
 
+// Simple login without HMAC signing (some clients don't require it)
+async function loginSimple(clientId = 'csp-app') {
+  const body = JSON.stringify({ username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: clientId });
+  const res = await fetch(`${AUTH_URL}/oauth/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body
+  });
+  const data = await res.json();
+  const token = data?.data?.access_token || data?.access_token;
+  return { token, status: res.status, raw: data };
+}
+
 async function login(clientId = 'csp-web') {
   const body = JSON.stringify({ username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: clientId });
   const md5 = createHash('md5').update(body).digest('base64');
