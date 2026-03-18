@@ -231,36 +231,11 @@ export default function SiteProductionChart({ stationId, sungrowStationId, sungr
         return [];
       }
 
-      // ── SOLIS path (original) ──
+      // ── SOLIS path ──
       if (isDay) {
         const dateKey = format(refDate, 'yyyy-MM-dd');
         const snaps = await base44.entities.SiteGraphSnapshot.filter({ station_id: stationId, date_key: dateKey });
-        let raw = snaps?.[0]?.data || [];
-        const existingSnapshotId = snaps?.[0]?.id || null;
-        const hasValidTimes = raw.length > 0 && !raw.some(d => !d.time || d.time === '');
-
-        if (raw.length === 0 || !hasValidTimes) {
-          const res = await base44.functions.invoke('getSolisGraphData', {
-            endpoint: '/v1/api/stationDay',
-            body: { id: stationId, time: dateKey, timezone: 2 }
-          });
-          const solisRaw = (res.data?.success && Array.isArray(res.data?.data)) ? res.data.data : [];
-          raw = solisRaw.map(item => {
-            let label = '';
-            if (item.timeStr) {
-              const match = item.timeStr.trim().match(/(\d{2}:\d{2})/);
-              label = match ? match[1] : '';
-            }
-            const pec = parseFloat(item.powerPec) || 0.001;
-            const valueKw = parseFloat(((parseFloat(item.power) || 0) * pec).toFixed(3));
-            return { time: label, value: isFinite(valueKw) ? valueKw : 0 };
-          }).filter(d => d.time !== '');
-          raw.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
-          if (raw.length > 0) {
-            if (existingSnapshotId) base44.entities.SiteGraphSnapshot.update(existingSnapshotId, { data: raw }).catch(() => {});
-            else base44.entities.SiteGraphSnapshot.create({ station_id: stationId, date_key: dateKey, data: raw }).catch(() => {});
-          }
-        }
+        const raw = snaps?.[0]?.data || [];
         return raw.filter(d => d.time).map(d => ({ label: d.time, minutes: timeToMinutes(d.time), value: d.value })).sort((a, b) => a.minutes - b.minutes);
       }
 
