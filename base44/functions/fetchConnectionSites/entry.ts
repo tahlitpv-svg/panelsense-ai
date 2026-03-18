@@ -95,6 +95,74 @@ async function fetchSolisSites(config) {
   return allSites;
 }
 
+async function fetchCescSites(config) {
+  const { app_key, app_secret, user_account, user_password } = config || {};
+  if (!app_key || !app_secret || !user_account || !user_password) {
+    throw new Error('חסרים פרטי חיבור CESC');
+  }
+
+  // Login
+  const body = JSON.stringify({ username: user_account, password: user_password, grant_type: 'password', client_id: 'openapi' });
+  const md5b64 = createHash('md5').update(body).digest('base64');
+  const nonce = crypto.randomUUID();
+  const path = '/oauth/token';
+  const textToSign = `POST\napplication/json\n${md5b64}\napplication/json\n\nx-ca-key:${app_key}\nx-ca-nonce:${nonce}\n${path}`;
+  const signature = createHmac('sha256', app_secret).update(textToSign).digest('base64');
+
+  const loginRes = await fetch(`https://pv.inteless.com${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json', 'Accept': 'application/json',
+      'Content-MD5': md5b64, 'X-Ca-Key': app_key, 'X-Ca-Nonce': nonce,
+      'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce', 'X-Ca-Signature': signature
+    },
+    body
+  });
+  const loginData = await loginRes.json();
+  const token = loginData?.data?.access_token || loginData?.access_token;
+  if (!token) throw new Error(`CESC login failed: ${JSON.stringify(loginData).substring(0, 200)}`);
+
+  // Fetch all plants
+  const allSites = [];
+  let page = 1;
+  while (true) {
+    const emptyMd5 = createHash('md5').update('').digest('base64');
+    const n = crypto.randomUUID();
+    const ts = Date.now().toString();
+    const plantsPath = `/v1/plants?page=${page}&limit=50`;
+    const sign2 = createHmac('sha256', app_secret).update(
+      `GET\napplication/json\n${emptyMd5}\napplication/json\n\nx-ca-key:${app_key}\nx-ca-nonce:${n}\nx-ca-timestamp:${ts}\n${plantsPath}`
+    ).digest('base64');
+
+    const res = await fetch(`https://pv.inteless.com/api${plantsPath}`, {
+      headers: {
+        'Accept': 'application/json', 'Content-Type': 'application/json', 'Content-MD5': emptyMd5,
+        'X-Ca-Key': app_key, 'X-Ca-Nonce': n, 'X-Ca-Timestamp': ts,
+        'X-Ca-Signature': sign2, 'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    const infos = data?.data?.infos || [];
+    for (const p of infos) {
+      allSites.push({
+        external_id: String(p.id),
+        name: p.name,
+        capacity_kwp: null,
+        address: p.address || null,
+        latitude: null,
+        longitude: null,
+        provider: 'cesc',
+        cesc_plant_id: String(p.id)
+      });
+    }
+    if (infos.length < 50) break;
+    page++;
+  }
+
+  return allSites;
+}
+
 async function fetchSungrowSites(config) {
   // Try configured base_url, then EU, then HK
   const candidates = [];
