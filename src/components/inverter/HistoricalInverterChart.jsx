@@ -62,26 +62,15 @@ export default function HistoricalInverterChart({ inverterId, inverterSn, invert
   const isSungrow = inverter?.sungrow_device_id && !inverterId;
 
   const { data: rawData, isLoading, error } = useQuery({
-    queryKey: ['inverterDay', inverter?.id, inverterId, inverterSn],
+    queryKey: ['inverterDay', inverter?.id],
     queryFn: async () => {
+      if (!inverter?.id) return [];
       const today = format(new Date(), 'yyyy-MM-dd');
-      
-      if (isSungrow) {
-        const res = await base44.functions.invoke('getSungrowInverterGraphData', {
-          device_id: inverter.sungrow_device_id,
-          ps_id: site?.sungrow_station_id,
-          query_date: format(new Date(), 'yyyyMMdd')
-        });
-        if (res.data?.success && res.data?.data) return res.data.data;
-        return [];
-      } else {
-        const res = await base44.functions.invoke('getSolisGraphData', {
-          endpoint: '/v1/api/inverterDay',
-          body: { id: inverterId || inverter?.solis_inverter_id, sn: inverterSn || inverter?.solis_sn, time: today, timezone: 2 }
-        });
-        if (res.data?.success && res.data?.data) return res.data.data;
-        return [];
-      }
+      const snaps = await base44.entities.InverterGraphSnapshot.filter({ 
+        inverter_id: inverter.id, 
+        date_key: today 
+      });
+      return snaps[0]?.data || [];
     },
     refetchInterval: 5 * 60 * 1000
   });
