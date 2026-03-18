@@ -95,10 +95,15 @@ export default function SiteProductionChart({ stationId, sungrowStationId, sungr
       if (!stationId && !sungrowStationId && !cescPlantId) return [];
 
       // ── CESC path ──
-      if (isCesc) {
-        // CESC doesn't have historical data yet, show empty state
-        return [];
-      }
+       if (isCesc) {
+         if (isDay) {
+           const dateKey = format(refDate, 'yyyy-MM-dd');
+           const snaps = await base44.entities.SiteGraphSnapshot.filter({ station_id: `cesc_${cescPlantId}`, date_key: dateKey });
+           const raw = snaps?.[0]?.data || [];
+           return raw.filter(d => d.time).map(d => ({ label: d.time, minutes: timeToMinutes(d.time), value: d.value })).sort((a, b) => a.minutes - b.minutes);
+         }
+         return [];
+       }
 
       // ── SUNGROW path ──
       if (isSungrow) {
