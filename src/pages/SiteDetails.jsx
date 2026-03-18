@@ -334,9 +334,9 @@ export default function SiteDetails() {
                          </div>
                        )}
                      </div>
-                    </Card>
-                    );
-                    })}
+                     </Card>
+                     );
+                     })}
               </div>
             )}
           </div>
