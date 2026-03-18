@@ -77,13 +77,18 @@ Deno.serve(async (req) => {
     }
 
     const token = await cescLogin(app_key, app_secret, user_account, user_password);
+    console.log('[DEBUG] CESC login successful, token:', token.substring(0, 20) + '...');
 
     // Get device/inverter list for the plant
     const devRes = await cescGet(token, `/v1/plants/${plant_id}/devices`, app_key, app_secret);
+    console.log('[DEBUG] Device response:', JSON.stringify(devRes).substring(0, 500));
+    
     const devices = devRes?.data?.infos || [];
     const inverters = devices.filter(d => d.device_type === 1);
+    console.log('[DEBUG] Found inverters:', inverters.length);
 
     if (!inverters.length) {
+      console.log('[DEBUG] No inverters found for plant', plant_id);
       return Response.json({ success: true, data: [] });
     }
 
