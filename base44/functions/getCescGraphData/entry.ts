@@ -134,16 +134,19 @@ Deno.serve(async (req) => {
       const inv = inverters[0];
       // CESC endpoint for yearly: /v1/devices/{id}/energy-year?year=YYYY
       const yearRes = await cescGet(token, `/v1/devices/${inv.id}/energy-year?year=${date}`, app_key, app_secret);
-      const monthlyData = yearRes?.data || {};
+      const monthlyList = yearRes?.data?.data_list || yearRes?.data?.list || [];
       
-      for (let month = 1; month <= 12; month++) {
-        const mm = String(month).padStart(2, '0');
-        const energy = parseFloat(monthlyData[mm]) || 0;
-        data.push({
-          date_id: `${date}-${mm}`,
-          energy: energy
-        });
-      }
+      // Parse monthly list (expecting items with {month, energy} or {date_id, energy})
+      monthlyList.forEach(item => {
+        const monthKey = item.month || (item.date_id ? String(item.date_id).slice(-2) : '');
+        const energy = parseFloat(item.energy) || 0;
+        if (monthKey && energy) {
+          data.push({
+            date_id: `${date}-${String(monthKey).padStart(2, '0')}`,
+            energy: energy
+          });
+        }
+      });
     }
 
     return Response.json({ success: true, data });
