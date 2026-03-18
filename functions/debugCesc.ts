@@ -88,17 +88,18 @@ Deno.serve(async (req) => {
     }
 
     if (mode === 'plant') {
-      const result = await apiGet(token, '/v1/plant/page?pageNum=1&pageSize=10');
+      const result = await apiGet(token, '/v1/plant/page?pageNum=1&pageSize=10&lan=en');
       return Response.json({ path: '/v1/plant/page', result });
     }
 
     if (mode === 'inverter') {
-      const result = await apiGet(token, '/v1/inverter/list?pageNum=1&pageSize=10');
+      const plantId = body.plantId || '';
+      const result = await apiGet(token, `/v1/inverter/list?pageNum=1&pageSize=10&lan=en${plantId ? '&plantId=' + plantId : ''}`);
       return Response.json({ path: '/v1/inverter/list', result });
     }
 
     if (mode === 'device') {
-      const path = body.path || '/v1/device/page?pageNum=1&pageSize=10';
+      const path = body.path || '/v1/device/page?pageNum=1&pageSize=10&lan=en';
       const result = await apiGet(token, path);
       return Response.json({ path, result });
     }
