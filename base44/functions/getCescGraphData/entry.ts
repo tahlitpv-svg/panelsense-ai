@@ -25,9 +25,9 @@ async function cescLogin(appKey, appSecret, username, password) {
 
   const text = await res.text();
   let data;
-  try { data = JSON.parse(text); } catch { throw new Error(`Login parse error: ${text.substring(0, 200)}`); }
+  try { data = JSON.parse(text); } catch { throw new Error(`Login error: ${text.substring(0, 200)}`); }
   const token = data?.data?.access_token || data?.access_token;
-  if (!token) throw new Error(`Login failed: ${JSON.stringify(data).substring(0, 200)}`);
+  if (!token) throw new Error('Login failed');
   return token;
 }
 
@@ -61,80 +61,96 @@ async function cescGet(token, path, appKey, appSecret) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const { cescPlantId, connectionId, timeframe } = await req.json();
-    if (!cescPlantId || !connectionId) {
-      return Response.json({ error: 'Missing cescPlantId or connectionId' }, { status: 400 });
-    }
-
-    // Get connection config
-    const conn = await base44.entities.ApiConnection.filter({ id: connectionId });
-    if (!conn.length) return Response.json({ error: 'Connection not found' }, { status: 404 });
+    const db = base44.asServiceRole;
     
-    const { app_key, app_secret, user_account, user_password } = conn[0].config || {};
+    const { plant_id, timeframe, date } = await req.json();
+    if (!plant_id) throw new Error('Missing plant_id');
+
+    // Find the CESC connection
+    const conns = await db.entities.ApiConnection.filter({ provider: 'cesc' });
+    if (!conns.length) throw new Error('No CESC connection');
+    
+    const conn = conns[0];
+    const { app_key, app_secret, user_account, user_password } = conn.config || {};
     if (!app_key || !app_secret || !user_account || !user_password) {
-      return Response.json({ error: 'Missing connection credentials' }, { status: 400 });
+      throw new Error('Missing CESC credentials');
     }
 
     const token = await cescLogin(app_key, app_secret, user_account, user_password);
-    
-    // Get detailed plant data with inverter info
-    const plantData = await cescGet(token, `/v1/plants/${cescPlantId}/overview`, app_key, app_secret);
-    
-    // Get device list to fetch inverter details
-    const deviceList = await cescGet(token, `/v1/plants/${cescPlantId}/devices`, app_key, app_secret);
-    const devices = deviceList?.data?.infos || [];
-    
-    // If day requested, get daily power curve from device
+
+    // Get device/inverter list for the plant
+    const devRes = await cescGet(token, `/v1/plants/${plant_id}/devices`, app_key, app_secret);
+    const devices = devRes?.data?.infos || [];
+    const inverters = devices.filter(d => d.device_type === 1);
+
+    if (!inverters.length) {
+      return Response.json({ success: true, data: [] });
+    }
+
+    const data = [];
+
+    // For daily: fetch hourly power curve from first inverter
     if (timeframe === 'day') {
-      const inverters = devices.filter(d => d.device_type === 1); // 1 = inverter
-      if (inverters.length > 0) {
-        const inv = inverters[0];
-        const today = new Date().toISOString().split('T')[0];
-        const curveData = await cescGet(token, `/v1/devices/${inv.id}/power-curve?date=${today}`, app_key, app_secret);
-        const points = curveData?.data?.points || [];
-        return Response.json({ 
-          success: true, 
-          data: points.map(p => ({ 
-            time: p.time, 
-            value: parseFloat(p.power) || 0 
-          }))
+      const inv = inverters[0];
+      // CESC has endpoints like /v1/devices/{id}/power-day?date=YYYY-MM-DD
+      const detailRes = await cescGet(token, `/v1/devices/${inv.id}/power-day?date=${date}`, app_key, app_secret);
+      const hourlyData = detailRes?.data || {};
+      
+      // Parse hourly format (expecting hour keys like "00", "01", etc.)
+      for (let hour = 0; hour < 24; hour++) {
+        const hh = String(hour).padStart(2, '0');
+        const power = parseFloat(hourlyData[hh]) || 0;
+        if (power > 0) {
+          data.push({
+            time: `${hh}:00`,
+            value: power / 1000 // Convert W to kW
+          });
+        }
+      }
+    }
+
+    // For monthly: fetch daily energy for the month
+    if (timeframe === 'month') {
+      const inv = inverters[0];
+      // CESC endpoint for monthly: /v1/devices/{id}/energy-month?month=YYYY-MM
+      const monthRes = await cescGet(token, `/v1/devices/${inv.id}/energy-month?month=${date}`, app_key, app_secret);
+      const dailyData = monthRes?.data || {};
+      
+      // Parse daily format (expecting keys like "01", "02", ..., "31")
+      const daysInMonth = new Date(date + '-01').getMonth() === new Date().getMonth() 
+        ? new Date().getDate() 
+        : new Date(new Date(date + '-01').getFullYear(), new Date(date + '-01').getMonth() + 1, 0).getDate();
+      
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dd = String(day).padStart(2, '0');
+        const energy = parseFloat(dailyData[dd]) || 0;
+        data.push({
+          date_id: `${date}-${dd}`,
+          energy: energy
         });
       }
     }
 
-    // For all timeframes, get inverter details (temps, voltages)
-    const inverterDetails = [];
-    for (const dev of devices.filter(d => d.device_type === 1)) {
-      const details = await cescGet(token, `/v1/devices/${dev.id}/real-time`, app_key, app_secret);
-      inverterDetails.push({
-        device_id: dev.id,
-        name: dev.name,
-        ac_power_kw: (parseFloat(details?.data?.pac) || 0) / 1000,
-        dc_power_kw: (parseFloat(details?.data?.pdc) || 0) / 1000,
-        temps: {
-          igbt: parseFloat(details?.data?.temp_igbt) || null,
-          ambient: parseFloat(details?.data?.temp_ambient) || null,
-        },
-        phase_voltages: {
-          l1: parseFloat(details?.data?.vol_a) || null,
-          l2: parseFloat(details?.data?.vol_b) || null,
-          l3: parseFloat(details?.data?.vol_c) || null,
-        }
-      });
+    // For yearly: fetch monthly energy
+    if (timeframe === 'year') {
+      const inv = inverters[0];
+      // CESC endpoint for yearly: /v1/devices/{id}/energy-year?year=YYYY
+      const yearRes = await cescGet(token, `/v1/devices/${inv.id}/energy-year?year=${date}`, app_key, app_secret);
+      const monthlyData = yearRes?.data || {};
+      
+      for (let month = 1; month <= 12; month++) {
+        const mm = String(month).padStart(2, '0');
+        const energy = parseFloat(monthlyData[mm]) || 0;
+        data.push({
+          date_id: `${date}-${mm}`,
+          energy: energy
+        });
+      }
     }
 
-    return Response.json({ 
-      success: true, 
-      plant: plantData?.data,
-      inverters: inverterDetails,
-      data: [] 
-    });
+    return Response.json({ success: true, data });
 
   } catch (error) {
-    console.error('[getCescGraphData]', error.message);
     return Response.json({ error: error.message }, { status: 500 });
   }
 });
