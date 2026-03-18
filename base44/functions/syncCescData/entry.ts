@@ -143,12 +143,15 @@ Deno.serve(async (req) => {
                  if (!isNaN(voltage) || !isNaN(current) || !isNaN(power)) {
                    mpptStrings.push({
                      string_id: `PV${j}`,
-                     voltage_v: isNaN(voltage) ? null : voltage,
-                     current_a: isNaN(current) ? null : current,
-                     power_kw: isNaN(power) ? null : power / 1000
+                     voltage_v: isNaN(voltage) ? 0 : voltage,
+                     current_a: isNaN(current) ? 0 : current,
+                     power_kw: isNaN(power) ? 0 : power / 1000
                    });
                  }
                }
+
+               let temp = parseFloat(detail.temp_igbt);
+               if (isNaN(temp)) temp = parseFloat(detail.temp_ambient);
 
                const invData = {
                  site_id: site.id,
@@ -157,20 +160,33 @@ Deno.serve(async (req) => {
                  status: inv.status === 0 ? 'offline' : 'online',
                  current_ac_power_kw: (parseFloat(detail.pac) || 0) / 1000,
                  current_dc_power_kw: (parseFloat(detail.pdc) || 0) / 1000,
-                 temperature_c: parseFloat(detail.temp_igbt) || parseFloat(detail.temp_ambient),
-                 phase_voltages: {
-                   l1: parseFloat(detail.vol_a) || null,
-                   l2: parseFloat(detail.vol_b) || null,
-                   l3: parseFloat(detail.vol_c) || null
-                 },
                  daily_yield_kwh: parseFloat(detail.etoday) || 0,
                  mppt_strings: mpptStrings
                };
-
-               if (existingInv) {
-                 await db.entities.Inverter.update(existingInv.id, invData);
+               
+               if (!isNaN(temp)) invData.temperature_c = temp;
+               
+               const l1 = parseFloat(detail.vol_a);
+               const l2 = parseFloat(detail.vol_b);
+               const l3 = parseFloat(detail.vol_c);
+               if (!isNaN(l1) || !isNaN(l2) || !isNaN(l3)) {
+                 invData.phase_voltages = {
+                   l1: isNaN(l1) ? 0 : l1,
+                   l2: isNaN(l2) ? 0 : l2,
+                   l3: isNaN(l3) ? 0 : l3
+                 };
                } else {
-                 await db.entities.Inverter.create(invData).catch(() => {});
+                 invData.phase_voltages = { l1: 0, l2: 0, l3: 0 };
+               }
+
+               try {
+                 if (existingInv) {
+                   await db.entities.Inverter.update(existingInv.id, invData);
+                 } else {
+                   await db.entities.Inverter.create(invData);
+                 }
+               } catch (invErr) {
+                 console.log(`[syncCesc] Failed to save inverter ${inv.sn}:`, invErr.message);
                }
              }
 
