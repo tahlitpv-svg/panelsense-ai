@@ -92,7 +92,13 @@ export default function SiteProductionChart({ stationId, sungrowStationId, sungr
   const { data: chartData, isLoading } = useQuery({
     queryKey,
     queryFn: async () => {
-      if (!stationId && !sungrowStationId) return [];
+      if (!stationId && !sungrowStationId && !cescPlantId) return [];
+
+      // ── CESC path ──
+      if (isCesc) {
+        // CESC doesn't have historical data yet, show empty state
+        return [];
+      }
 
       // ── SUNGROW path ──
       if (isSungrow) {
