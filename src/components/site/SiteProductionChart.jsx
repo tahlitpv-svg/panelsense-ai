@@ -307,7 +307,7 @@ export default function SiteProductionChart({ stationId, sungrowStationId, sungr
       }
       return [];
     },
-    enabled: !!(stationId || sungrowStationId)
+    enabled: !!(stationId || sungrowStationId || cescPlantId)
   });
 
   // Calculate daily total kWh from power curve using trapezoid integration
