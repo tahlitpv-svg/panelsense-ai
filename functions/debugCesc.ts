@@ -85,9 +85,10 @@ async function apiGet(token, path, label) {
     clearTimeout(timeout);
     const text = await res.text();
     const errMsg = res.headers.get('x-ca-error-message') || null;
+    const errCode = res.headers.get('x-ca-error-code') || null;
     let json = null;
     try { json = JSON.parse(text); } catch {}
-    return { label, path, status: res.status, errMsg, body: json || text.substring(0, 400), textToSign };
+    return { label, path, status: res.status, errMsg, errCode, body: json || text.substring(0, 400), textToSign };
   } catch(e) {
     clearTimeout(timeout);
     return { label, path, error: e.message };
