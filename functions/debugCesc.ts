@@ -5,7 +5,7 @@ const APP_KEY = '253955251';
 const APP_SECRET = 'ihbBwNEj6ZNWGhGRT';
 const USERNAME = 'm.b.g.shilo@gmail.com';
 const PASSWORD = 'Cesc2024';
-const BASE_URL = 'https://pv.inteless.com';
+const BASE_URL = 'https://pv.inteless.com/api';
 
 async function login(clientId = 'csp-web') {
   const body = JSON.stringify({ username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: clientId });
