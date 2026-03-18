@@ -98,95 +98,35 @@ Deno.serve(async (req) => {
         console.log(`[syncCesc] ${allPlants.length} plants found`);
 
         for (const plant of allPlants) {
-          const plantId = String(plant.id);
-          const plantName = plant.name || '';
+           const plantId = String(plant.id);
+           const plantName = plant.name || '';
 
-          // Find matching site
-          let site = null;
-          const byPlantId = await db.entities.Site.filter({ cesc_plant_id: plantId });
-          if (byPlantId.length > 0) {
-            site = byPlantId[0];
-          } else {
-            const allSites = await db.entities.Site.list();
-            site = allSites.find(s => s.name?.trim() === plantName.trim()) || null;
-            if (site && plantId) {
-              await db.entities.Site.update(site.id, { cesc_plant_id: plantId, cesc_connection_id: conn.id });
-            }
-          }
+           // Find matching site
+           let site = null;
+           const byPlantId = await db.entities.Site.filter({ cesc_plant_id: plantId });
+           if (byPlantId.length > 0) {
+             site = byPlantId[0];
+           } else {
+             const allSites = await db.entities.Site.list();
+             site = allSites.find(s => s.name?.trim() === plantName.trim()) || null;
+             if (site && plantId) {
+               await db.entities.Site.update(site.id, { cesc_plant_id: plantId, cesc_connection_id: conn.id });
+             }
+           }
 
-          // Get inverters for this plant
-          const invRes = await cescGet(token, `/v1/plants/${plantId}/inverters?page=1&limit=50`, app_key, app_secret);
-          const inverters = invRes?.data?.infos || invRes?.data || [];
-          console.log(`[syncCesc] Plant ${plantName} (${plantId}): ${inverters.length} inverters`);
+           // Plant data is directly available from the plants endpoint
+           const totalAcPower = parseFloat(plant.pac || 0) / 1000; // pac is in W
+           const totalDailyYield = parseFloat(plant.etoday || 0);
+           const plantStatus = plant.status === 0 ? 'offline' : 'online'; // 0=offline, 1+=online
 
-          let totalAcPower = 0;
-          let totalDailyYield = 0;
-          let anyOnline = false;
-
-          for (const inv of inverters) {
-            const sn = inv.sn;
-            if (!sn) continue;
-
-            // Realtime data
-            const realtimeRes = await cescGet(token, `/v1/inverter/${sn}/realtime/input`, app_key, app_secret);
-            const outputRes = await cescGet(token, `/v1/inverter/${sn}/realtime/output`, app_key, app_secret);
-
-            const etoday = parseFloat(realtimeRes?.data?.etoday || 0);
-            const pac = parseFloat(realtimeRes?.data?.pac || 0); // W
-            const pvIV = realtimeRes?.data?.pvIV || [];
-
-            const vac1 = parseFloat(outputRes?.data?.vac1 || 0);
-            const vac2 = parseFloat(outputRes?.data?.vac2 || 0);
-            const vac3 = parseFloat(outputRes?.data?.vac3 || 0);
-
-            const mpptStrings = pvIV.map(pv => ({
-              string_id: `PV${pv.pvNo}`,
-              voltage_v: parseFloat(pv.vpv || 0),
-              current_a: parseFloat(pv.ipv || 0),
-              power_kw: parseFloat(pv.ppv || 0) / 1000
-            })).filter(s => s.voltage_v > 0 || s.current_a > 0);
-
-            const dcPowerKw = mpptStrings.reduce((s, p) => s + p.power_kw, 0);
-            const acPowerKw = pac / 1000;
-
-            const statusMap = { 0: 'offline', 1: 'online', 2: 'warning', 3: 'warning', 4: 'warning' };
-            const invStatus = statusMap[inv.status] || 'offline';
-            if (invStatus === 'online') anyOnline = true;
-
-            totalAcPower += acPowerKw;
-            totalDailyYield += etoday;
-
-            const invData = {
-              site_id: site?.id || '',
-              name: inv.alias || sn,
-              model: inv.model || '',
-              current_ac_power_kw: parseFloat(acPowerKw.toFixed(3)),
-              current_dc_power_kw: parseFloat(dcPowerKw.toFixed(3)),
-              efficiency_percent: dcPowerKw > 0 ? parseFloat(((acPowerKw / dcPowerKw) * 100).toFixed(1)) : 0,
-              status: invStatus,
-              daily_yield_kwh: etoday,
-              mppt_strings: mpptStrings,
-              phase_voltages: { l1: vac1, l2: vac2, l3: vac3 },
-              cesc_inverter_sn: sn
-            };
-
-            const existing = await db.entities.Inverter.filter({ cesc_inverter_sn: sn });
-            if (existing.length > 0) {
-              await db.entities.Inverter.update(existing[0].id, invData);
-            } else {
-              await db.entities.Inverter.create(invData);
-            }
-          }
-
-          if (site) {
-            const siteStatus = anyOnline ? 'online' : 'offline';
-            await db.entities.Site.update(site.id, {
-              current_power_kw: parseFloat(totalAcPower.toFixed(3)),
-              daily_yield_kwh: parseFloat(totalDailyYield.toFixed(3)),
-              status: siteStatus,
-              last_heartbeat: new Date().toISOString(),
-              cesc_connection_id: conn.id
-            });
+           if (site) {
+             await db.entities.Site.update(site.id, {
+               current_power_kw: parseFloat(totalAcPower.toFixed(3)),
+               daily_yield_kwh: parseFloat(totalDailyYield.toFixed(3)),
+               status: plantStatus,
+               last_heartbeat: new Date().toISOString(),
+               cesc_connection_id: conn.id
+             });
 
             // Graph snapshot
             try {
