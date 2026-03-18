@@ -189,11 +189,14 @@ Deno.serve(async (req) => {
                 });
                 console.log(`[syncSungrow] fallback getDeviceRealTimeData sn=${devSn} code=${r?.result_code}`);
                 if (r?.result_code === '1') {
-                  const rd = r.result_data;
-                  if (Array.isArray(rd)) rd.forEach(p => { if (p.point_id !== undefined) pointMap[String(p.point_id)] = p.value; });
-                  else if (rd && typeof rd === 'object') {
-                    const inner = rd[devSn] || rd;
-                    Object.entries(inner).forEach(([k, v]) => { pointMap[String(k)] = v; });
+                  const rd = r.result_data?.device_point_list;
+                  if (Array.isArray(rd)) {
+                    rd.forEach(deviceInfo => {
+                      const points = deviceInfo.point_list || [];
+                      points.forEach(p => {
+                        if (p.point_id !== undefined) pointMap[String(p.point_id)] = p.point_value;
+                      });
+                    });
                   }
                 }
               }
