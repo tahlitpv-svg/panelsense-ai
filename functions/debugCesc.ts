@@ -32,19 +32,39 @@ async function login() {
   return { token: data?.data?.access_token || data?.access_token, raw: data };
 }
 
+function buildGetHeaders(path) {
+  const nonce = crypto.randomUUID();
+  const timestamp = Date.now().toString();
+  const textToSign = `GET\n*/*\n\n\n\nx-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}\n${path}`;
+  const signature = createHmac('sha256', APP_SECRET).update(textToSign).digest('base64');
+  return {
+    headers: {
+      'Accept': '*/*',
+      'X-Ca-Key': APP_KEY,
+      'X-Ca-Nonce': nonce,
+      'X-Ca-Timestamp': timestamp,
+      'X-Ca-Signature': signature,
+      'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
+    },
+    textToSign
+  };
+}
+
 async function apiGet(token, path) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 4000);
   try {
+    const { headers: signedHeaders, textToSign } = buildGetHeaders(path);
     const res = await fetch(`${BASE_URL}${path}`, {
-      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+      headers: { ...signedHeaders, 'Authorization': `Bearer ${token}` },
       signal: controller.signal
     });
     clearTimeout(timeout);
     const text = await res.text();
+    const errMsg = res.headers.get('x-ca-error-message') || null;
     let json = null;
     try { json = JSON.parse(text); } catch {}
-    return { status: res.status, body: json || text.substring(0, 200) };
+    return { status: res.status, body: json || text.substring(0, 300), errMsg, textToSign };
   } catch(e) {
     clearTimeout(timeout);
     return { error: e.message };
