@@ -33,6 +33,8 @@ Deno.serve(async (req) => {
         sites = await fetchSolisSites(conn.config);
       } else if (conn.provider === 'sungrow') {
         sites = await fetchSungrowSites(conn.config);
+      } else if (conn.provider === 'cesc') {
+        sites = await fetchCescSites(conn.config);
       } else {
         return Response.json({ error: 'ספק זה עדיין לא נתמך לייבוא' }, { status: 400 });
       }
