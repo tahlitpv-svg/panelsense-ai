@@ -122,13 +122,15 @@ Deno.serve(async (req) => {
 
     const USER_ID = '128411';
 
-    // Test plant and inverter endpoints
+    // Test all plant/list variants in parallel
     const results = await Promise.all([
-      apiGet(token, `/v1/plant/list?lan=en&pageNum=1&pageSize=10`, 'plant/list no userId'),
-      apiGet(token, `/v1/plant/list?lan=en&pageNum=1&pageSize=10&userId=${USER_ID}`, 'plant/list with userId'),
-      apiGet(token, `/v1/inverter/list?lan=en&pageNum=1&pageSize=20`, 'inverter/list no userId'),
-      apiGet(token, `/v1/inverter/list?lan=en&pageNum=1&pageSize=20&userId=${USER_ID}`, 'inverter/list with userId'),
-      apiGet(token, `/v1/plant/info?lan=en`, 'plant/info'),
+      apiGet(token, `/v1/plants?pageNum=1&pageSize=10`, 'plants (plural)'),
+      apiGet(token, `/v1/powerStation/list?pageNum=1&pageSize=10`, 'powerStation/list'),
+      apiGet(token, `/v1/plant/list?page=1&size=10`, 'plant/list page+size'),
+      apiGet(token, `/v1/plant/list?pageNum=1&pageSize=10`, 'plant/list pageNum+pageSize'),
+      apiGet(token, `/v1/plant/list?pageNum=1&pageSize=10&access_token=${token}`, 'plant/list + access_token'),
+      apiGet(token, `/v1/plant/list?pageNum=1&pageSize=10&userId=${USER_ID}`, 'plant/list + userId only'),
+      apiGet(token, `/v1/inverter/list?pageNum=1&pageSize=20`, 'inverter/list'),
     ]);
 
     return Response.json({
