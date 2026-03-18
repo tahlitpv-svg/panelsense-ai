@@ -1,26 +1,47 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createHmac, createHash } from "node:crypto";
 
-const ELINTER_BASE = 'https://cescpower.inteless.com/v1';
+const ELINTER_LOGIN_URL = 'http://openapi.inteless.com/oauth/token';
+const ELINTER_BASE = 'http://openapi.inteless.com';
 const APP_KEY = '253955251';
 const APP_SECRET = 'ihbBwNEj6ZNWGhGRT';
-const USERNAME = 'm.b.g.shilo@gmail.com';
+const USERNAME = 'tahlitpv@gmail.com';
 const PASSWORD = 'Cesc2024';
 
 async function elinterLogin() {
-  const params = new URLSearchParams({
+  const body = JSON.stringify({
     username:   USERNAME,
     password:   PASSWORD,
     grant_type: 'password',
-    client_id:  'csp-web'
+    client_id:  'openapi'
   });
-  const res = await fetch(`${ELINTER_BASE}/oauth/token`, {
+
+  const md5 = createHash('md5').update(body).digest('base64');
+  const nonce = crypto.randomUUID();
+  const path = '/oauth/token';
+  const textToSign = `POST\napplication/json\n${md5}\napplication/json\n\nx-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\n${path}`;
+  const signature = createHmac('sha256', APP_SECRET).update(textToSign).digest('base64');
+
+  console.log(`[elinter] Logging in to ${ELINTER_LOGIN_URL}`);
+  console.log(`[elinter] textToSign: ${JSON.stringify(textToSign)}`);
+
+  const res = await fetch(ELINTER_LOGIN_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params.toString()
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Content-MD5': md5,
+      'X-Ca-Key': APP_KEY,
+      'X-Ca-Nonce': nonce,
+      'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce',
+      'X-Ca-Signature': signature
+    },
+    body
   });
+
   const text = await res.text();
   const xErr = res.headers.get('x-ca-error-message') || '';
-  console.log(`[elinter] Login status=${res.status} url=${ELINTER_BASE}/oauth/token xErr="${xErr}" body=${text.substring(0, 400)}`);
+  console.log(`[elinter] Login status=${res.status} xErr="${xErr}" body=${text.substring(0, 400)}`);
   if (!text || text.startsWith('<')) throw new Error(`Login returned HTML/empty. Status=${res.status} body=${text.substring(0,200)}`);
   const data = JSON.parse(text);
   if (!data?.access_token) throw new Error(`E-Linter login failed: ${JSON.stringify(data)}`);
