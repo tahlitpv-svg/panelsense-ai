@@ -47,7 +47,11 @@ export default function TemperatureChart({ inverterId, inverterSn, inverter, sit
   });
 
   const chartData = (data || [])
-    .map(d => ({ ...d, minutes: timeToMinutes(d.time || d.timeStr) }))
+    .map(d => {
+       let temp = d.temperature ?? d.inverterTemperature ?? d.temp_igbt ?? d.temp_ambient ?? d['13150'];
+       return { ...d, temperature: temp != null ? parseFloat(temp) : null, minutes: timeToMinutes(d.time || d.timeStr) };
+    })
+    .filter(d => d.temperature != null && !isNaN(d.temperature))
     .sort((a, b) => a.minutes - b.minutes);
 
   const maxTemp = chartData.length > 0 ? Math.max(...chartData.map(d => d.temperature || 0)) : null;
