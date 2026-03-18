@@ -44,9 +44,10 @@ async function elinterLogin() {
   console.log(`[elinter] Login status=${res.status} xErr="${xErr}" body=${text.substring(0, 400)}`);
   if (!text || text.startsWith('<')) throw new Error(`Login returned HTML/empty. Status=${res.status} body=${text.substring(0,200)}`);
   const data = JSON.parse(text);
-  if (!data?.access_token) throw new Error(`E-Linter login failed: ${JSON.stringify(data)}`);
+  const token = data?.data?.access_token || data?.access_token;
+  if (!token) throw new Error(`E-Linter login failed: ${JSON.stringify(data)}`);
   console.log('[elinter] Login OK');
-  return data.access_token;
+  return token;
 }
 
 async function elGet(token, path, params = {}) {
