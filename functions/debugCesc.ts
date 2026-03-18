@@ -32,10 +32,18 @@ async function login() {
   return { token: data?.data?.access_token || data?.access_token, raw: data };
 }
 
+function sortedQueryPath(path) {
+  const [base, query] = path.split('?');
+  if (!query) return path;
+  const sorted = query.split('&').sort().join('&');
+  return `${base}?${sorted}`;
+}
+
 function buildGetHeaders(path) {
   const nonce = crypto.randomUUID();
   const timestamp = Date.now().toString();
-  const textToSign = `GET\n*/*\n\n\n\nx-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}\n${path}`;
+  const signPath = sortedQueryPath(path);
+  const textToSign = `GET\n*/*\n\n\n\nx-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}\n${signPath}`;
   const signature = createHmac('sha256', APP_SECRET).update(textToSign).digest('base64');
   return {
     headers: {
@@ -50,18 +58,15 @@ function buildGetHeaders(path) {
   };
 }
 
-async function apiGet(token, path, signed = false) {
+async function apiGet(token, path) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 4000);
   try {
-    let hdrs = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' };
-    let textToSign = null;
-    if (signed) {
-      const { headers: signedHeaders, textToSign: ts } = buildGetHeaders(path);
-      hdrs = { ...hdrs, ...signedHeaders };
-      textToSign = ts;
-    }
-    const res = await fetch(`${BASE_URL}${path}`, { headers: hdrs, signal: controller.signal });
+    const { headers: signedHeaders, textToSign } = buildGetHeaders(path);
+    const res = await fetch(`${BASE_URL}${path}`, {
+      headers: { ...signedHeaders, 'Authorization': `Bearer ${token}` },
+      signal: controller.signal
+    });
     clearTimeout(timeout);
     const text = await res.text();
     const errMsg = res.headers.get('x-ca-error-message') || null;
@@ -91,19 +96,40 @@ Deno.serve(async (req) => {
     }
 
     if (mode === 'plant') {
-      const signed = body.signed !== false;
-      const result = await apiGet(token, '/v1/plant/page?pageNum=1&pageSize=10&lan=en', signed);
-      return Response.json({ path: '/v1/plant/page', signed, result });
+      const result = await apiGet(token, '/v1/plant/page?lan=en&pageNum=1&pageSize=10');
+      return Response.json({ path: '/v1/plant/page?lan=en', result });
     }
 
     if (mode === 'inverter') {
-      const plantId = body.plantId || '';
-      const result = await apiGet(token, `/v1/inverter/list?pageNum=1&pageSize=10&lan=en${plantId ? '&plantId=' + plantId : ''}`);
-      return Response.json({ path: '/v1/inverter/list', result });
+      const result = await apiGet(token, '/v1/inverter/list?pageNum=1&pageSize=10');
+      // Also try with plantId from known CESC connection
+      const sites = await base44.asServiceRole.entities.Site.filter({ cesc_plant_id: { $exists: true } });
+      const plantId = sites[0]?.cesc_plant_id;
+      const result2 = plantId ? await apiGet(token, `/v1/inverter/list?pageNum=1&pageSize=10&plantId=${plantId}`) : null;
+      return Response.json({ path: '/v1/inverter/list', result, plantId, withPlantId: result2 });
+    }
+
+    if (mode === 'post_plant') {
+      // Try POST to plant list
+      const nonce = crypto.randomUUID();
+      const timestamp = Date.now().toString();
+      const bodyStr = JSON.stringify({ pageNum: 1, pageSize: 10, lan: 'en' });
+      const md5 = createHash('md5').update(bodyStr).digest('base64');
+      const path = '/v1/plant/page';
+      const textToSign = `POST\n*/*\n${md5}\napplication/json\n\nx-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}\n${path}`;
+      const signature = createHmac('sha256', APP_SECRET).update(textToSign).digest('base64');
+      const res = await fetch(`${BASE_URL}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Content-MD5': md5, 'X-Ca-Key': APP_KEY, 'X-Ca-Nonce': nonce, 'X-Ca-Timestamp': timestamp, 'X-Ca-Signature': signature, 'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp', 'Authorization': `Bearer ${token}` },
+        body: bodyStr
+      });
+      const text = await res.text();
+      let json = null; try { json = JSON.parse(text); } catch {}
+      return Response.json({ status: res.status, body: json || text.substring(0, 300), errMsg: res.headers.get('x-ca-error-message') });
     }
 
     if (mode === 'device') {
-      const path = body.path || '/v1/device/page?pageNum=1&pageSize=10&lan=en';
+      const path = body.path || '/v1/device/page?pageNum=1&pageSize=10';
       const result = await apiGet(token, path);
       return Response.json({ path, result });
     }
