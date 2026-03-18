@@ -249,29 +249,41 @@ export default function SiteDetails() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 md:gap-6">
-                {inverters.map(inverter => (
-                  <Card key={inverter.id} className="p-4 md:p-6 border border-slate-200 shadow-sm bg-white">
-                    <div className="flex items-start justify-between mb-4 border-b border-slate-100 pb-4 gap-3 flex-wrap">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-slate-100 rounded-lg">
-                          <Zap className="w-4 h-4 text-slate-500" />
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-slate-800 text-sm md:text-base">{inverter.name}</h3>
-                          <p className="text-xs text-slate-500">{inverter.model}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <PhaseVoltageIndicator voltages={inverter.phase_voltages} />
-                        <Badge className={`${
-                          inverter.status === 'online' ? 'bg-emerald-100 text-emerald-700' : 
-                          inverter.status === 'warning' ? 'bg-amber-100 text-amber-700' : 
-                          'bg-slate-100 text-slate-500'
-                        } border-0 text-xs`}>
-                          {inverter.status === 'online' ? 'מקוון' : inverter.status === 'warning' ? 'אזהרה' : 'לא מקוון'}
-                        </Badge>
-                      </div>
-                    </div>
+                {inverters.map((inverter, idx) => {
+                  // If CESC site, merge inverter data from API
+                  let displayInverter = inverter;
+                  if (site?.cesc_plant_id && cescInverterData?.inverters?.[idx]) {
+                    const cescData = cescInverterData.inverters[idx];
+                    displayInverter = {
+                      ...inverter,
+                      phase_voltages: cescData.phase_voltages || inverter.phase_voltages,
+                      temperature_c: cescData.temps?.igbt || cescData.temps?.ambient || inverter.temperature_c,
+                      current_ac_power_kw: cescData.ac_power_kw || inverter.current_ac_power_kw
+                    };
+                  }
+                  return (
+                   <Card key={inverter.id} className="p-4 md:p-6 border border-slate-200 shadow-sm bg-white">
+                     <div className="flex items-start justify-between mb-4 border-b border-slate-100 pb-4 gap-3 flex-wrap">
+                       <div className="flex items-center gap-3">
+                         <div className="p-2 bg-slate-100 rounded-lg">
+                           <Zap className="w-4 h-4 text-slate-500" />
+                         </div>
+                         <div>
+                           <h3 className="font-bold text-slate-800 text-sm md:text-base">{displayInverter.name}</h3>
+                           <p className="text-xs text-slate-500">{displayInverter.model}</p>
+                         </div>
+                       </div>
+                       <div className="flex items-center gap-3 flex-wrap">
+                         <PhaseVoltageIndicator voltages={displayInverter.phase_voltages} />
+                         <Badge className={`${
+                           displayInverter.status === 'online' ? 'bg-emerald-100 text-emerald-700' : 
+                           displayInverter.status === 'warning' ? 'bg-amber-100 text-amber-700' : 
+                           'bg-slate-100 text-slate-500'
+                         } border-0 text-xs`}>
+                           {displayInverter.status === 'online' ? 'מקוון' : displayInverter.status === 'warning' ? 'אזהרה' : 'לא מקוון'}
+                         </Badge>
+                       </div>
+                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
                       <div className="lg:col-span-2">
