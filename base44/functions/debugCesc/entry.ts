@@ -63,16 +63,21 @@ function buildGetHeaders(path) {
   const nonce = crypto.randomUUID();
   const timestamp = Date.now().toString();
   const signPath = sortedQueryPath(path);
-  const textToSign = `GET\n*/*\n\n\n\nx-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}\n${signPath}`;
+  // Per official docs: GET signature includes accept, content-md5 of empty body
+  const emptyMd5 = createHash('md5').update('').digest('base64');
+  const signatureHeaders = 'x-ca-key,x-ca-nonce,x-ca-timestamp';
+  const textToSign = `GET\napplication/json\n${emptyMd5}\napplication/json\n\nx-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}\n${signPath}`;
   const signature = createHmac('sha256', APP_SECRET).update(textToSign).digest('base64');
   return {
     headers: {
-      'Accept': '*/*',
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Content-MD5': emptyMd5,
       'X-Ca-Key': APP_KEY,
       'X-Ca-Nonce': nonce,
       'X-Ca-Timestamp': timestamp,
       'X-Ca-Signature': signature,
-      'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
+      'X-Ca-Signature-Headers': signatureHeaders,
     },
     textToSign
   };
