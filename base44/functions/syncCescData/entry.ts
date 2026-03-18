@@ -128,32 +128,32 @@ Deno.serve(async (req) => {
                cesc_connection_id: conn.id
              });
 
-            // Graph snapshot
-            try {
-              const now = new Date();
-              const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(now);
-              const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now).slice(0, 5);
-              const snapId = `cesc_${plantId}`;
-              const snaps = await db.entities.SiteGraphSnapshot.filter({ station_id: snapId, date_key: todayKey });
-              if (snaps.length > 0) {
-                const pts = (snaps[0].data || []).filter(p => p.time !== timeLabel);
-                if (totalAcPower > 0) pts.push({ time: timeLabel, value: parseFloat(totalAcPower.toFixed(3)) });
-                pts.sort((a, b) => a.time.localeCompare(b.time));
-                await db.entities.SiteGraphSnapshot.update(snaps[0].id, { daily_yield_kwh: totalDailyYield, data: pts });
-              } else {
-                await db.entities.SiteGraphSnapshot.create({
-                  station_id: snapId,
-                  date_key: todayKey,
-                  daily_yield_kwh: totalDailyYield,
-                  data: totalAcPower > 0 ? [{ time: timeLabel, value: parseFloat(totalAcPower.toFixed(3)) }] : []
-                });
-              }
-            } catch (e) { console.log(`[syncCesc] Snapshot error: ${e.message}`); }
+             // Graph snapshot
+             try {
+               const now = new Date();
+               const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(now);
+               const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now).slice(0, 5);
+               const snapId = `cesc_${plantId}`;
+               const snaps = await db.entities.SiteGraphSnapshot.filter({ station_id: snapId, date_key: todayKey });
+               if (snaps.length > 0) {
+                 const pts = (snaps[0].data || []).filter(p => p.time !== timeLabel);
+                 if (totalAcPower > 0) pts.push({ time: timeLabel, value: parseFloat(totalAcPower.toFixed(3)) });
+                 pts.sort((a, b) => a.time.localeCompare(b.time));
+                 await db.entities.SiteGraphSnapshot.update(snaps[0].id, { daily_yield_kwh: totalDailyYield, data: pts });
+               } else {
+                 await db.entities.SiteGraphSnapshot.create({
+                   station_id: snapId,
+                   date_key: todayKey,
+                   daily_yield_kwh: totalDailyYield,
+                   data: totalAcPower > 0 ? [{ time: timeLabel, value: parseFloat(totalAcPower.toFixed(3)) }] : []
+                 });
+               }
+             } catch (e) { console.log(`[syncCesc] Snapshot error: ${e.message}`); }
 
-            totalUpdated++;
-            console.log(`[syncCesc] Site "${site.name}": AC=${totalAcPower.toFixed(2)}kW daily=${totalDailyYield.toFixed(1)}kWh`);
-          }
-        }
+             totalUpdated++;
+             console.log(`[syncCesc] Site "${site.name}": AC=${totalAcPower.toFixed(2)}kW daily=${totalDailyYield.toFixed(1)}kWh`);
+           }
+           }
 
         await db.entities.ApiConnection.update(conn.id, {
           status: 'connected',
