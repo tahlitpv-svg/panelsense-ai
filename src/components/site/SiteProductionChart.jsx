@@ -515,16 +515,20 @@ export default function SiteProductionChart({ stationId, sungrowStationId, sungr
       )}
 
       <div className="h-72" dir="ltr">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center h-full text-slate-500 gap-3">
-            <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-            <div>מושך נתונים...</div>
-          </div>
-        ) : !chartDataWithExpected || chartDataWithExpected.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-slate-500 border border-dashed rounded-xl">
-            אין נתונים לתקופה זו
-          </div>
-        ) : (
+         {isLoading ? (
+           <div className="flex flex-col items-center justify-center h-full text-slate-500 gap-3">
+             <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+             <div>מושך נתונים...</div>
+           </div>
+         ) : isCesc ? (
+           <div className="flex items-center justify-center h-full text-slate-500 border border-dashed rounded-xl">
+             נתונים היסטוריים לא זמינים עדיין ליצרנים CESC
+           </div>
+         ) : !chartDataWithExpected || chartDataWithExpected.length === 0 ? (
+           <div className="flex items-center justify-center h-full text-slate-500 border border-dashed rounded-xl">
+             אין נתונים לתקופה זו
+           </div>
+         ) : (
           <ResponsiveContainer width="100%" height="100%">
             {isDay ? (
               <LineChart data={chartDataWithExpected} margin={{ top: 5, right: 10, left: 10, bottom: 14 }}>
