@@ -205,11 +205,28 @@ Deno.serve(async (req) => {
 
               const gp = (id) => { const v = pointMap[String(id)]; return v !== undefined ? (parseFloat(v) || 0) : 0; };
 
-              const mpptStrings = [];
+              const existing = await db.entities.Inverter.filter({ sungrow_device_sn: devSn });
+              const existingInv = existing[0];
+              
+              let mpptStrings = [];
+              let hasAnyActive = false;
               for (let i = 0; i < PV_VOLT.length; i++) {
                 const v = gp(PV_VOLT[i]), a = gp(PV_CURR[i]);
-                if (v === 0 && a === 0) continue;
-                mpptStrings.push({ string_id: `PV${i+1}`, voltage_v: v, current_a: a, power_kw: parseFloat(((v*a)/1000).toFixed(3)) });
+                if (v !== 0 || a !== 0) {
+                  hasAnyActive = true;
+                  break;
+                }
+              }
+              
+              if (hasAnyActive) {
+                for (let i = 0; i < PV_VOLT.length; i++) {
+                  const v = gp(PV_VOLT[i]), a = gp(PV_CURR[i]);
+                  if (v === 0 && a === 0) continue; // Skip unused strings during daytime
+                  mpptStrings.push({ string_id: `PV${i+1}`, voltage_v: v, current_a: a, power_kw: parseFloat(((v*a)/1000).toFixed(3)) });
+                }
+              } else if (existingInv && existingInv.mppt_strings?.length > 0) {
+                // Nighttime: preserve known strings but zero out values
+                mpptStrings = existingInv.mppt_strings.map(s => ({ ...s, voltage_v: 0, current_a: 0, power_kw: 0 }));
               }
 
               const acPower      = gp(13003);
