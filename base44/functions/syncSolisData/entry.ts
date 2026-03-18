@@ -174,28 +174,35 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const db = base44.asServiceRole;
 
+    console.log(`[syncSolisData] Starting full sync...`);
+
+    let allStations = [];
     let pageNo = 1;
-    try {
-      const body = await req.json();
-      if (body.pageNo) pageNo = body.pageNo;
-    } catch (_) {}
+    let totalPages = 1;
 
-    console.log(`[syncSolisData] Syncing page ${pageNo} (size ${PAGE_SIZE})...`);
-
-    const res = await solisPost('/v1/api/userStationList', { pageNo, pageSize: PAGE_SIZE });
-    if (!res.success || !res.data?.page?.records) {
-      return Response.json({ error: 'Failed to fetch stations', raw: res }, { status: 500 });
+    // ── Fetch ALL pages ──
+    while (pageNo <= totalPages) {
+      console.log(`[syncSolisData] Fetching page ${pageNo}...`);
+      const res = await solisPost('/v1/api/userStationList', { pageNo, pageSize: PAGE_SIZE });
+      if (!res.success || !res.data?.page?.records) {
+        console.error(`[syncSolisData] Failed to fetch page ${pageNo}`);
+        break;
+      }
+      const stations = res.data.page.records;
+      allStations.push(...stations);
+      totalPages = Math.ceil(res.data.page.total / PAGE_SIZE);
+      pageNo++;
     }
 
-    const stations = res.data.page.records;
-    const total = res.data.page.total;
-    const totalPages = Math.ceil(total / PAGE_SIZE);
-
-    console.log(`[syncSolisData] Got ${stations.length} stations (total ${total}, page ${pageNo}/${totalPages})`);
+    console.log(`[syncSolisData] Got ${allStations.length} total stations`);
 
     let created = 0, updated = 0, invertersSync = 0;
+    const now = new Date();
+    const dateKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(now);
+    const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now).slice(0, 5);
 
-    for (const station of stations) {
+    // ── Sync each station ──
+    for (const station of allStations) {
       const sitesQuery = await db.entities.Site.filter({ solis_station_id: station.id });
       const existing = sitesQuery.length > 0 ? sitesQuery[0] : null;
       const siteData = await mapStationToSite(station, existing?.latitude, existing?.longitude);
@@ -220,13 +227,8 @@ Deno.serve(async (req) => {
 
       // Update daily graph snapshot (similar to CESC)
       try {
-        const now = new Date();
-        const dateKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(now);
-        const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now).slice(0, 5);
-        const snapId = station.id;
         const currentPowerKw = parseFloat(siteData.current_power_kw) || 0;
-
-        const snaps = await db.entities.SiteGraphSnapshot.filter({ station_id: snapId, date_key: dateKey });
+        const snaps = await db.entities.SiteGraphSnapshot.filter({ station_id: station.id, date_key: dateKey });
         if (snaps.length > 0) {
           const pts = (snaps[0].data || []).filter(p => p.time !== timeLabel);
           if (currentPowerKw > 0) pts.push({ time: timeLabel, value: currentPowerKw });
@@ -234,15 +236,15 @@ Deno.serve(async (req) => {
           await db.entities.SiteGraphSnapshot.update(snaps[0].id, { data: pts });
         } else {
           await db.entities.SiteGraphSnapshot.create({
-            station_id: snapId,
+            station_id: station.id,
             date_key: dateKey,
             data: currentPowerKw > 0 ? [{ time: timeLabel, value: currentPowerKw }] : []
           });
         }
       } catch (e) { console.log(`[syncSolisData] Snapshot error for station ${station.id}: ${e.message}`); }
 
+      // Sync inverters
       for (const inv of inverters) {
-        // Fetch inverter detail for MPPT/temperature data
         let detail = null;
         try {
           const detailRes = await solisPost('/v1/api/inverterDetail', { id: inv.id, sn: inv.sn });
@@ -250,7 +252,6 @@ Deno.serve(async (req) => {
         } catch (_) {}
 
         const invData = mapInverterToEntity(inv, siteId, detail);
-
         const invQuery = await db.entities.Inverter.filter({ solis_inverter_id: inv.id });
         const existingInv = invQuery.length > 0 ? invQuery[0] : null;
 
@@ -263,25 +264,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Trigger next page if needed
-    if (pageNo < totalPages) {
-      base44.asServiceRole.functions.invoke('syncSolisData', { pageNo: pageNo + 1 }).catch(() => {});
-      console.log(`[syncSolisData] Triggered next page: ${pageNo + 1}/${totalPages}`);
-    }
-
     const summary = {
       success: true,
-      page: pageNo,
-      total_pages: totalPages,
-      stations_on_page: stations.length,
+      total_stations: allStations.length,
       sites_created: created,
       sites_updated: updated,
       inverters_synced: invertersSync,
-      more_pages: pageNo < totalPages,
       synced_at: new Date().toISOString()
     };
 
-    console.log('[syncSolisData] Page done:', JSON.stringify(summary));
+    console.log('[syncSolisData] Done:', JSON.stringify(summary));
     return Response.json(summary);
 
   } catch (error) {
