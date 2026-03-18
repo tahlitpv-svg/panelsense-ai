@@ -92,21 +92,21 @@ Deno.serve(async (req) => {
     // For daily: fetch hourly power curve from first inverter
     if (timeframe === 'day') {
       const inv = inverters[0];
-      // CESC has endpoints like /v1/devices/{id}/power-day?date=YYYY-MM-DD
-      const detailRes = await cescGet(token, `/v1/devices/${inv.id}/power-day?date=${date}`, app_key, app_secret);
-      const hourlyData = detailRes?.data || {};
+      // CESC has endpoints like /v1/devices/{id}/realtime-day?date=YYYY-MM-DD
+      const detailRes = await cescGet(token, `/v1/devices/${inv.id}/realtime-day?date=${date}`, app_key, app_secret);
+      const points = detailRes?.data?.data_list || detailRes?.data?.point_list || [];
       
-      // Parse hourly format (expecting hour keys like "00", "01", etc.)
-      for (let hour = 0; hour < 24; hour++) {
-        const hh = String(hour).padStart(2, '0');
-        const power = parseFloat(hourlyData[hh]) || 0;
-        if (power > 0) {
+      // Parse point list format from CESC API
+      points.forEach(p => {
+        const timeStr = p.time || p.point_time || '';
+        if (timeStr && p.power) {
+          const power = parseFloat(p.power) || 0;
           data.push({
-            time: `${hh}:00`,
+            time: timeStr,
             value: power / 1000 // Convert W to kW
           });
         }
-      }
+      });
     }
 
     // For monthly: fetch daily energy for the month
