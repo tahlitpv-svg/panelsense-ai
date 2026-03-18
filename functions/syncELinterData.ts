@@ -5,7 +5,7 @@ const ELINTER_LOGIN_URL = 'http://openapi.inteless.com/oauth/token';
 const ELINTER_BASE = 'http://openapi.inteless.com';
 const APP_KEY = '253955251';
 const APP_SECRET = 'ihbBwNEj6ZNWGhGRT';
-const USERNAME = 'tahlitpv@gmail.com';
+const USERNAME = 'm.b.g.shilo@gmail.com';
 const PASSWORD = 'Cesc2024';
 
 async function elinterLogin() {
