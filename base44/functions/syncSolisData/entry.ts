@@ -174,35 +174,29 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const db = base44.asServiceRole;
 
-    console.log(`[syncSolisData] Starting full sync...`);
-
-    let allStations = [];
     let pageNo = 1;
-    let totalPages = 1;
+    try {
+      const body = await req.json();
+      if (body.pageNo) pageNo = body.pageNo;
+    } catch (_) {}
 
-    // ── Fetch ALL pages ──
-    while (pageNo <= totalPages) {
-      console.log(`[syncSolisData] Fetching page ${pageNo}...`);
-      const res = await solisPost('/v1/api/userStationList', { pageNo, pageSize: PAGE_SIZE });
-      if (!res.success || !res.data?.page?.records) {
-        console.error(`[syncSolisData] Failed to fetch page ${pageNo}`);
-        break;
-      }
-      const stations = res.data.page.records;
-      allStations.push(...stations);
-      totalPages = Math.ceil(res.data.page.total / PAGE_SIZE);
-      pageNo++;
+    const res = await solisPost('/v1/api/userStationList', { pageNo, pageSize: PAGE_SIZE });
+    if (!res.success || !res.data?.page?.records) {
+      return Response.json({ error: 'Failed to fetch stations', raw: res }, { status: 500 });
     }
 
-    console.log(`[syncSolisData] Got ${allStations.length} total stations`);
+    const stations = res.data.page.records;
+    const total = res.data.page.total;
+    const totalPages = Math.ceil(total / PAGE_SIZE);
+
+    console.log(`[syncSolisData] Page ${pageNo}/${totalPages}: ${stations.length} stations`);
 
     let created = 0, updated = 0, invertersSync = 0;
     const now = new Date();
     const dateKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(now);
     const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now).slice(0, 5);
 
-    // ── Sync each station ──
-    for (const station of allStations) {
+    for (const station of stations) {
       const sitesQuery = await db.entities.Site.filter({ solis_station_id: station.id });
       const existing = sitesQuery.length > 0 ? sitesQuery[0] : null;
       const siteData = await mapStationToSite(station, existing?.latitude, existing?.longitude);
@@ -218,14 +212,12 @@ Deno.serve(async (req) => {
         created++;
       }
 
-      // Fetch inverter list for this station
       const invRes = await solisPost('/v1/api/inverterList', { pageNo: 1, pageSize: 50, stationId: station.id });
       const inverters = invRes?.data?.page?.records || [];
 
-      // Update num_inverters on site
       await db.entities.Site.update(siteId, { num_inverters: inverters.length });
 
-      // Update daily graph snapshot (similar to CESC)
+      // Update daily graph snapshot
       try {
         const currentPowerKw = parseFloat(siteData.current_power_kw) || 0;
         const snaps = await db.entities.SiteGraphSnapshot.filter({ station_id: station.id, date_key: dateKey });
@@ -241,9 +233,8 @@ Deno.serve(async (req) => {
             data: currentPowerKw > 0 ? [{ time: timeLabel, value: currentPowerKw }] : []
           });
         }
-      } catch (e) { console.log(`[syncSolisData] Snapshot error for station ${station.id}: ${e.message}`); }
+      } catch (e) { console.log(`[syncSolisData] Snapshot error for ${station.id}: ${e.message}`); }
 
-      // Sync inverters
       for (const inv of inverters) {
         let detail = null;
         try {
@@ -264,16 +255,23 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (pageNo < totalPages) {
+      base44.asServiceRole.functions.invoke('syncSolisData', { pageNo: pageNo + 1 }).catch(() => {});
+    }
+
     const summary = {
       success: true,
-      total_stations: allStations.length,
+      page: pageNo,
+      total_pages: totalPages,
+      stations_on_page: stations.length,
       sites_created: created,
       sites_updated: updated,
       inverters_synced: invertersSync,
+      more_pages: pageNo < totalPages,
       synced_at: new Date().toISOString()
     };
 
-    console.log('[syncSolisData] Done:', JSON.stringify(summary));
+    console.log('[syncSolisData]', JSON.stringify(summary));
     return Response.json(summary);
 
   } catch (error) {
