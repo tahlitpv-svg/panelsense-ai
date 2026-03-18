@@ -8,7 +8,7 @@ const PASSWORD = 'Cesc2024';
 const BASE_URL = 'http://openapi.inteless.com';
 
 async function login() {
-  const body = JSON.stringify({ username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: 'csp-web' });
+  const body = JSON.stringify({ username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: 'openapi' });
   const md5 = createHash('md5').update(body).digest('base64');
   const nonce = crypto.randomUUID();
   const path = '/oauth/token';
@@ -32,18 +32,18 @@ async function login() {
   return { token: data?.data?.access_token || data?.access_token, raw: data };
 }
 
-function sortQueryParams(path) {
-  const [base, qs] = path.split('?');
-  if (!qs) return path;
-  const sorted = qs.split('&').sort().join('&');
+function sortedQueryPath(path) {
+  const [base, query] = path.split('?');
+  if (!query) return path;
+  const sorted = query.split('&').sort().join('&');
   return `${base}?${sorted}`;
 }
 
 function buildGetHeaders(path) {
   const nonce = crypto.randomUUID();
   const timestamp = Date.now().toString();
-  const sortedPath = sortQueryParams(path);
-  const textToSign = `GET#*/*####x-ca-key:${APP_KEY}#x-ca-nonce:${nonce}#x-ca-timestamp:${timestamp}#${sortedPath}`;
+  const signPath = sortedQueryPath(path);
+  const textToSign = `GET\n*/*\n\n\n\nx-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}\n${signPath}`;
   const signature = createHmac('sha256', APP_SECRET).update(textToSign).digest('base64');
   return {
     headers: {
@@ -54,23 +54,19 @@ function buildGetHeaders(path) {
       'X-Ca-Signature': signature,
       'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
     },
-    textToSign,
-    sortedPath
+    textToSign
   };
 }
 
-async function apiGet(token, path, signed = false) {
+async function apiGet(token, path) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 4000);
   try {
-    let hdrs = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' };
-    let textToSign = null;
-    if (signed) {
-      const { headers: signedHeaders, textToSign: ts } = buildGetHeaders(path);
-      hdrs = { ...hdrs, ...signedHeaders };
-      textToSign = ts;
-    }
-    const res = await fetch(`${BASE_URL}${path}`, { headers: hdrs, signal: controller.signal });
+    const { headers: signedHeaders, textToSign } = buildGetHeaders(path);
+    const res = await fetch(`${BASE_URL}${path}`, {
+      headers: { ...signedHeaders, 'Authorization': `Bearer ${token}` },
+      signal: controller.signal
+    });
     clearTimeout(timeout);
     const text = await res.text();
     const errMsg = res.headers.get('x-ca-error-message') || null;
@@ -96,23 +92,53 @@ Deno.serve(async (req) => {
     if (!token) return Response.json({ error: 'Login failed', loginRaw }, { status: 500 });
 
     if (mode === 'login') {
-      return Response.json({ login: 'OK', token_preview: token.substring(0, 60), loginRaw });
+      // Decode JWT payload to see what's inside
+      const parts = token.split('.');
+      let payload = null;
+      if (parts.length === 3) {
+        try {
+          const padded = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+          payload = JSON.parse(atob(padded));
+        } catch {}
+      }
+      return Response.json({ login: 'OK', token_preview: token.substring(0, 60), loginRaw, jwt_payload: payload });
     }
 
     if (mode === 'plant') {
-      const signed = body.signed !== false;
-      const result = await apiGet(token, '/v1/plant/page?pageNum=1&pageSize=10&lan=en', signed);
-      return Response.json({ path: '/v1/plant/page', signed, result });
+      const result = await apiGet(token, '/v1/plant/page?lan=en&pageNum=1&pageSize=10');
+      return Response.json({ path: '/v1/plant/page?lan=en', result });
     }
 
     if (mode === 'inverter') {
-      const plantId = body.plantId || '';
-      const result = await apiGet(token, `/v1/inverter/list?pageNum=1&pageSize=10&lan=en${plantId ? '&plantId=' + plantId : ''}`);
-      return Response.json({ path: '/v1/inverter/list', result });
+      const plantId = body.plantId || null;
+      const path = plantId
+        ? `/v1/inverter/list?pageNum=1&pageSize=10&plantId=${plantId}`
+        : '/v1/inverter/list?pageNum=1&pageSize=10';
+      const result = await apiGet(token, path);
+      return Response.json({ path, result });
+    }
+
+    if (mode === 'post_plant') {
+      // Try POST to plant list
+      const nonce = crypto.randomUUID();
+      const timestamp = Date.now().toString();
+      const bodyStr = JSON.stringify({ pageNum: 1, pageSize: 10, lan: 'en' });
+      const md5 = createHash('md5').update(bodyStr).digest('base64');
+      const path = '/v1/plant/page';
+      const textToSign = `POST\n*/*\n${md5}\napplication/json\n\nx-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}\n${path}`;
+      const signature = createHmac('sha256', APP_SECRET).update(textToSign).digest('base64');
+      const res = await fetch(`${BASE_URL}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Content-MD5': md5, 'X-Ca-Key': APP_KEY, 'X-Ca-Nonce': nonce, 'X-Ca-Timestamp': timestamp, 'X-Ca-Signature': signature, 'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp', 'Authorization': `Bearer ${token}` },
+        body: bodyStr
+      });
+      const text = await res.text();
+      let json = null; try { json = JSON.parse(text); } catch {}
+      return Response.json({ status: res.status, body: json || text.substring(0, 300), errMsg: res.headers.get('x-ca-error-message') });
     }
 
     if (mode === 'device') {
-      const path = body.path || '/v1/device/page?pageNum=1&pageSize=10&lan=en';
+      const path = body.path || '/v1/device/page?pageNum=1&pageSize=10';
       const result = await apiGet(token, path);
       return Response.json({ path, result });
     }
