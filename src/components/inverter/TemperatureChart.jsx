@@ -32,8 +32,6 @@ const CustomTooltip = ({ active, payload, label }) => {
 export default function TemperatureChart({ inverterId, inverterSn, inverter, site }) {
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  const isSungrow = inverter?.sungrow_device_id && !inverterId;
-
   const { data, isLoading, error } = useQuery({
     queryKey: ['inverterTemp', inverter?.id],
     queryFn: async () => {
