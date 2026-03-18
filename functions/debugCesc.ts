@@ -125,37 +125,44 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Login with both client_ids
-    const [loginCsp, loginOpenapi] = await Promise.all([
+    // Login with all client_ids to see what works
+    const [loginCsp, loginOpenapi, loginApp] = await Promise.all([
       login('csp-web'),
-      login('openapi')
+      login('openapi'),
+      loginSimple('csp-app')
     ]);
 
     const loginReport = {
-      'csp-web': { status: loginCsp.status, token_ok: !!loginCsp.token, token_preview: loginCsp.token?.substring(0,60), raw: loginCsp.raw },
-      'openapi': { status: loginOpenapi.status, token_ok: !!loginOpenapi.token, token_preview: loginOpenapi.token?.substring(0,60), raw: loginOpenapi.raw }
+      'csp-web': { status: loginCsp.status, token_ok: !!loginCsp.token, raw: loginCsp.raw },
+      'openapi': { status: loginOpenapi.status, token_ok: !!loginOpenapi.token, raw: loginOpenapi.raw },
+      'csp-app': { status: loginApp.status, token_ok: !!loginApp.token, raw: loginApp.raw }
     };
 
-    const token = loginCsp.token || loginOpenapi.token;
+    const token = loginCsp.token || loginOpenapi.token || loginApp.token;
     if (!token) {
-      return Response.json({ login: loginReport, error: 'Both logins failed' });
+      return Response.json({ login: loginReport, error: 'All logins failed' });
     }
+
+    // Pick token with openapi preference
+    const openapiToken = loginOpenapi.token || loginCsp.token || loginApp.token;
 
     const USER_ID = '128411';
 
-    // Test targeted endpoints with userId
+    // Test endpoints with csp-web token AND openapi token
     const results = await Promise.all([
-      apiGet(token, `/v1/plant/list?lan=en&pageNum=1&pageSize=10&userId=${USER_ID}`, 'GET /v1/plant/list with userId'),
-      apiGet(token, `/v1/plant/page?lan=en&pageNum=1&pageSize=10&userId=${USER_ID}`, 'GET /v1/plant/page with userId'),
-      apiGet(token, `/v1/inverter/list?lan=en&pageNum=1&pageSize=10&userId=${USER_ID}`, 'GET /v1/inverter/list with userId'),
-      apiGet(token, `/v1/inverter/list?lan=en&pageNum=1&pageSize=10`, 'GET /v1/inverter/list no userId'),
+      apiGet(token, `/v1/plant/list?lan=en&pageNum=1&pageSize=10`, 'GET /v1/plant/list (no userId, csp-web)'),
+      apiGet(openapiToken, `/v1/plant/list?lan=en&pageNum=1&pageSize=10`, 'GET /v1/plant/list (no userId, openapi)'),
+      apiGet(token, `/v1/plant/list?lan=en&pageNum=1&pageSize=10&userId=${USER_ID}`, 'GET /v1/plant/list (userId, csp-web)'),
+      apiGet(openapiToken, `/v1/plant/list?lan=en&pageNum=1&pageSize=10&userId=${USER_ID}`, 'GET /v1/plant/list (userId, openapi)'),
+      apiGet(openapiToken, `/v1/inverter/list?lan=en&pageNum=1&pageSize=20`, 'GET /v1/inverter/list (openapi)'),
+      apiGet(token, `/v1/inverter/list?lan=en&pageNum=1&pageSize=20`, 'GET /v1/inverter/list (csp-web)'),
     ]);
 
     return Response.json({
-      login_ok: true,
+      login: loginReport,
+      token_used: token?.substring(0, 40),
       results: results.map(r => ({
         label: r.label,
-        path: r.path,
         status: r.status,
         errMsg: r.errMsg,
         body: r.body,
