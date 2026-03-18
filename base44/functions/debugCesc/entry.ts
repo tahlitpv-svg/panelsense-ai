@@ -150,17 +150,15 @@ Deno.serve(async (req) => {
       return Response.json({ login: loginReport, error: 'All logins failed' });
     }
 
-    const PLANT_ID = '191963';
-
-    // Test with known plantId
+    // Test with cescpower domain + known plantId
     const results = await Promise.all([
-      apiGet(token, `/v1/plant/list?pageNum=1&pageSize=10`, 'GET plant/list no params'),
+      apiGet(token, `/v1/plant/list?pageNum=1&pageSize=10`, 'GET plant/list'),
       apiGet(token, `/v1/plant/${PLANT_ID}`, `GET plant by id`),
-      apiGet(token, `/v1/plant/detail?plantId=${PLANT_ID}`, `GET plant/detail?plantId`),
-      apiGet(token, `/v1/inverter/list?pageNum=1&pageSize=20&plantId=${PLANT_ID}`, `GET inverter/list + plantId`),
-      apiGet(token, `/v1/inverter/list?pageNum=1&pageSize=20&stationId=${PLANT_ID}`, `GET inverter/list + stationId`),
+      apiGet(token, `/v1/plant/detail?plantId=${PLANT_ID}`, `GET plant/detail`),
+      apiGet(token, `/v1/inverter/list?pageNum=1&pageSize=20&plantId=${PLANT_ID}`, `GET inverter/list+plantId`),
       apiGet(token, `/v1/plant/realtime?plantId=${PLANT_ID}`, `GET plant/realtime`),
       apiGet(token, `/v1/plant/energy?plantId=${PLANT_ID}`, `GET plant/energy`),
+      apiGet(token, `/v1/plant/overview?plantId=${PLANT_ID}`, `GET plant/overview`),
     ]);
 
     return Response.json({
