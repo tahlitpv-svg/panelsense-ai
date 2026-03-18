@@ -13,7 +13,7 @@ async function elinterLogin() {
     grant_type: 'password',
     client_id:  'csp-web'
   });
-  const res = await fetch(`${ELINTER_BASE}/oauth/token`, {
+  const res = await fetch(`${ELINTER_BASE}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: params.toString()
