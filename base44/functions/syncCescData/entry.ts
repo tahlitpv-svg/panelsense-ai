@@ -97,18 +97,27 @@ Deno.serve(async (req) => {
         }
         console.log(`[syncCesc] ${allPlants.length} plants found`);
 
-        for (const plant of allPlants) {
+        const existingSites = await db.entities.Site.list();
+        
+        // Let's do pagination over the plants locally to avoid lambda timeouts
+        const chunkSize = 15;
+        let pidx = 0;
+        try {
+          const body = await req.json();
+          if (body.startIdx) pidx = body.startIdx;
+        } catch (_) {}
+
+        const chunk = allPlants.slice(pidx, pidx + chunkSize);
+        console.log(`[syncCesc] Processing plants ${pidx} to ${pidx + chunk.length} of ${allPlants.length}`);
+
+        for (const plant of chunk) {
            const plantId = String(plant.id);
            const plantName = plant.name || '';
 
            // Find matching site
-           let site = null;
-           const byPlantId = await db.entities.Site.filter({ cesc_plant_id: plantId });
-           if (byPlantId.length > 0) {
-             site = byPlantId[0];
-           } else {
-             const allSites = await db.entities.Site.list();
-             site = allSites.find(s => s.name?.trim() === plantName.trim()) || null;
+           let site = existingSites.find(s => s.cesc_plant_id === plantId) || null;
+           if (!site) {
+             site = existingSites.find(s => s.name?.trim() === plantName.trim()) || null;
              if (site && plantId) {
                await db.entities.Site.update(site.id, { cesc_plant_id: plantId, cesc_connection_id: conn.id });
              }
@@ -180,47 +189,10 @@ Deno.serve(async (req) => {
                }
 
                try {
-                 let dbInv;
                  if (existingInv) {
                    await db.entities.Inverter.update(existingInv.id, invData);
-                   dbInv = existingInv;
                  } else {
-                   dbInv = await db.entities.Inverter.create(invData);
-                 }
-
-                 // Inverter Graph Snapshot
-                 const now = new Date();
-                 const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(now);
-                 const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now).slice(0, 5);
-
-                 const snapData = {
-                   time: timeLabel,
-                   pac: invData.current_ac_power_kw,
-                   temperature: invData.temperature_c,
-                   l1: invData.phase_voltages.l1,
-                   l2: invData.phase_voltages.l2,
-                   l3: invData.phase_voltages.l3
-                 };
-                 invData.mppt_strings.forEach(s => {
-                   const strNum = s.string_id.replace('PV', '');
-                   snapData[`uPv${strNum}`] = s.voltage_v;
-                   snapData[`iPv${strNum}`] = s.current_a;
-                 });
-
-                 const snaps = await db.entities.InverterGraphSnapshot.filter({ inverter_id: dbInv.id, date_key: todayKey });
-                 if (snaps.length > 0) {
-                   const pts = (snaps[0].data || []).filter(p => p.time !== timeLabel);
-                   if (snapData.pac > 0 || pts.length > 0) {
-                     pts.push(snapData);
-                     pts.sort((a, b) => a.time.localeCompare(b.time));
-                     await db.entities.InverterGraphSnapshot.update(snaps[0].id, { data: pts });
-                   }
-                 } else {
-                   await db.entities.InverterGraphSnapshot.create({
-                     inverter_id: dbInv.id,
-                     date_key: todayKey,
-                     data: [snapData]
-                   });
+                   await db.entities.Inverter.create(invData);
                  }
                } catch (invErr) {
                  console.log(`[syncCesc] Failed to save inverter ${inv.sn}:`, invErr.message);
@@ -260,7 +232,11 @@ Deno.serve(async (req) => {
              totalUpdated++;
              console.log(`[syncCesc] Site "${site.name}": AC=${totalAcPower.toFixed(2)}kW daily=${totalDailyYield.toFixed(1)}kWh`);
            }
-           }
+        }
+        
+        if (pidx + chunkSize < allPlants.length) {
+          base44.asServiceRole.functions.invoke('syncCescData', { startIdx: pidx + chunkSize }).catch(() => {});
+        }
 
         await db.entities.ApiConnection.update(conn.id, {
           status: 'connected',
