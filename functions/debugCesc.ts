@@ -3,7 +3,7 @@ import { createHmac } from 'node:crypto';
 
 const APP_KEY = '253955251';
 const APP_SECRET = 'ihbBwNEj6ZNWGhGRT';
-const USERNAME = 'tahlitpv@gmail.com';
+const USERNAME = 'm.b.g.shilo@gmail.com';
 const PASSWORD = 'Aa123456';
 
 Deno.serve(async (req) => {
