@@ -20,8 +20,11 @@ function detectStrings(firstPoint) {
   if (!firstPoint) return [];
   const strings = [];
   for (let i = 1; i <= 32; i++) {
-    if (!Object.prototype.hasOwnProperty.call(firstPoint, `uPv${i}`)) break;
-    // Include string if it has any non-zero voltage ever (we check at first point here)
+    const hasSolis = Object.prototype.hasOwnProperty.call(firstPoint, `uPv${i}`) || Object.prototype.hasOwnProperty.call(firstPoint, `u_pv${i}`);
+    const hasCesc = Object.prototype.hasOwnProperty.call(firstPoint, `pv${i}_u`);
+    const hasSungrow = Object.prototype.hasOwnProperty.call(firstPoint, String(13028 + 2 * (i - 1)));
+    
+    if (!hasSolis && !hasCesc && !hasSungrow) break;
     strings.push(i);
   }
   return strings;
