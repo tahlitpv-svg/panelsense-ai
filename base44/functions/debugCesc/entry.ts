@@ -137,10 +137,10 @@ Deno.serve(async (req) => {
     ]);
 
     const loginReport = {
-      'signed/csp-web':  { status: l1.status, token_ok: !!l1.token },
-      'signed/openapi':  { status: l2.status, token_ok: !!l2.token },
-      'simple/csp-web':  { status: l3.status, token_ok: !!l3.token },
-      'simple/openapi':  { status: l4.status, token_ok: !!l4.token },
+      'signed/csp-web':  { status: l1.status, token_ok: !!l1.token, raw: l1.raw },
+      'signed/openapi':  { status: l2.status, token_ok: !!l2.token, raw: l2.raw },
+      'simple/csp-web':  { status: l3.status, token_ok: !!l3.token, raw: l3.raw },
+      'simple/openapi':  { status: l4.status, token_ok: !!l4.token, raw: l4.raw },
     };
 
     // Prefer openapi client_id token since it's what the API keys are registered for
