@@ -9,8 +9,9 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { format, subDays, subMonths, subYears, getDaysInMonth } from "date-fns";
 
-export default function SiteProductionChart({ stationId, sungrowStationId, sungrowConnectionId }) {
+export default function SiteProductionChart({ stationId, sungrowStationId, sungrowConnectionId, cescPlantId }) {
   const isSungrow = !stationId && !!sungrowStationId;
+  const isCesc = !stationId && !sungrowStationId && !!cescPlantId;
   const [timeframe, setTimeframe] = useState('today');
   // offset: 0 = current, -1 = one back, etc.
   const [offset, setOffset] = useState(0);
@@ -18,11 +19,14 @@ export default function SiteProductionChart({ stationId, sungrowStationId, sungr
   const [showExpected, setShowExpected] = useState(false);
 
   const { data: siteArray } = useQuery({
-    queryKey: ['siteForChart', stationId, sungrowStationId],
-    queryFn: () => stationId
-      ? base44.entities.Site.filter({ solis_station_id: stationId })
-      : base44.entities.Site.filter({ sungrow_station_id: sungrowStationId }),
-    enabled: !!(stationId || sungrowStationId)
+    queryKey: ['siteForChart', stationId, sungrowStationId, cescPlantId],
+    queryFn: () => {
+      if (stationId) return base44.entities.Site.filter({ solis_station_id: stationId });
+      if (sungrowStationId) return base44.entities.Site.filter({ sungrow_station_id: sungrowStationId });
+      if (cescPlantId) return base44.entities.Site.filter({ cesc_plant_id: cescPlantId });
+      return [];
+    },
+    enabled: !!(stationId || sungrowStationId || cescPlantId)
   });
   const site = siteArray?.[0];
 
