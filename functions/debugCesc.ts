@@ -8,7 +8,7 @@ const PASSWORD = 'Cesc2024';
 const BASE_URL = 'http://openapi.inteless.com';
 
 async function login() {
-  const body = JSON.stringify({ username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: 'openapi' });
+  const body = JSON.stringify({ username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: 'csp-web' });
   const md5 = createHash('md5').update(body).digest('base64');
   const nonce = crypto.randomUUID();
   const path = '/oauth/token';
