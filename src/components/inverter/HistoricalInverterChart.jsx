@@ -28,25 +28,38 @@ function detectStrings(firstPoint) {
 }
 
 // Map raw data point → chart row
-function mapPoint(item, stringNums, pacPec) {
-  let timeLabel = '';
-  if (item.timeStr) {
-    const ts = item.timeStr.trim();
-    // Could be "2026-03-05 09:15:00" or "09:15" or "09:15:00"
-    if (ts.includes(' ')) {
-      const timePart = ts.split(' ')[1] || '';
-      timeLabel = timePart.slice(0, 5); // "HH:MM"
-    } else {
-      timeLabel = ts.slice(0, 5); // "HH:MM"
-    }
+function mapPoint(item, stringNums) {
+  let timeLabel = item.time || item.timeStr || '';
+  if (timeLabel && timeLabel.includes(' ')) timeLabel = timeLabel.split(' ')[1];
+  timeLabel = String(timeLabel).slice(0, 5); // "HH:MM"
+
+  // Unified power extraction:
+  // CESC returns pac in W. Solis in kW. Sungrow in kW (point 13003).
+  let powerKw = 0;
+  if (item['13003'] !== undefined) powerKw = parseFloat(item['13003']); // Sungrow
+  else if (item.pac !== undefined) {
+    const p = parseFloat(item.pac);
+    // If it's a huge number (CESC), it's likely Watts. Solis pac is usually < 1000 kW.
+    powerKw = p > 2000 ? p / 1000 : p;
   }
-  if (!timeLabel && item.time) {
-    timeLabel = String(item.time).slice(0, 5);
-  }
-  const row = { time: timeLabel, power: parseFloat(((parseFloat(item.pac) || 0) * (pacPec || 0.001)).toFixed(2)) };
+
+  const row = { time: timeLabel, power: parseFloat(powerKw.toFixed(2)) };
+
   for (const i of stringNums) {
-    row[`v${i}`] = parseFloat(item[`uPv${i}`]) || 0;
-    row[`a${i}`] = parseFloat(item[`iPv${i}`]) || 0;
+    // Voltage: Solis uses uPvX or u_pvX. Sungrow uses point ids (13028 + 2*(i-1)). CESC uses pvX_u
+    let v = item[`uPv${i}`] ?? item[`u_pv${i}`] ?? item[`pv${i}_u`];
+    if (v === undefined && item[String(13028 + 2 * (i - 1))] !== undefined) {
+      v = item[String(13028 + 2 * (i - 1))];
+    }
+    
+    // Current: Solis uses iPvX or i_pvX. Sungrow uses point ids (13029 + 2*(i-1)). CESC uses pvX_i
+    let a = item[`iPv${i}`] ?? item[`i_pv${i}`] ?? item[`pv${i}_i`];
+    if (a === undefined && item[String(13029 + 2 * (i - 1))] !== undefined) {
+      a = item[String(13029 + 2 * (i - 1))];
+    }
+
+    row[`v${i}`] = parseFloat(v) || 0;
+    row[`a${i}`] = parseFloat(a) || 0;
   }
   return row;
 }
