@@ -120,6 +120,42 @@ Deno.serve(async (req) => {
            const plantStatus = plant.status === 0 ? 'offline' : 'online'; // 0=offline, 1+=online
 
            if (site) {
+             // Get device details (inverters)
+             const devRes = await cescGet(token, `/v1/plants/${plantId}/devices`, app_key, app_secret);
+             const devices = devRes?.data?.infos || [];
+             const inverters = devices.filter(d => d.device_type === 1); // 1 = inverter
+
+             // Sync inverters with detailed data
+             for (let i = 0; i < inverters.length; i++) {
+               const inv = inverters[i];
+               const detailRes = await cescGet(token, `/v1/devices/${inv.id}/real-time`, app_key, app_secret);
+               const detail = detailRes?.data || {};
+
+               // Create/update inverter record
+               const existingInv = (await db.entities.Inverter.filter({ site_id: site.id, name: inv.name }))?.[0];
+               const invData = {
+                 site_id: site.id,
+                 name: inv.name,
+                 cesc_inverter_sn: inv.sn,
+                 status: inv.status === 0 ? 'offline' : 'online',
+                 current_ac_power_kw: (parseFloat(detail.pac) || 0) / 1000,
+                 current_dc_power_kw: (parseFloat(detail.pdc) || 0) / 1000,
+                 temperature_c: parseFloat(detail.temp_igbt) || parseFloat(detail.temp_ambient),
+                 phase_voltages: {
+                   l1: parseFloat(detail.vol_a) || null,
+                   l2: parseFloat(detail.vol_b) || null,
+                   l3: parseFloat(detail.vol_c) || null
+                 },
+                 daily_yield_kwh: parseFloat(detail.etoday) || 0
+               };
+
+               if (existingInv) {
+                 await db.entities.Inverter.update(existingInv.id, invData);
+               } else {
+                 await db.entities.Inverter.create(invData).catch(() => {});
+               }
+             }
+
              await db.entities.Site.update(site.id, {
                current_power_kw: parseFloat(totalAcPower.toFixed(3)),
                daily_yield_kwh: parseFloat(totalDailyYield.toFixed(3)),
