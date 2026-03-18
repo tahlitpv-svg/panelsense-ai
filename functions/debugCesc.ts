@@ -20,75 +20,59 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const results = [];
+    const BASE_URL = 'http://openapi.inteless.com';
+    const ENDPOINT = '/v1/oauth/token';
+    const CONTENT_TYPE = 'application/x-www-form-urlencoded';
+    const bodyParams = { username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: 'csp-web' };
+    const sortedQuery = Object.keys(bodyParams).sort().map(k => `${k}=${bodyParams[k]}`).join('&');
+    const fullPath = `${ENDPOINT}?${sortedQuery}`;
+    const bodyStr = new URLSearchParams(bodyParams).toString();
 
-    // Attempt 1: Direct login without any gateway signing (plain OAuth2)
-    {
-      const body = new URLSearchParams({ username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: 'csp-web' }).toString();
-      const res = await fetch('http://openapi.inteless.com/v1/oauth/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json',
-        },
-        body
-      });
-      const text = await res.text();
-      const xErr = res.headers.get('x-ca-error-message');
-      results.push({ attempt: 'no_signing', status: res.status, body: text.substring(0, 500), xError: xErr });
-    }
+    const { timestamp, nonce, signature, stringToSign } = buildSignedHeaders('POST', fullPath, CONTENT_TYPE);
 
-    // Attempt 2: Try HTTPS instead of HTTP
-    {
-      const body = new URLSearchParams({ username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: 'csp-web' }).toString();
-      const res = await fetch('https://openapi.inteless.com/v1/oauth/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json',
-        },
-        body
-      });
-      const text = await res.text();
-      const xErr = res.headers.get('x-ca-error-message');
-      results.push({ attempt: 'https_no_signing', status: res.status, body: text.substring(0, 500), xError: xErr });
-    }
+    const requestHeaders = {
+      'Accept': '*/*',
+      'Content-Type': CONTENT_TYPE,
+      'X-Ca-Key': APP_KEY,
+      'X-Ca-Nonce': nonce,
+      'X-Ca-Timestamp': timestamp,
+      'X-Ca-Signature': signature,
+      'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
+    };
 
-    // Attempt 3: Different secrets found in E-Linter open API docs
-    const SECRETS_TO_TRY = [
-      'ihbBwNEj6ZNWGhGRT',
-      '6ZNWGhGRTihbBwNEj',
-      'csp-web',
-    ];
+    const res = await fetch(`${BASE_URL}${ENDPOINT}`, {
+      method: 'POST',
+      headers: requestHeaders,
+      body: bodyStr,
+    });
 
-    for (const secret of SECRETS_TO_TRY) {
-      const timestamp = Date.now().toString();
-      const nonce = crypto.randomUUID();
-      const sortedQuery = `client_id=csp-web&grant_type=password&password=${PASSWORD}&username=${USERNAME}`;
-      const path = `/v1/oauth/token?${sortedQuery}`;
-      const stringToSign = `POST#*/*##application/x-www-form-urlencoded##x-ca-key:${APP_KEY}#x-ca-nonce:${nonce}#x-ca-timestamp:${timestamp}#${path}`;
-      const sig = createHmac('sha256', secret).update(stringToSign, 'utf8').digest('base64');
+    const responseBody = await res.text();
+    const responseHeaders = {};
+    for (const [k, v] of res.headers.entries()) responseHeaders[k] = v;
 
-      const body = new URLSearchParams({ username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: 'csp-web' }).toString();
-      const res = await fetch('http://openapi.inteless.com/v1/oauth/token', {
-        method: 'POST',
-        headers: {
-          'Accept': '*/*',
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'X-Ca-Key': APP_KEY,
-          'X-Ca-Nonce': nonce,
-          'X-Ca-Timestamp': timestamp,
-          'X-Ca-Signature': sig,
-          'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
-        },
-        body
-      });
-      const text = await res.text();
-      const xErr = res.headers.get('x-ca-error-message');
-      results.push({ attempt: `secret_${secret.substring(0,8)}`, status: res.status, body: text.substring(0, 300), xError: xErr });
-    }
+    const report = {
+      "=== REQUEST ===": {
+        url: `${BASE_URL}${ENDPOINT}`,
+        method: "POST",
+        headers: requestHeaders,
+        body: bodyStr,
+        "string_to_sign (before HMAC)": stringToSign,
+        app_key: APP_KEY,
+        app_secret_used: APP_SECRET,
+      },
+      "=== RESPONSE ===": {
+        status: res.status,
+        status_text: res.statusText,
+        headers: responseHeaders,
+        body: responseBody || "(empty)",
+        error_message: res.headers.get('x-ca-error-message') || null,
+        server_string_to_sign: res.headers.get('x-ca-error-message')?.includes('StringToSign') 
+          ? res.headers.get('x-ca-error-message') 
+          : null,
+      },
+    };
 
-    return Response.json({ results });
+    return Response.json(report);
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });
   }
