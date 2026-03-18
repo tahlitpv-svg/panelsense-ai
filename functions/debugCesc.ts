@@ -132,8 +132,12 @@ Deno.serve(async (req) => {
     ]);
 
     return Response.json({
-      login: loginReport,
-      token_preview: token?.substring(0, 40),
+      login_summary: {
+        'signed/csp-web': l1.token_ok || !!l1.token,
+        'signed/openapi': l2.token_ok || !!l2.token,
+        'simple/csp-web': l3.token_ok || !!l3.token,
+        'simple/openapi': l4.token_ok || !!l4.token,
+      },
       results: results.map(r => ({
         label: r.label,
         status: r.status,
