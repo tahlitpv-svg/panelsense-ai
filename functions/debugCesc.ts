@@ -73,6 +73,33 @@ function buildGetHeaders(path) {
   };
 }
 
+async function apiPost(token, path, body, label) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6000);
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    const text = await res.text();
+    const errMsg = res.headers.get('x-ca-error-message') || null;
+    const errCode = res.headers.get('x-ca-error-code') || null;
+    let json = null;
+    try { json = JSON.parse(text); } catch {}
+    return { label, path, status: res.status, errMsg, errCode, body: json || text.substring(0, 400) };
+  } catch(e) {
+    clearTimeout(timeout);
+    return { label, path, error: e.message };
+  }
+}
+
 async function apiGet(token, path, label) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 6000);
