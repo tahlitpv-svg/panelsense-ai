@@ -95,15 +95,53 @@ export default function SiteProductionChart({ stationId, sungrowStationId, sungr
       if (!stationId && !sungrowStationId && !cescPlantId) return [];
 
       // ── CESC path ──
-       if (isCesc) {
-         if (isDay) {
-           const dateKey = format(refDate, 'yyyy-MM-dd');
-           const snaps = await base44.entities.SiteGraphSnapshot.filter({ station_id: `cesc_${cescPlantId}`, date_key: dateKey });
-           const raw = snaps?.[0]?.data || [];
-           return raw.filter(d => d.time).map(d => ({ label: d.time, minutes: timeToMinutes(d.time), value: d.value })).sort((a, b) => a.minutes - b.minutes);
-         }
-         return [];
-       }
+        if (isCesc) {
+          if (isDay) {
+            const dateKey = format(refDate, 'yyyy-MM-dd');
+            const res = await base44.functions.invoke('getCescGraphData', {
+              plant_id: cescPlantId,
+              timeframe: 'day',
+              date: dateKey
+            });
+            const raw = res.data?.data || [];
+            return raw.filter(d => d.time).map(d => ({ label: d.time, minutes: timeToMinutes(d.time), value: d.value })).sort((a, b) => a.minutes - b.minutes);
+          }
+          if (timeframe === 'month') {
+            const dateKey = format(refDate, 'yyyy-MM');
+            const res = await base44.functions.invoke('getCescGraphData', {
+              plant_id: cescPlantId,
+              timeframe: 'month',
+              date: dateKey
+            });
+            const items = res.data?.data || [];
+            const daysInMonth = getDaysInMonth(refDate);
+            const byDay = {};
+            items.forEach(item => {
+              const parts = (item.date_id || '').split('-');
+              const day = parts.length > 2 ? parseInt(parts[2], 10) : null;
+              if (day) byDay[day] = parseFloat(item.energy || 0);
+            });
+            return Array.from({ length: daysInMonth }, (_, i) => ({ label: String(i + 1).padStart(2, '0'), value: byDay[i + 1] || 0 }));
+          }
+          if (timeframe === 'year') {
+            const dateKey = format(refDate, 'yyyy');
+            const res = await base44.functions.invoke('getCescGraphData', {
+              plant_id: cescPlantId,
+              timeframe: 'year',
+              date: dateKey
+            });
+            const items = res.data?.data || [];
+            const months = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+            const byMonth = {};
+            items.forEach(item => {
+              const parts = (item.date_id || '').split('-');
+              const m = parts.length > 1 ? parts[1] : null;
+              if (m) byMonth[m] = parseFloat(item.energy || 0);
+            });
+            return months.map(m => ({ label: m, value: byMonth[m] || 0 }));
+          }
+          return [];
+        }
 
       // ── SUNGROW path ──
       if (isSungrow) {
