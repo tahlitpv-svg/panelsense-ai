@@ -143,7 +143,8 @@ Deno.serve(async (req) => {
       'simple/openapi':  { status: l4.status, token_ok: !!l4.token },
     };
 
-    const token = l1.token || l2.token || l3.token || l4.token;
+    // Prefer openapi client_id token since it's what the API keys are registered for
+    const token = l2.token || l4.token || l1.token || l3.token;
     if (!token) {
       return Response.json({ login: loginReport, error: 'All logins failed' });
     }
