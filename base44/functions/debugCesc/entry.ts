@@ -154,15 +154,18 @@ Deno.serve(async (req) => {
       return Response.json({ login: loginReport, error: 'All logins failed' });
     }
 
-    // Test with cescpower domain + known plantId
+    // Test various endpoints
     const results = await Promise.all([
       apiGet(token, `/v1/plant/list?pageNum=1&pageSize=10`, 'GET plant/list'),
-      apiGet(token, `/v1/plant/${PLANT_ID}`, `GET plant by id`),
       apiGet(token, `/v1/plant/detail?plantId=${PLANT_ID}`, `GET plant/detail`),
       apiGet(token, `/v1/inverter/list?pageNum=1&pageSize=20&plantId=${PLANT_ID}`, `GET inverter/list+plantId`),
+      apiGet(token, `/v1/inverter/list?pageNum=1&pageSize=20&stationId=${PLANT_ID}`, `GET inverter/list+stationId`),
       apiGet(token, `/v1/plant/realtime?plantId=${PLANT_ID}`, `GET plant/realtime`),
-      apiGet(token, `/v1/plant/energy?plantId=${PLANT_ID}`, `GET plant/energy`),
-      apiGet(token, `/v1/plant/overview?plantId=${PLANT_ID}`, `GET plant/overview`),
+      apiGet(token, `/v1/plant/energy?plantId=${PLANT_ID}&dateType=1`, `GET plant/energy`),
+      apiGet(token, `/v1/station/list?pageNum=1&pageSize=10`, `GET station/list`),
+      apiGet(token, `/v1/station/detail?stationId=${PLANT_ID}`, `GET station/detail`),
+      apiPost(token, `/v1/plant/list`, { pageNum: 1, pageSize: 10 }, 'POST plant/list'),
+      apiPost(token, `/v1/inverter/list`, { pageNum: 1, pageSize: 20, plantId: PLANT_ID }, 'POST inverter/list'),
     ]);
 
     return Response.json({
