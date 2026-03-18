@@ -166,25 +166,28 @@ Deno.serve(async (req) => {
               // Try getDeviceRealTimeData with ps_key first
               if (psKey) {
                 const r = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
-                  ps_key_list: [psKey], device_type: 1, point_id_list: POINT_IDS
+                  ps_key_list: [psKey], device_type: "1", point_id_list: POINT_IDS.map(String)
                 });
                 console.log(`[syncSungrow] getDeviceRealTimeData ps_key=${psKey} code=${r?.result_code}`);
                 if (r?.result_code === '1') {
-                  const rd = r.result_data;
-                  if (Array.isArray(rd)) rd.forEach(p => { if (p.point_id !== undefined) pointMap[String(p.point_id)] = p.value; });
-                  else if (rd && typeof rd === 'object') {
-                    const inner = rd[psKey] || rd[devSn] || rd;
-                    Object.entries(inner).forEach(([k, v]) => { pointMap[String(k)] = v; });
+                  const rd = r.result_data?.device_point_list;
+                  if (Array.isArray(rd)) {
+                    rd.forEach(deviceInfo => {
+                      const points = deviceInfo.point_list || [];
+                      points.forEach(p => {
+                        if (p.point_id !== undefined) pointMap[String(p.point_id)] = p.point_value;
+                      });
+                    });
                   }
                 }
               }
 
-              // Fallback: queryDeviceRealTimeData with sn
+              // Fallback: getDeviceRealTimeData with sn_list
               if (Object.keys(pointMap).length === 0 && devSn) {
-                const r = await sgPost(base_url, '/openapi/queryDeviceRealTimeData', conn.config, token, user_id, {
-                  ps_id: psId, device_sn: devSn, point_id_list: POINT_IDS
+                const r = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
+                  sn_list: [devSn], device_type: "1", point_id_list: POINT_IDS.map(String)
                 });
-                console.log(`[syncSungrow] queryDeviceRealTimeData sn=${devSn} code=${r?.result_code}`);
+                console.log(`[syncSungrow] fallback getDeviceRealTimeData sn=${devSn} code=${r?.result_code}`);
                 if (r?.result_code === '1') {
                   const rd = r.result_data;
                   if (Array.isArray(rd)) rd.forEach(p => { if (p.point_id !== undefined) pointMap[String(p.point_id)] = p.value; });
@@ -227,51 +230,9 @@ Deno.serve(async (req) => {
               };
 
               const existing = await db.entities.Inverter.filter({ sungrow_device_sn: devSn });
-              let dbInv;
-              if (existing.length > 0) {
-                await db.entities.Inverter.update(existing[0].id, invData);
-                dbInv = existing[0];
-              } else {
-                dbInv = await db.entities.Inverter.create(invData);
-              }
+              if (existing.length > 0) await db.entities.Inverter.update(existing[0].id, invData);
+              else await db.entities.Inverter.create(invData);
               console.log(`[syncSungrow] Inverter ${devSn}: AC=${acPower}kW strings=${mpptStrings.length}`);
-
-              // Snapshot
-              try {
-                const now = new Date();
-                const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(now);
-                const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now).slice(0, 5);
-
-                const snapData = {
-                  time: timeLabel,
-                  pac: acPower,
-                  temperature: invData.temperature_c,
-                  l1: invData.phase_voltages.l1,
-                  l2: invData.phase_voltages.l2,
-                  l3: invData.phase_voltages.l3
-                };
-                mpptStrings.forEach((s) => {
-                  const strNum = s.string_id.replace('PV', '');
-                  snapData[`uPv${strNum}`] = s.voltage_v;
-                  snapData[`iPv${strNum}`] = s.current_a;
-                });
-
-                const snaps = await db.entities.InverterGraphSnapshot.filter({ inverter_id: dbInv.id, date_key: todayKey });
-                if (snaps.length > 0) {
-                  const pts = (snaps[0].data || []).filter(p => p.time !== timeLabel);
-                  if (acPower > 0 || pts.length > 0) {
-                    pts.push(snapData);
-                    pts.sort((a, b) => a.time.localeCompare(b.time));
-                    await db.entities.InverterGraphSnapshot.update(snaps[0].id, { data: pts });
-                  }
-                } else {
-                  await db.entities.InverterGraphSnapshot.create({
-                    inverter_id: dbInv.id,
-                    date_key: todayKey,
-                    data: [snapData]
-                  });
-                }
-              } catch(e) { console.log(`[syncSungrow] Inv snapshot err: ${e.message}`); }
             }
           } catch (e) { console.log(`[syncSungrow] Inverter error ps_id=${psId}: ${e.message}`); }
         }
