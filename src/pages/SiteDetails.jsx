@@ -47,21 +47,7 @@ export default function SiteDetails() {
     }
   });
 
-  // Fetch CESC inverter data if it's a CESC site
-  const { data: cescInverterData = {} } = useQuery({
-    queryKey: ['cescInverters', site?.cesc_plant_id, site?.cesc_connection_id],
-    queryFn: async () => {
-      if (!site?.cesc_plant_id || !site?.cesc_connection_id) return {};
-      const res = await base44.functions.invoke('getCescGraphData', {
-        cescPlantId: site.cesc_plant_id,
-        connectionId: site.cesc_connection_id,
-        timeframe: 'day'
-      });
-      return res.data || {};
-    },
-    enabled: !!site?.cesc_plant_id && !!site?.cesc_connection_id,
-    refetchInterval: 60000
-  });
+
 
   if (!site) {
     return (
@@ -250,17 +236,7 @@ export default function SiteDetails() {
             ) : (
               <div className="grid grid-cols-1 gap-4 md:gap-6">
                 {inverters.map((inverter, idx) => {
-                  // If CESC site, merge inverter data from API
                   let displayInverter = inverter;
-                  if (site?.cesc_plant_id && cescInverterData?.inverters?.[idx]) {
-                    const cescData = cescInverterData.inverters[idx];
-                    displayInverter = {
-                      ...inverter,
-                      phase_voltages: cescData.phase_voltages || inverter.phase_voltages,
-                      temperature_c: cescData.temps?.igbt || cescData.temps?.ambient || inverter.temperature_c,
-                      current_ac_power_kw: cescData.ac_power_kw || inverter.current_ac_power_kw
-                    };
-                  }
                   return (
                    <Card key={inverter.id} className="p-4 md:p-6 border border-slate-200 shadow-sm bg-white">
                      <div className="flex items-start justify-between mb-4 border-b border-slate-100 pb-4 gap-3 flex-wrap">

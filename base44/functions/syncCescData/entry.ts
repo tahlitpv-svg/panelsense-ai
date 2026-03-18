@@ -180,10 +180,47 @@ Deno.serve(async (req) => {
                }
 
                try {
+                 let dbInv;
                  if (existingInv) {
                    await db.entities.Inverter.update(existingInv.id, invData);
+                   dbInv = existingInv;
                  } else {
-                   await db.entities.Inverter.create(invData);
+                   dbInv = await db.entities.Inverter.create(invData);
+                 }
+
+                 // Inverter Graph Snapshot
+                 const now = new Date();
+                 const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(now);
+                 const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now).slice(0, 5);
+
+                 const snapData = {
+                   time: timeLabel,
+                   pac: invData.current_ac_power_kw,
+                   temperature: invData.temperature_c,
+                   l1: invData.phase_voltages.l1,
+                   l2: invData.phase_voltages.l2,
+                   l3: invData.phase_voltages.l3
+                 };
+                 invData.mppt_strings.forEach(s => {
+                   const strNum = s.string_id.replace('PV', '');
+                   snapData[`uPv${strNum}`] = s.voltage_v;
+                   snapData[`iPv${strNum}`] = s.current_a;
+                 });
+
+                 const snaps = await db.entities.InverterGraphSnapshot.filter({ inverter_id: dbInv.id, date_key: todayKey });
+                 if (snaps.length > 0) {
+                   const pts = (snaps[0].data || []).filter(p => p.time !== timeLabel);
+                   if (snapData.pac > 0 || pts.length > 0) {
+                     pts.push(snapData);
+                     pts.sort((a, b) => a.time.localeCompare(b.time));
+                     await db.entities.InverterGraphSnapshot.update(snaps[0].id, { data: pts });
+                   }
+                 } else {
+                   await db.entities.InverterGraphSnapshot.create({
+                     inverter_id: dbInv.id,
+                     date_key: todayKey,
+                     data: [snapData]
+                   });
                  }
                } catch (invErr) {
                  console.log(`[syncCesc] Failed to save inverter ${inv.sn}:`, invErr.message);

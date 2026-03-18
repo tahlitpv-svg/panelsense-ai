@@ -35,34 +35,16 @@ export default function TemperatureChart({ inverterId, inverterSn, inverter, sit
   const isSungrow = inverter?.sungrow_device_id && !inverterId;
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['inverterTemp', inverter?.id, inverterId, inverterSn, today],
+    queryKey: ['inverterTemp', inverter?.id],
     queryFn: async () => {
-      if (isSungrow) {
-        const res = await base44.functions.invoke('getSungrowInverterGraphData', {
-          device_id: inverter.sungrow_device_id,
-          ps_id: site?.sungrow_station_id,
-          query_date: format(new Date(), 'yyyyMMdd')
-        });
-        
-        if (res.data?.success && res.data?.data) {
-          // getSungrowInverterGraphData doesn't explicitly fetch temperature yet,
-          // but if we update it to fetch point_id 4 (which we did as currentData but maybe temperature is 5?),
-          // Actually we need to ensure the backend fetches point 4 or 5 for temperature.
-          // Let's assume it fetches it as 'temperature' in the future, or we just map it.
-          // In Sungrow point_id 4 is current? Let's rely on the updated backend.
-          return res.data.data;
-        }
-        return [];
-      } else {
-        const res = await base44.functions.invoke('getInverterTemperatureHistory', {
-          inverterId: inverterId || inverter?.solis_inverter_id,
-          inverterSn: inverterSn || inverter?.solis_sn,
-          date: today
-        });
-        return res.data?.data || [];
-      }
+      if (!inverter?.id) return [];
+      const snaps = await base44.entities.InverterGraphSnapshot.filter({ 
+        inverter_id: inverter.id, 
+        date_key: today 
+      });
+      return snaps[0]?.data || [];
     },
-    enabled: !!inverterId || !!inverter?.sungrow_device_id,
+    enabled: !!inverter?.id,
     refetchInterval: 5 * 60 * 1000
   });
 

@@ -227,9 +227,51 @@ Deno.serve(async (req) => {
               };
 
               const existing = await db.entities.Inverter.filter({ sungrow_device_sn: devSn });
-              if (existing.length > 0) await db.entities.Inverter.update(existing[0].id, invData);
-              else await db.entities.Inverter.create(invData);
+              let dbInv;
+              if (existing.length > 0) {
+                await db.entities.Inverter.update(existing[0].id, invData);
+                dbInv = existing[0];
+              } else {
+                dbInv = await db.entities.Inverter.create(invData);
+              }
               console.log(`[syncSungrow] Inverter ${devSn}: AC=${acPower}kW strings=${mpptStrings.length}`);
+
+              // Snapshot
+              try {
+                const now = new Date();
+                const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(now);
+                const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now).slice(0, 5);
+
+                const snapData = {
+                  time: timeLabel,
+                  pac: acPower,
+                  temperature: invData.temperature_c,
+                  l1: invData.phase_voltages.l1,
+                  l2: invData.phase_voltages.l2,
+                  l3: invData.phase_voltages.l3
+                };
+                mpptStrings.forEach((s) => {
+                  const strNum = s.string_id.replace('PV', '');
+                  snapData[`uPv${strNum}`] = s.voltage_v;
+                  snapData[`iPv${strNum}`] = s.current_a;
+                });
+
+                const snaps = await db.entities.InverterGraphSnapshot.filter({ inverter_id: dbInv.id, date_key: todayKey });
+                if (snaps.length > 0) {
+                  const pts = (snaps[0].data || []).filter(p => p.time !== timeLabel);
+                  if (acPower > 0 || pts.length > 0) {
+                    pts.push(snapData);
+                    pts.sort((a, b) => a.time.localeCompare(b.time));
+                    await db.entities.InverterGraphSnapshot.update(snaps[0].id, { data: pts });
+                  }
+                } else {
+                  await db.entities.InverterGraphSnapshot.create({
+                    inverter_id: dbInv.id,
+                    date_key: todayKey,
+                    data: [snapData]
+                  });
+                }
+              } catch(e) { console.log(`[syncSungrow] Inv snapshot err: ${e.message}`); }
             }
           } catch (e) { console.log(`[syncSungrow] Inverter error ps_id=${psId}: ${e.message}`); }
         }
