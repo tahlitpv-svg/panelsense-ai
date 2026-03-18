@@ -6,6 +6,14 @@ const APP_SECRET = 'ihbBwNEj6ZNWGhGRT';
 const USERNAME = 'm.b.g.shilo@gmail.com';
 const PASSWORD = 'Aa123456';
 
+function buildSignedHeaders(method, path, contentType) {
+  const timestamp = Date.now().toString();
+  const nonce = crypto.randomUUID();
+  const stringToSign = `${method}#*/*##${contentType}##x-ca-key:${APP_KEY}#x-ca-nonce:${nonce}#x-ca-timestamp:${timestamp}#${path}`;
+  const signature = createHmac('sha256', APP_SECRET).update(stringToSign, 'utf8').digest('base64');
+  return { timestamp, nonce, signature, stringToSign };
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
