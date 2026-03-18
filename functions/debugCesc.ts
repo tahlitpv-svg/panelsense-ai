@@ -43,28 +43,23 @@ Deno.serve(async (req) => {
     const token = await login();
     if (!token) return Response.json({ error: 'Login failed' }, { status: 500 });
 
-    // Try various endpoints to find the correct ones
-    const [plants, inverters, devices, stations, v1Plants, v1Inverters] = await Promise.all([
-      apiGet(token, '/plant/list'),
-      apiGet(token, '/inverter/list'),
-      apiGet(token, '/device/list'),
-      apiGet(token, '/station/list'),
-      apiGet(token, '/v1/plant/list'),
-      apiGet(token, '/v1/inverter/list'),
+    // Try various endpoints
+    const results = await Promise.all([
+      apiGet(token, '/v1/plant/page'),
+      apiGet(token, '/v1/plants'),
+      apiGet(token, '/v1/station/list'),
+      apiGet(token, '/v1/inverters'),
+      apiGet(token, '/v1/device/list'),
+      apiGet(token, '/v1/user/plant/list'),
+      apiGet(token, '/v1/plant/page?pageNum=1&pageSize=10'),
+      apiGet(token, '/v1/plants?page=1&size=10'),
     ]);
 
-    return Response.json({
-      login: 'OK',
-      token_preview: token.substring(0, 50) + '...',
-      endpoints: {
-        '/plant/list': plants,
-        '/inverter/list': inverters,
-        '/device/list': devices,
-        '/station/list': stations,
-        '/v1/plant/list': v1Plants,
-        '/v1/inverter/list': v1Inverters,
-      }
-    });
+    const keys = ['/v1/plant/page','/v1/plants','/v1/station/list','/v1/inverters','/v1/device/list','/v1/user/plant/list','/v1/plant/page?pageNum=1&pageSize=10','/v1/plants?page=1&size=10'];
+    const endpoints = {};
+    keys.forEach((k, i) => endpoints[k] = results[i]);
+
+    return Response.json({ login: 'OK', token_preview: token.substring(0, 50) + '...', endpoints });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });
   }
