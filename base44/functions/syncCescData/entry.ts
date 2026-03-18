@@ -133,6 +133,23 @@ Deno.serve(async (req) => {
 
                // Create/update inverter record - match by site_id + cesc_inverter_sn
                const existingInv = (await db.entities.Inverter.filter({ site_id: site.id, cesc_inverter_sn: inv.sn }))?.[0];
+               // Build MPPT strings from detail (e.g. pv1_u, pv1_i, pv1_p)
+               const mpptStrings = [];
+               for (let j = 1; j <= 10; j++) {
+                 const uKey = `pv${j}_u`, iKey = `pv${j}_i`, pKey = `pv${j}_p`;
+                 const voltage = parseFloat(detail[uKey]);
+                 const current = parseFloat(detail[iKey]);
+                 const power = parseFloat(detail[pKey]);
+                 if (!isNaN(voltage) || !isNaN(current) || !isNaN(power)) {
+                   mpptStrings.push({
+                     string_id: `PV${j}`,
+                     voltage_v: isNaN(voltage) ? null : voltage,
+                     current_a: isNaN(current) ? null : current,
+                     power_kw: isNaN(power) ? null : power / 1000
+                   });
+                 }
+               }
+
                const invData = {
                  site_id: site.id,
                  name: inv.name || `Inverter_${inv.sn}`,
@@ -146,7 +163,8 @@ Deno.serve(async (req) => {
                    l2: parseFloat(detail.vol_b) || null,
                    l3: parseFloat(detail.vol_c) || null
                  },
-                 daily_yield_kwh: parseFloat(detail.etoday) || 0
+                 daily_yield_kwh: parseFloat(detail.etoday) || 0,
+                 mppt_strings: mpptStrings
                };
 
                if (existingInv) {
