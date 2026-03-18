@@ -35,9 +35,14 @@ export default function ImportSitesPanel({ conn, onClose }) {
 
   const sites = data?.sites || [];
 
-  // Check which sites already exist (by solis_station_id or name)
-  const existingIds = new Set(existingSites.map(s => s.solis_station_id).filter(Boolean));
-  const isAlreadyImported = (site) => existingIds.has(site.solis_station_id || site.sungrow_station_id);
+  // Check which sites already exist (by provider external ID or name)
+  const existingSolisIds = new Set(existingSites.map(s => s.solis_station_id).filter(Boolean));
+  const existingSungrowIds = new Set(existingSites.map(s => s.sungrow_station_id).filter(Boolean));
+  const existingCescIds = new Set(existingSites.map(s => s.cesc_plant_id).filter(Boolean));
+  const isAlreadyImported = (site) =>
+    (site.solis_station_id && existingSolisIds.has(site.solis_station_id)) ||
+    (site.sungrow_station_id && existingSungrowIds.has(site.sungrow_station_id)) ||
+    (site.cesc_plant_id && existingCescIds.has(site.cesc_plant_id));
 
   const toggleAll = () => {
     const notImported = sites.filter(s => !isAlreadyImported(s)).map(s => s.external_id);
