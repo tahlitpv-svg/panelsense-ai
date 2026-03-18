@@ -140,43 +140,26 @@ Deno.serve(async (req) => {
       return Response.json({ login: loginReport, error: 'Both logins failed' });
     }
 
-    // Test all endpoints in parallel
+    const USER_ID = '128411';
+
+    // Test targeted endpoints with userId
     const results = await Promise.all([
-      // Plant endpoints - GET
-      apiGet(token, '/v1/plant/list?lan=en&pageNum=1&pageSize=10', 'GET /v1/plant/list'),
-      apiGet(token, '/v1/plant/page?lan=en&pageNum=1&pageSize=10', 'GET /v1/plant/page'),
-      apiGet(token, '/v1/plant/list?pageNum=1&pageSize=10', 'GET /v1/plant/list (no lan)'),
-
-      // Plant endpoints - POST
-      apiPost(token, '/v1/plant/list', { pageNum: 1, pageSize: 10, lan: 'en' }, 'POST /v1/plant/list'),
-      apiPost(token, '/v1/plant/page', { pageNum: 1, pageSize: 10, lan: 'en' }, 'POST /v1/plant/page'),
-
-      // Inverter endpoints - GET
-      apiGet(token, '/v1/inverter/list?lan=en&pageNum=1&pageSize=10', 'GET /v1/inverter/list'),
-      apiGet(token, '/v1/device/list?lan=en&pageNum=1&pageSize=10', 'GET /v1/device/list'),
-
-      // Try old-style endpoints (without /v1)
-      apiGet(token, '/plant/list?pageNum=1&pageSize=10', 'GET /plant/list (no v1)'),
-      apiGet(token, '/inverter/list?pageNum=1&pageSize=10', 'GET /inverter/list (no v1)'),
+      apiGet(token, `/v1/plant/list?lan=en&pageNum=1&pageSize=10&userId=${USER_ID}`, 'GET /v1/plant/list with userId'),
+      apiGet(token, `/v1/plant/page?lan=en&pageNum=1&pageSize=10&userId=${USER_ID}`, 'GET /v1/plant/page with userId'),
+      apiGet(token, `/v1/inverter/list?lan=en&pageNum=1&pageSize=10&userId=${USER_ID}`, 'GET /v1/inverter/list with userId'),
+      apiGet(token, `/v1/inverter/list?lan=en&pageNum=1&pageSize=10`, 'GET /v1/inverter/list no userId'),
     ]);
 
-    // Summarize
-    const summary = results.map(r => ({
-      label: r.label,
-      path: r.path,
-      method: r.method || 'GET',
-      status: r.status,
-      errMsg: r.errMsg,
-      success: r.status === 200 && !r.errMsg,
-      body_preview: JSON.stringify(r.body || r.error || '').substring(0, 200)
-    }));
-
-    const working = summary.filter(r => r.success);
-
     return Response.json({
-      login_ok: { 'csp-web': loginCsp.token_ok || !!loginCsp.token, 'openapi': loginOpenapi.token_ok || !!loginOpenapi.token },
-      summary,
-      working_endpoints: working
+      login_ok: true,
+      results: results.map(r => ({
+        label: r.label,
+        path: r.path,
+        status: r.status,
+        errMsg: r.errMsg,
+        body: r.body,
+        error: r.error || undefined
+      }))
     });
 
   } catch (e) {
