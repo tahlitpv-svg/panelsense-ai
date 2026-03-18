@@ -32,10 +32,18 @@ async function login() {
   return { token: data?.data?.access_token || data?.access_token, raw: data };
 }
 
+function sortedQueryPath(path) {
+  const [base, query] = path.split('?');
+  if (!query) return path;
+  const sorted = query.split('&').sort().join('&');
+  return `${base}?${sorted}`;
+}
+
 function buildGetHeaders(path) {
   const nonce = crypto.randomUUID();
   const timestamp = Date.now().toString();
-  const textToSign = `GET\n*/*\n\n\n\nx-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}\n${path}`;
+  const signPath = sortedQueryPath(path);
+  const textToSign = `GET\n*/*\n\n\n\nx-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}\n${signPath}`;
   const signature = createHmac('sha256', APP_SECRET).update(textToSign).digest('base64');
   return {
     headers: {
@@ -88,18 +96,17 @@ Deno.serve(async (req) => {
     }
 
     if (mode === 'plant') {
-      const result = await apiGet(token, '/v1/plant/page?pageNum=1&pageSize=10&lan=en');
+      const result = await apiGet(token, '/v1/plant/page?pageNum=1&pageSize=10');
       return Response.json({ path: '/v1/plant/page', result });
     }
 
     if (mode === 'inverter') {
-      const plantId = body.plantId || '';
-      const result = await apiGet(token, `/v1/inverter/list?pageNum=1&pageSize=10&lan=en${plantId ? '&plantId=' + plantId : ''}`);
+      const result = await apiGet(token, '/v1/inverter/list?pageNum=1&pageSize=10');
       return Response.json({ path: '/v1/inverter/list', result });
     }
 
     if (mode === 'device') {
-      const path = body.path || '/v1/device/page?pageNum=1&pageSize=10&lan=en';
+      const path = body.path || '/v1/device/page?pageNum=1&pageSize=10';
       const result = await apiGet(token, path);
       return Response.json({ path, result });
     }
