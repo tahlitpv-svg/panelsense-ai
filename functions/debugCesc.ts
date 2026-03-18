@@ -16,7 +16,7 @@ async function login(clientId = 'csp-web') {
   const textToSign = `POST\napplication/json\n${md5}\napplication/json\n\nx-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\n${path}`;
   const signature = createHmac('sha256', APP_SECRET).update(textToSign).digest('base64');
 
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${AUTH_URL}${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
