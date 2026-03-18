@@ -154,18 +154,15 @@ Deno.serve(async (req) => {
       return Response.json({ login: loginReport, error: 'All logins failed' });
     }
 
-    // Test various endpoints
+    // Test endpoints per official API docs
     const results = await Promise.all([
-      apiGet(token, `/v1/plant/list?pageNum=1&pageSize=10`, 'GET plant/list'),
-      apiGet(token, `/v1/plant/detail?plantId=${PLANT_ID}`, `GET plant/detail`),
-      apiGet(token, `/v1/inverter/list?pageNum=1&pageSize=20&plantId=${PLANT_ID}`, `GET inverter/list+plantId`),
-      apiGet(token, `/v1/inverter/list?pageNum=1&pageSize=20&stationId=${PLANT_ID}`, `GET inverter/list+stationId`),
-      apiGet(token, `/v1/plant/realtime?plantId=${PLANT_ID}`, `GET plant/realtime`),
-      apiGet(token, `/v1/plant/energy?plantId=${PLANT_ID}&dateType=1`, `GET plant/energy`),
-      apiGet(token, `/v1/station/list?pageNum=1&pageSize=10`, `GET station/list`),
-      apiGet(token, `/v1/station/detail?stationId=${PLANT_ID}`, `GET station/detail`),
-      apiPost(token, `/v1/plant/list`, { pageNum: 1, pageSize: 10 }, 'POST plant/list'),
-      apiPost(token, `/v1/inverter/list`, { pageNum: 1, pageSize: 20, plantId: PLANT_ID }, 'POST inverter/list'),
+      apiGet(token, `/v1/plants?page=1&limit=20`, 'GET /v1/plants'),
+      apiGet(token, `/v1/plants/${PLANT_ID}`, `GET /v1/plants/:id`),
+      apiGet(token, `/v1/plants/${PLANT_ID}/inverters?page=1&limit=20`, `GET plant inverters`),
+      apiGet(token, `/v1/inverters?page=1&limit=20&plantId=${PLANT_ID}`, `GET /v1/inverters+plantId`),
+      apiGet(token, `/v1/events?page=1&limit=10&type=3&sdate=2026-03-01&edate=2026-03-18`, `GET /v1/events`),
+      apiGet(token, `/v1/plants/${PLANT_ID}/realtime`, `GET plant realtime`),
+      apiGet(token, `/v1/plants/${PLANT_ID}/energy?date=2026-03-18`, `GET plant energy`),
     ]);
 
     return Response.json({
