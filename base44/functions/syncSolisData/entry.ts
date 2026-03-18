@@ -218,6 +218,29 @@ Deno.serve(async (req) => {
       // Update num_inverters on site
       await db.entities.Site.update(siteId, { num_inverters: inverters.length });
 
+      // Update daily graph snapshot (similar to CESC)
+      try {
+        const now = new Date();
+        const dateKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(now);
+        const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now).slice(0, 5);
+        const snapId = station.id;
+        const currentPowerKw = parseFloat(siteData.current_power_kw) || 0;
+
+        const snaps = await db.entities.SiteGraphSnapshot.filter({ station_id: snapId, date_key: dateKey });
+        if (snaps.length > 0) {
+          const pts = (snaps[0].data || []).filter(p => p.time !== timeLabel);
+          if (currentPowerKw > 0) pts.push({ time: timeLabel, value: currentPowerKw });
+          pts.sort((a, b) => a.time.localeCompare(b.time));
+          await db.entities.SiteGraphSnapshot.update(snaps[0].id, { data: pts });
+        } else {
+          await db.entities.SiteGraphSnapshot.create({
+            station_id: snapId,
+            date_key: dateKey,
+            data: currentPowerKw > 0 ? [{ time: timeLabel, value: currentPowerKw }] : []
+          });
+        }
+      } catch (e) { console.log(`[syncSolisData] Snapshot error for station ${station.id}: ${e.message}`); }
+
       for (const inv of inverters) {
         // Fetch inverter detail for MPPT/temperature data
         let detail = null;
