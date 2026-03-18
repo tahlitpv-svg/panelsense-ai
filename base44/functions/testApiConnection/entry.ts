@@ -170,87 +170,63 @@ async function testCesc(config) {
     return { success: false, message: 'חסרים פרטי חיבור: App Key, App Secret, Username, Password' };
   }
 
-  const body = new URLSearchParams({
-    username: config.user_account,
-    password: config.user_password,
-    grant_type: 'password',
-    client_id: 'csp-web'
-  });
+  try {
+    const body = JSON.stringify({
+      username: config.user_account,
+      password: config.user_password,
+      grant_type: 'password',
+      client_id: 'openapi'
+    });
+    const md5 = createHash('md5').update(body).digest('base64');
+    const nonce = crypto.randomUUID();
+    const path = '/oauth/token';
+    const textToSign = `POST\napplication/json\n${md5}\napplication/json\n\nx-ca-key:${config.app_key}\nx-ca-nonce:${nonce}\n${path}`;
+    const signature = createHmac('sha256', config.app_secret).update(textToSign).digest('base64');
 
-  // Try multiple approaches
-  const attempts = [
-    // Attempt 1: No signature (plain OAuth)
-    async () => {
-      const res = await fetch(`http://openapi.inteless.com/v1/oauth/token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body.toString()
-      });
-      const text = await res.text();
-      console.log(`[cesc attempt1] status=${res.status} body=${text.substring(0, 300)}`);
-      return { status: res.status, text };
-    },
-    // Attempt 2: With X-Ca-Key only (no signature)
-    async () => {
-      const res = await fetch(`http://openapi.inteless.com/v1/oauth/token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'X-Ca-Key': config.app_key,
-          'X-Ca-Stage': 'RELEASE'
-        },
-        body: body.toString()
-      });
-      const text = await res.text();
-      console.log(`[cesc attempt2] status=${res.status} body=${text.substring(0, 300)}`);
-      return { status: res.status, text };
-    },
-    // Attempt 3: Full HMAC-SHA256 signature with correct string format
-    async () => {
-      const timestamp = Date.now().toString();
-      const nonce = crypto.randomUUID();
-      const signHeaders = `x-ca-key:${config.app_key}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}`;
-      // stringToSign = Method\nAccept\nContent-MD5\nContent-Type\nDate\nCustomHeaders\nUrl
-      const stringToSign = `POST\n\n\napplication/x-www-form-urlencoded\n\n${signHeaders}\n/oauth/token`;
-      const sig = createHmac('sha256', config.app_secret).update(stringToSign, 'utf8').digest('base64');
-      console.log(`[cesc attempt3] stringToSign=${JSON.stringify(stringToSign)}`);
-      const res = await fetch(`http://openapi.inteless.com/v1/oauth/token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'X-Ca-Key': config.app_key,
-          'X-Ca-Signature': sig,
-          'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
-          'X-Ca-Timestamp': timestamp,
-          'X-Ca-Nonce': nonce,
-          'X-Ca-Stage': 'RELEASE'
-        },
-        body: body.toString()
-      });
-      const text = await res.text();
-      console.log(`[cesc attempt3] status=${res.status} body=${text.substring(0, 300)}`);
-      return { status: res.status, text };
-    }
-  ];
+    const res = await fetch(`https://pv.inteless.com${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Content-MD5': md5,
+        'X-Ca-Key': config.app_key,
+        'X-Ca-Nonce': nonce,
+        'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce',
+        'X-Ca-Signature': signature
+      },
+      body
+    });
 
-  for (let i = 0; i < attempts.length; i++) {
-    try {
-      const { status, text } = await attempts[i]();
-      if (!text) continue;
-      let data;
-      try { data = JSON.parse(text); } catch { continue; }
-      if (data?.access_token) {
-        return { success: true, message: `חיבור E-Linter/cesc הצליח! (attempt ${i+1})` };
-      }
-      if (status !== 403 && data?.message) {
-        return { success: false, message: `שגיאת ${status}: ${data.message || data.error_description || JSON.stringify(data)}` };
-      }
-    } catch (e) {
-      console.log(`[cesc attempt${i+1}] error: ${e.message}`);
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { return { success: false, message: `תגובה לא תקינה: ${text.substring(0, 200)}` }; }
+
+    const token = data?.data?.access_token || data?.access_token;
+    if (token) {
+      // Also verify we can list plants
+      const emptyMd5 = createHash('md5').update('').digest('base64');
+      const nonce2 = crypto.randomUUID();
+      const ts = Date.now().toString();
+      const plantsPath = '/v1/plants?limit=1&page=1';
+      const textToSign2 = `GET\napplication/json\n${emptyMd5}\napplication/json\n\nx-ca-key:${config.app_key}\nx-ca-nonce:${nonce2}\nx-ca-timestamp:${ts}\n${plantsPath}`;
+      const sig2 = createHmac('sha256', config.app_secret).update(textToSign2).digest('base64');
+      const plantsRes = await fetch(`https://pv.inteless.com/api${plantsPath}`, {
+        headers: {
+          'Accept': 'application/json', 'Content-Type': 'application/json', 'Content-MD5': emptyMd5,
+          'X-Ca-Key': config.app_key, 'X-Ca-Nonce': nonce2, 'X-Ca-Timestamp': ts,
+          'X-Ca-Signature': sig2, 'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce,x-ca-timestamp',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const plantsData = await plantsRes.json().catch(() => null);
+      const total = plantsData?.data?.total || 0;
+      return { success: true, message: `חיבור CESC הצליח! נמצאו ${total} אתרים.` };
     }
+
+    return { success: false, message: `חיבור נכשל: ${data?.msg || data?.error_description || JSON.stringify(data).substring(0, 200)}` };
+  } catch (e) {
+    return { success: false, message: `שגיאת רשת: ${e.message}` };
   }
-
-  return { success: false, message: 'כל ניסיונות החיבור נכשלו (403). בדוק App Key ו-App Secret.' };
 }
 
 function computeMd5Base64(content) {
