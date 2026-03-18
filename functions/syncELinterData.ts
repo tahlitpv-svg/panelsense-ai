@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
-const ELINTER_BASE = 'https://cescpower.inteless.com/v1';
+const ELINTER_BASE = 'https://openapi.inteless.com/v1';
 const APP_KEY = '253955251';
 const APP_SECRET = 'ihbBwNEj6ZNWGhGRT';
 const USERNAME = 'm.b.g.shilo@gmail.com';
@@ -13,7 +13,7 @@ async function elinterLogin() {
     grant_type: 'password',
     client_id:  'csp-web'
   });
-  const res = await fetch(`${ELINTER_BASE}/login`, {
+  const res = await fetch(`${ELINTER_BASE}/oauth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: params.toString()
