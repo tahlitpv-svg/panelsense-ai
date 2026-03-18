@@ -22,8 +22,12 @@ export default function Dashboard() {
   const runBackfill = async () => {
     setBackfillLoading(true);
     setBackfillResult(null);
-    const res = await base44.functions.invoke('backfillSiteSnapshots', { daysBack: 730 });
-    setBackfillResult(res.data);
+    try {
+      const res = await base44.functions.invoke('backfillSungrowSnapshots', { daysBack: 730 });
+      setBackfillResult(res.data);
+    } catch (error) {
+      setBackfillResult({ success: false, error: error.message });
+    }
     setBackfillLoading(false);
   };
 
