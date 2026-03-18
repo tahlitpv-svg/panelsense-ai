@@ -45,7 +45,9 @@ async function loginSigned(clientId) {
     },
     body
   });
-  const data = await res.json();
+  const text = await res.text();
+  let data = null;
+  try { data = JSON.parse(text); } catch { data = { raw_text: text.substring(0, 300) }; }
   const token = data?.data?.access_token || data?.access_token;
   return { token, status: res.status, raw: data };
 }
