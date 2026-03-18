@@ -47,7 +47,7 @@ export default function SiteDetails() {
     }
   });
 
-
+  // Data will be fetched dynamically in SiteProductionChart
 
   if (!site) {
     return (
