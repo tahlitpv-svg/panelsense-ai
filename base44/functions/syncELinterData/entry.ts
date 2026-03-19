@@ -56,13 +56,14 @@ async function login() {
 
 // ── GET with signature ────────────────────────────────────────────────────────
 async function elGet(token, path, params = {}) {
-  const qs       = new URLSearchParams({ lan: 'en', ...params }).toString();
+  const qs       = new URLSearchParams({ ...params, lan: 'en' }).toString();
   const fullPath = `${path}?${qs}`;
   const url      = `${API_BASE}${fullPath}`;
   const res      = await fetch(url, { method: 'GET', headers: makeHeaders('GET', fullPath, token) });
   const text     = await res.text();
-  console.log(`[elinter] GET ${path} → ${res.status} errMsg="${JSON.parse(text||'{}')?.msg || ''}" body=${text.slice(0, 300)}`);
-  try { return JSON.parse(text); } catch { return null; }
+  const parsed   = (() => { try { return JSON.parse(text); } catch { return null; } })();
+  console.log(`[elinter] GET ${path} → ${res.status} msg="${parsed?.msg || ''}" body=${text.slice(0, 400)}`);
+  return parsed;
 }
 
 function pf(v) { return parseFloat(v) || 0; }
