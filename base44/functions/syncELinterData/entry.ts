@@ -10,7 +10,14 @@ const LOGIN_URL  = 'http://openapi.inteless.com/oauth/token';
 const API_BASE   = 'https://openapi.inteless.com';
 
 // ── Signature ─────────────────────────────────────────────────────────────────
-function sign(method, path, nonce, md5) {
+// Alibaba Cloud API Gateway signature:
+// The "path" in the string-to-sign must include query params, sorted alphabetically.
+// Query params are NOT included in the path segment — they go separately after \n.
+function sign(method, basePath, queryParams, nonce, md5) {
+  // Sort query params alphabetically and append to path
+  const sortedQs = Object.keys(queryParams).sort()
+    .map(k => `${k}:${queryParams[k]}`)
+    .join('\n');
   const text = [
     method.toUpperCase(),
     'application/json',
@@ -19,12 +26,12 @@ function sign(method, path, nonce, md5) {
     '',
     `x-ca-key:${APP_KEY}`,
     `x-ca-nonce:${nonce}`,
-    path
+    basePath + (sortedQs ? `\n${sortedQs}` : '')
   ].join('\n');
   return createHmac('sha256', APP_SECRET).update(text).digest('base64');
 }
 
-function makeHeaders(method, path, token, body = '') {
+function makeHeaders(method, basePath, queryParams, token, body = '') {
   const nonce = crypto.randomUUID();
   const md5   = body ? createHash('md5').update(body).digest('base64') : '';
   const h = {
@@ -33,7 +40,7 @@ function makeHeaders(method, path, token, body = '') {
     'Content-MD5':            md5,
     'X-Ca-Key':               APP_KEY,
     'X-Ca-Nonce':             nonce,
-    'X-Ca-Signature':         sign(method, path, nonce, md5),
+    'X-Ca-Signature':         sign(method, basePath, queryParams || {}, nonce, md5),
     'X-Ca-Signature-Headers': 'x-ca-key,x-ca-nonce',
   };
   if (token) h['Authorization'] = `Bearer ${token}`;
