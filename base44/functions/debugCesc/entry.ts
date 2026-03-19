@@ -160,12 +160,9 @@ Deno.serve(async (req) => {
     }
 
     const results = await Promise.all([
-      apiGet(token, `/v1/plant?page=1&limit=100`, `GET /v1/plant`),
-      apiGet(token, `/v1/plants/list?page=1&limit=100`, `GET /v1/plants/list`),
-      apiGet(token, `/v1/station?page=1&limit=100`, `GET /v1/station`),
-      apiGet(token, `/v1/stations?page=1&limit=100`, `GET /v1/stations`),
-      apiGet(token, `/v1/me/plants?page=1&limit=100`, `GET /v1/me/plants`),
-      apiGet(token, `/v1/plant/info?page=1&limit=100`, `GET /v1/plant/info`),
+      apiPost(token, `/v1/plant`, { page: 1, limit: 100 }, `POST /v1/plant`),
+      apiPost(token, `/v1/plants`, { page: 1, limit: 100, lan: 'en' }, `POST /v1/plants`),
+      apiPost(token, `/v1/plant/list`, { page: 1, limit: 100 }, `POST /v1/plant/list`),
     ]);
 
     return Response.json({
