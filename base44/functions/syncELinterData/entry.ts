@@ -50,7 +50,7 @@ function makeHeaders(method, basePath, queryParams, token, body = '') {
 // ── Login ─────────────────────────────────────────────────────────────────────
 async function login() {
   const body = JSON.stringify({ username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: 'openapi' });
-  const res  = await fetch(LOGIN_URL, { method: 'POST', headers: makeHeaders('POST', '/oauth/token', undefined, body), body });
+  const res  = await fetch(LOGIN_URL, { method: 'POST', headers: makeHeaders('POST', '/oauth/token', {}, undefined, body), body });
   const text = await res.text();
   console.log(`[elinter] login status=${res.status} body=${text.slice(0, 300)}`);
   if (!text || text.startsWith('<')) throw new Error(`Login failed: status=${res.status}`);
