@@ -153,8 +153,8 @@ Deno.serve(async (req) => {
       'simple/openapi':  { status: l4.status, token_ok: !!l4.token, raw: l4.raw },
     };
 
-    // Prefer signed tokens; fallback to simple
-    const token = l1.token || l2.token || l3.token || l4.token;
+    // Prefer csp-web token to avoid "No Permissions"
+    const token = l1.token || l3.token || l2.token || l4.token;
     if (!token) {
       return Response.json({ login: loginReport, error: 'All logins failed' });
     }
