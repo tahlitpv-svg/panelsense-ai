@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
         const existingSites = await db.entities.Site.list();
         
         // Let's do pagination over the plants locally to avoid lambda timeouts
-        const chunkSize = 15;
+        const chunkSize = 5;
         let pidx = 0;
         try {
           const body = await req.json();

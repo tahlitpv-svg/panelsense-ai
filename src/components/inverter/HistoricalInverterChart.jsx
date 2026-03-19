@@ -15,19 +15,24 @@ const STRING_COLORS = [
   "#0ea5e9", "#d97706", "#22c55e", "#6366f1"
 ];
 
-// Derive how many PV strings exist from the first data point
-function detectStrings(firstPoint) {
-  if (!firstPoint) return [];
-  const strings = [];
-  for (let i = 1; i <= 32; i++) {
-    const hasSolis = Object.prototype.hasOwnProperty.call(firstPoint, `uPv${i}`) || Object.prototype.hasOwnProperty.call(firstPoint, `u_pv${i}`);
-    const hasCesc = Object.prototype.hasOwnProperty.call(firstPoint, `pv${i}_u`);
-    const hasSungrow = Object.prototype.hasOwnProperty.call(firstPoint, String(13028 + 2 * (i - 1)));
-    
-    if (!hasSolis && !hasCesc && !hasSungrow) break;
-    strings.push(i);
+// Derive how many PV strings exist from all data points
+function detectStrings(data) {
+  if (!data || data.length === 0) return [];
+  const stringSet = new Set();
+  
+  for (const point of data) {
+    for (let i = 1; i <= 32; i++) {
+      if (stringSet.has(i)) continue;
+      const hasSolis = point[`uPv${i}`] !== undefined || point[`u_pv${i}`] !== undefined;
+      const hasCesc = point[`pv${i}_u`] !== undefined;
+      const hasSungrow = point[String(13028 + 2 * (i - 1))] !== undefined;
+      
+      if (hasSolis || hasCesc || hasSungrow) {
+        stringSet.add(i);
+      }
+    }
   }
-  return strings;
+  return Array.from(stringSet).sort((a, b) => a - b);
 }
 
 // Map raw data point → chart row
@@ -91,12 +96,15 @@ export default function HistoricalInverterChart({ inverterId, inverterSn, invert
     refetchInterval: 5 * 60 * 1000
   });
 
-  // Detect strings from first data point
+  // Detect strings from all data points
   const stringNums = useMemo(() => {
     if (!rawData || rawData.length === 0) return [];
-    const nums = detectStrings(rawData[0]);
+    const nums = detectStrings(rawData);
     // Filter: only include strings that have non-zero voltage at some point
-    return nums.filter(i => rawData.some(p => (parseFloat(p[`uPv${i}`]) || 0) > 0));
+    return nums.filter(i => rawData.some(p => {
+      const v = p[`uPv${i}`] ?? p[`u_pv${i}`] ?? p[`pv${i}_u`] ?? p[String(13028 + 2 * (i - 1))];
+      return (parseFloat(v) || 0) > 0;
+    }));
   }, [rawData]);
 
   // Limit visible strings to first 8 by default (toggle to show more)
@@ -126,7 +134,7 @@ export default function HistoricalInverterChart({ inverterId, inverterSn, invert
 
   // Build chart data
   const chartData = useMemo(() => {
-    if (!rawData || rawData.length === 0 || visibleStrings.length === 0) return [];
+    if (!rawData || rawData.length === 0) return [];
     const pacPec = parseFloat(rawData[0]?.pacPec) || 0.001;
     const mapped = rawData
       .map(item => {
