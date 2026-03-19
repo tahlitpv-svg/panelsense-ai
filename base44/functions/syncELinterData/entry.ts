@@ -30,7 +30,7 @@ async function elinterLogin() {
   });
 
   const text = await res.text();
-  console.log(`[elinter] Login status=${res.status} body=${text.substring(0, 400)}`);
+  console.log(`[elinter] Login status=${res.status} body=${text.substring(0, 300)}`);
   const data = JSON.parse(text);
   const token = data?.data?.access_token || data?.access_token;
   if (!token) throw new Error(`Login failed: ${JSON.stringify(data)}`);
@@ -38,11 +38,16 @@ async function elinterLogin() {
   return token;
 }
 
-function buildSignedHeaders(path) {
+function buildSignedHeaders(pathWithQuery) {
   const nonce = crypto.randomUUID();
   const timestamp = Date.now().toString();
   const emptyMd5 = createHash('md5').update('').digest('base64');
-  const textToSign = `GET\napplication/json\n${emptyMd5}\napplication/json\n\nx-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}\n${path}`;
+  // Sort query params for signature
+  const [base, query] = pathWithQuery.split('?');
+  const sortedPath = query
+    ? `${base}?${query.split('&').sort().join('&')}`
+    : pathWithQuery;
+  const textToSign = `GET\napplication/json\n${emptyMd5}\napplication/json\n\nx-ca-key:${APP_KEY}\nx-ca-nonce:${nonce}\nx-ca-timestamp:${timestamp}\n${sortedPath}`;
   const signature = createHmac('sha256', APP_SECRET).update(textToSign).digest('base64');
   return {
     'Accept': 'application/json',
@@ -65,11 +70,11 @@ async function elGet(token, pathWithQuery) {
     clearTimeout(timeout);
     const text = await res.text();
     const errMsg = res.headers.get('x-ca-error-message') || '';
-    console.log(`[elinter] GET ${pathWithQuery} → ${res.status} errMsg="${errMsg}" body=${text.substring(0, 500)}`);
+    console.log(`[elinter] GET ${pathWithQuery} → ${res.status} errMsg="${errMsg}" body=${text.substring(0, 400)}`);
     try { return JSON.parse(text); } catch { return null; }
   } catch (e) {
     clearTimeout(timeout);
-    console.log(`[elinter] GET ${pathWithQuery} → ERROR: ${e.message}`);
+    console.log(`[elinter] GET ${pathWithQuery} → TIMEOUT/ERROR: ${e.message}`);
     return null;
   }
 }
@@ -80,41 +85,31 @@ Deno.serve(async (req) => {
     const db = base44.asServiceRole;
     const token = await elinterLogin();
 
-    // Step 1: Get all plants
-    const plantsRes = await elGet(token, '/v1/plants?page=1&limit=100&lan=en');
-    const plants = plantsRes?.data?.infos || plantsRes?.data || [];
-    console.log(`[elinter] /v1/plants returned ${plants.length} plants. Full response: ${JSON.stringify(plantsRes)}`);
+    // Get all CESC sites from DB (those with cesc_plant_id set)
+    const allSites = await db.entities.Site.list();
+    const cescSites = allSites.filter(s => s.cesc_plant_id);
+    console.log(`[elinter] Found ${cescSites.length} CESC sites in DB`);
 
-    if (!plants.length) {
-      return Response.json({ success: false, message: 'No plants returned', raw: plantsRes });
+    if (!cescSites.length) {
+      return Response.json({ success: false, message: 'No sites with cesc_plant_id found in DB' });
     }
 
     let totalUpdated = 0;
     const errors = [];
 
-    for (const plant of plants) {
-      const plantId = String(plant.id || plant.plantId || '');
-      const plantName = plant.name || '';
-      console.log(`[elinter] Processing plant id=${plantId} name="${plantName}"`);
+    for (const site of cescSites) {
+      const plantId = site.cesc_plant_id;
+      console.log(`[elinter] Processing plant id=${plantId} site="${site.name}"`);
 
-      // Match site
-      let site = null;
-      if (plantId) {
-        const byId = await db.entities.Site.filter({ cesc_plant_id: plantId });
-        if (byId.length > 0) site = byId[0];
-      }
-      if (!site && plantName) {
-        const all = await db.entities.Site.list();
-        site = all.find(s => s.name?.trim() === plantName.trim()) || null;
-        if (site && plantId) {
-          await db.entities.Site.update(site.id, { cesc_plant_id: plantId });
-        }
-      }
-
-      // Step 2: Get inverters for this plant
+      // Get inverters for this plant
       const invRes = await elGet(token, `/v1/inverters?plantId=${plantId}&page=1&limit=50&lan=en`);
       const inverters = invRes?.data?.infos || invRes?.data || [];
       console.log(`[elinter] Plant ${plantId}: ${inverters.length} inverters`);
+
+      if (!inverters.length) continue;
+
+      let sitePower = 0, siteEtoday = 0, siteEtotal = 0;
+      let siteStatus = 'offline';
 
       for (const inv of inverters) {
         try {
@@ -146,7 +141,14 @@ Deno.serve(async (req) => {
           const efficiency   = totalDcPower > 0 ? parseFloat(((acPower / totalDcPower) * 100).toFixed(1)) : 0;
           const devStatus    = inv.status === 1 ? 'online' : inv.status === 2 ? 'warning' : inv.status === 3 ? 'warning' : 'offline';
 
+          sitePower  += acPower / 1000;
+          siteEtoday += etoday;
+          siteEtotal  = Math.max(siteEtotal, etotal);
+          if (devStatus === 'online') siteStatus = 'online';
+          else if (devStatus === 'warning' && siteStatus !== 'online') siteStatus = 'warning';
+
           const invData = {
+            site_id:             site.id,
             name:                inv.alias || sn,
             model:               inv.model || '',
             rated_power_kw:      0,
@@ -161,18 +163,6 @@ Deno.serve(async (req) => {
             cesc_inverter_sn:    sn,
           };
 
-          if (site) {
-            invData.site_id = site.id;
-            await db.entities.Site.update(site.id, {
-              current_power_kw:   acPower / 1000,
-              daily_yield_kwh:    etoday,
-              lifetime_yield_kwh: etotal,
-              status:             devStatus,
-              last_heartbeat:     new Date().toISOString()
-            });
-            totalUpdated++;
-          }
-
           const existing = await db.entities.Inverter.filter({ cesc_inverter_sn: sn });
           if (existing.length > 0) {
             await db.entities.Inverter.update(existing[0].id, invData);
@@ -186,9 +176,20 @@ Deno.serve(async (req) => {
           errors.push({ sn: inv.sn, error: e.message });
         }
       }
+
+      // Update site totals
+      await db.entities.Site.update(site.id, {
+        current_power_kw:   sitePower,
+        daily_yield_kwh:    siteEtoday,
+        lifetime_yield_kwh: siteEtotal,
+        status:             siteStatus,
+        last_heartbeat:     new Date().toISOString()
+      });
+      totalUpdated++;
+      console.log(`[elinter] Site "${site.name}": power=${sitePower.toFixed(2)}kW daily=${siteEtoday}kWh`);
     }
 
-    return Response.json({ success: true, plants_found: plants.length, sites_updated: totalUpdated, errors, synced_at: new Date().toISOString() });
+    return Response.json({ success: true, sites_synced: cescSites.length, sites_updated: totalUpdated, errors, synced_at: new Date().toISOString() });
 
   } catch (error) {
     console.error('[elinter] Fatal:', error.message);
