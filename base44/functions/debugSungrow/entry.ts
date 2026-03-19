@@ -41,12 +41,12 @@ Deno.serve(async (req) => {
     const psId = listRes.result_data.pageList[0].ps_id;
     
     const devList = await sgPost(base_url, '/openapi/getDeviceList', conn.config, token, user_id, { ps_id: psId, curPage: 1, size: 10 });
-    const dev = devList.result_data.pageList.find(d => d.dev_type === 1);
+    const dev = devList.result_data.pageList.find(d => d.device_type === 1);
     
     if (!dev) return Response.json({ error: 'No inverter found', devList });
     
     const psKey = dev.ps_key;
-    const sn = dev.dev_sn;
+    const sn = dev.device_sn;
     
     // Test 1: device_type as string "1"
     const r1 = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
