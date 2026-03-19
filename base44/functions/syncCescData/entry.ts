@@ -197,12 +197,12 @@ Deno.serve(async (req) => {
                    invId = newInv.id;
                  }
                  
-                 if (invId && Object.keys(detail).length > 0) {
+                 if (invId) {
                    const now = new Date();
                    const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(now);
                    const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now).slice(0, 5);
                    const snaps = await db.entities.InverterGraphSnapshot.filter({ inverter_id: invId, date_key: todayKey });
-                   const pt = { time: timeLabel, ...detail };
+                   const pt = { time: timeLabel, pac: invData.current_ac_power_kw * 1000, ...detail };
                    if (snaps.length > 0) {
                      const data = (snaps[0].data || []).filter(p => p.time !== timeLabel);
                      data.push(pt);

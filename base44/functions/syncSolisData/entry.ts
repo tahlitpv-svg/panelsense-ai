@@ -5,7 +5,7 @@ const SOLIS_KEY_ID = Deno.env.get("SOLIS_API_KEY_ID");
 const SOLIS_KEY_SECRET = Deno.env.get("SOLIS_API_KEY_SECRET");
 const SOLIS_BASE_URL = (Deno.env.get("SOLIS_API_URL") || "https://www.soliscloud.com:13333").replace(/\/$/, '');
 
-const PAGE_SIZE = 4;
+const PAGE_SIZE = 10;
 
 function getGMTDate() {
   return new Date().toUTCString().replace('UTC', 'GMT');
@@ -254,34 +254,25 @@ Deno.serve(async (req) => {
           invId = newInv.id;
         }
         
-        if (invId && detail) {
+        if (invId) {
           try {
              const snaps = await db.entities.InverterGraphSnapshot.filter({ inverter_id: invId, date_key: dateKey });
-             const pt = { time: timeLabel };
-             // Only extract relevant keys to save memory/storage
-             ['pac', 'pacPec', 'inverterTemperature', 'eToday', 'model'].forEach(k => {
-               if (detail[k] !== undefined) pt[k] = detail[k];
-             });
-             for (let i = 1; i <= 32; i++) {
-               if (detail[`uPv${i}`] !== undefined) pt[`uPv${i}`] = detail[`uPv${i}`];
-               if (detail[`iPv${i}`] !== undefined) pt[`iPv${i}`] = detail[`iPv${i}`];
-               if (detail[`u_pv${i}`] !== undefined) pt[`u_pv${i}`] = detail[`u_pv${i}`];
-               if (detail[`i_pv${i}`] !== undefined) pt[`i_pv${i}`] = detail[`i_pv${i}`];
+             const pt = { time: timeLabel, pac: invData.current_ac_power_kw };
+             if (detail) {
+               // Only extract relevant keys to save memory/storage
+               ['pac', 'pacPec', 'inverterTemperature', 'eToday', 'model'].forEach(k => {
+                 if (detail[k] !== undefined) pt[k] = detail[k];
+               });
+               for (let i = 1; i <= 32; i++) {
+                 if (detail[`uPv${i}`] !== undefined) pt[`uPv${i}`] = detail[`uPv${i}`];
+                 if (detail[`iPv${i}`] !== undefined) pt[`iPv${i}`] = detail[`iPv${i}`];
+                 if (detail[`u_pv${i}`] !== undefined) pt[`u_pv${i}`] = detail[`u_pv${i}`];
+                 if (detail[`i_pv${i}`] !== undefined) pt[`i_pv${i}`] = detail[`i_pv${i}`];
+               }
              }
 
              if (snaps.length > 0) {
-               const data = (snaps[0].data || []).filter(p => p.time !== timeLabel).map(oldPt => {
-                 // Compress old data points
-                 const newPt = { time: oldPt.time };
-                 ['pac', 'pacPec', 'inverterTemperature', 'eToday', 'model'].forEach(k => { if (oldPt[k] !== undefined) newPt[k] = oldPt[k]; });
-                 for (let i = 1; i <= 32; i++) {
-                   if (oldPt[`uPv${i}`] !== undefined) newPt[`uPv${i}`] = oldPt[`uPv${i}`];
-                   if (oldPt[`iPv${i}`] !== undefined) newPt[`iPv${i}`] = oldPt[`iPv${i}`];
-                   if (oldPt[`u_pv${i}`] !== undefined) newPt[`u_pv${i}`] = oldPt[`u_pv${i}`];
-                   if (oldPt[`i_pv${i}`] !== undefined) newPt[`i_pv${i}`] = oldPt[`i_pv${i}`];
-                 }
-                 return newPt;
-               });
+               const data = (snaps[0].data || []).filter(p => p.time !== timeLabel);
                data.push(pt);
                data.sort((a, b) => a.time.localeCompare(b.time));
                await db.entities.InverterGraphSnapshot.update(snaps[0].id, { data });

@@ -57,35 +57,20 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const db = base44.asServiceRole;
 
-    let body = {};
-    try { body = await req.json(); } catch (_) {}
-    const curConnIndex = body.connIndex || 0;
-    const curPage = body.pageNo || 1;
-
     const connections = await db.entities.ApiConnection.filter({ provider: 'sungrow' });
     if (!connections.length) return Response.json({ success: true, message: 'No Sungrow connections', synced: 0 });
 
-    if (curConnIndex >= connections.length) {
-      return Response.json({ success: true, finished: true });
-    }
-
     let totalUpdated = 0;
     const errors = [];
-    const PAGE_SIZE = 1;
 
-    const conn = connections[curConnIndex];
-    let hasMorePages = false;
+    for (const conn of connections) {
+      try {
+        const { token, user_id, base_url } = await sungrowLogin(conn.config);
 
-    try {
-      const { token, user_id, base_url } = await sungrowLogin(conn.config);
-
-      // Station list
-      const listRes = await sgPost(base_url, '/openapi/getPowerStationList', conn.config, token, user_id, { curPage, size: PAGE_SIZE });
-      const stations = listRes?.result_data?.pageList || listRes?.result_data?.list || [];
-      console.log(`[syncSungrow] Page ${curPage} of conn ${curConnIndex}: ${stations.length} stations`);
-      
-      const totalPages = listRes?.result_data?.page?.count || listRes?.result_data?.page?.totalPage || 1;
-      hasMorePages = curPage < totalPages && stations.length > 0;
+        // Station list
+        const listRes = await sgPost(base_url, '/openapi/getPowerStationList', conn.config, token, user_id, { curPage: 1, size: 200 });
+        const stations = listRes?.result_data?.pageList || listRes?.result_data?.list || [];
+        console.log(`[syncSungrow] ${stations.length} stations`);
 
         for (const station of stations) {
           const psId = String(station.ps_id || station.plant_id || station.id || '');
@@ -110,7 +95,7 @@ Deno.serve(async (req) => {
           const status = station.ps_status === 2 || station.ps_status === '2' ? 'offline'
                        : station.ps_status === 3 || station.ps_status === '3' ? 'warning' : 'online';
 
-          const updateData = {
+          const updateData: any = {
             current_power_kw:   currentPower,
             daily_yield_kwh:    dailyYield,
             monthly_yield_kwh:  parseField(station.month_energy),
@@ -169,52 +154,54 @@ Deno.serve(async (req) => {
             });
             console.log(`[syncSungrow] ps_id=${psId}: ${inverters.length} inverters`);
 
-            // BATCH REAL-TIME DATA FETCH
-            const deviceDataMap = {}; // key: ps_key or sn => pointMap
-
-            // Group by 20
-            for (let i = 0; i < inverters.length; i += 20) {
-              const batch = inverters.slice(i, i + 20);
-              const batchPsKeys = batch.map(d => d.ps_key).filter(k => k);
-              const batchSns = batch.filter(d => !d.ps_key).map(d => d.dev_sn || d.sn || d.device_sn).filter(s => s);
-
-              if (batchPsKeys.length > 0) {
-                const r = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
-                  ps_key_list: batchPsKeys, device_type: "1", point_id_list: POINT_IDS.map(String)
-                });
-                if (r?.result_code === '1' && Array.isArray(r.result_data?.device_point_list)) {
-                  r.result_data.device_point_list.forEach(item => {
-                    const points = {};
-                    (item.point_list || []).forEach(p => points[String(p.point_id)] = p.point_value);
-                    if (item.ps_key) deviceDataMap[item.ps_key] = points;
-                  });
-                }
-              }
-
-              if (batchSns.length > 0) {
-                const r = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
-                  sn_list: batchSns, device_type: "1", point_id_list: POINT_IDS.map(String)
-                });
-                if (r?.result_code === '1' && Array.isArray(r.result_data?.device_point_list)) {
-                   r.result_data.device_point_list.forEach(item => {
-                    const points = {};
-                    (item.point_list || []).forEach(p => points[String(p.point_id)] = p.point_value);
-                    if (item.sn) deviceDataMap[item.sn] = points;
-                    if (item.device_sn) deviceDataMap[item.device_sn] = points;
-                  });
-                }
-              }
-            }
-
             for (const dev of inverters) {
               const devSn = String(dev.dev_sn || dev.sn || dev.device_sn || '');
               const devId = String(dev.dev_id || dev.device_id || dev.id || '');
               const psKey = String(dev.ps_key || '');
               if (!devSn && !devId) continue;
 
-              // Get points from map
-              const pointMap = deviceDataMap[psKey] || deviceDataMap[devSn] || {};
-              // console.log(`[syncSungrow] ${devSn}: ${Object.keys(pointMap).length} points`);
+              // Real-time data
+              let pointMap = {};
+
+              // Try getDeviceRealTimeData with ps_key first
+              if (psKey) {
+                const r = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
+                  ps_key_list: [psKey], device_type: "1", point_id_list: POINT_IDS.map(String)
+                });
+                console.log(`[syncSungrow] getDeviceRealTimeData ps_key=${psKey} code=${r?.result_code}`);
+                if (r?.result_code === '1') {
+                  const rd = r.result_data?.device_point_list;
+                  if (Array.isArray(rd)) {
+                    rd.forEach(deviceInfo => {
+                      const points = deviceInfo.point_list || [];
+                      points.forEach(p => {
+                        if (p.point_id !== undefined) pointMap[String(p.point_id)] = p.point_value;
+                      });
+                    });
+                  }
+                }
+              }
+
+              // Fallback: getDeviceRealTimeData with sn_list
+              if (Object.keys(pointMap).length === 0 && devSn) {
+                const r = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
+                  sn_list: [devSn], device_type: "1", point_id_list: POINT_IDS.map(String)
+                });
+                console.log(`[syncSungrow] fallback getDeviceRealTimeData sn=${devSn} code=${r?.result_code}`);
+                if (r?.result_code === '1') {
+                  const rd = r.result_data?.device_point_list;
+                  if (Array.isArray(rd)) {
+                    rd.forEach(deviceInfo => {
+                      const points = deviceInfo.point_list || [];
+                      points.forEach(p => {
+                        if (p.point_id !== undefined) pointMap[String(p.point_id)] = p.point_value;
+                      });
+                    });
+                  }
+                }
+              }
+
+              console.log(`[syncSungrow] ${devSn}: ${Object.keys(pointMap).length} points`);
 
               const gp = (id) => { const v = pointMap[String(id)]; return v !== undefined ? (parseFloat(v) || 0) : 0; };
 
@@ -270,33 +257,15 @@ Deno.serve(async (req) => {
                 invId = newInv.id;
               }
               
-              if (invId && Object.keys(pointMap).length > 0) {
+              if (invId) {
                 try {
                    const now = new Date();
                    const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(now);
                    const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now).slice(0, 5);
                    const snaps = await db.entities.InverterGraphSnapshot.filter({ inverter_id: invId, date_key: todayKey });
-                   const pt = { time: timeLabel };
-                   ['13003', '13119', '13150', '13009', '13010', '13011'].forEach(k => { if (pointMap[k] !== undefined) pt[k] = pointMap[k]; });
-                   for (let i = 1; i <= 32; i++) {
-                     let vk = String(13028 + 2 * (i - 1));
-                     let ak = String(13029 + 2 * (i - 1));
-                     if (pointMap[vk] !== undefined) pt[vk] = pointMap[vk];
-                     if (pointMap[ak] !== undefined) pt[ak] = pointMap[ak];
-                   }
-
+                   const pt = { time: timeLabel, '13003': acPower, ...pointMap };
                    if (snaps.length > 0) {
-                     const data = (snaps[0].data || []).filter(p => p.time !== timeLabel).map(oldPt => {
-                       const newPt = { time: oldPt.time };
-                       ['13003', '13119', '13150', '13009', '13010', '13011'].forEach(k => { if (oldPt[k] !== undefined) newPt[k] = oldPt[k]; });
-                       for (let i = 1; i <= 32; i++) {
-                         let vk = String(13028 + 2 * (i - 1));
-                         let ak = String(13029 + 2 * (i - 1));
-                         if (oldPt[vk] !== undefined) newPt[vk] = oldPt[vk];
-                         if (oldPt[ak] !== undefined) newPt[ak] = oldPt[ak];
-                       }
-                       return newPt;
-                     });
+                     const data = (snaps[0].data || []).filter(p => p.time !== timeLabel);
                      data.push(pt);
                      data.sort((a, b) => a.time.localeCompare(b.time));
                      await db.entities.InverterGraphSnapshot.update(snaps[0].id, { data });
@@ -310,7 +279,7 @@ Deno.serve(async (req) => {
                 } catch (e) { console.log(`[syncSungrow] Inverter snapshot error: ${e.message}`); }
               }
               
-              // console.log(`[syncSungrow] Inverter ${devSn}: AC=${acPower}kW strings=${mpptStrings.length}`);
+              console.log(`[syncSungrow] Inverter ${devSn}: AC=${acPower}kW strings=${mpptStrings.length}`);
             }
           } catch (e) { console.log(`[syncSungrow] Inverter error ps_id=${psId}: ${e.message}`); }
         }
@@ -322,22 +291,9 @@ Deno.serve(async (req) => {
         errors.push({ connection_id: conn.id, error: e.message });
         await db.entities.ApiConnection.update(conn.id, { status: 'error', error_message: e.message }).catch(() => {});
       }
-      
-    if (hasMorePages) {
-      base44.asServiceRole.functions.invoke('syncSungrowData', { connIndex: curConnIndex, pageNo: curPage + 1 }).catch(() => {});
-    } else if (curConnIndex + 1 < connections.length) {
-      base44.asServiceRole.functions.invoke('syncSungrowData', { connIndex: curConnIndex + 1, pageNo: 1 }).catch(() => {});
     }
 
-    return Response.json({ 
-      success: true, 
-      connIndex: curConnIndex,
-      pageNo: curPage,
-      hasMorePages,
-      sites_updated: totalUpdated, 
-      errors, 
-      synced_at: new Date().toISOString() 
-    });
+    return Response.json({ success: true, connections_synced: connections.length, sites_updated: totalUpdated, errors, synced_at: new Date().toISOString() });
 
   } catch (error) {
     console.error('[syncSungrow] Fatal:', error.message);
