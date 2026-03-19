@@ -270,7 +270,18 @@ Deno.serve(async (req) => {
              }
 
              if (snaps.length > 0) {
-               const data = (snaps[0].data || []).filter(p => p.time !== timeLabel);
+               const data = (snaps[0].data || []).filter(p => p.time !== timeLabel).map(oldPt => {
+                 // Compress old data points
+                 const newPt = { time: oldPt.time };
+                 ['pac', 'pacPec', 'inverterTemperature', 'eToday', 'model'].forEach(k => { if (oldPt[k] !== undefined) newPt[k] = oldPt[k]; });
+                 for (let i = 1; i <= 32; i++) {
+                   if (oldPt[`uPv${i}`] !== undefined) newPt[`uPv${i}`] = oldPt[`uPv${i}`];
+                   if (oldPt[`iPv${i}`] !== undefined) newPt[`iPv${i}`] = oldPt[`iPv${i}`];
+                   if (oldPt[`u_pv${i}`] !== undefined) newPt[`u_pv${i}`] = oldPt[`u_pv${i}`];
+                   if (oldPt[`i_pv${i}`] !== undefined) newPt[`i_pv${i}`] = oldPt[`i_pv${i}`];
+                 }
+                 return newPt;
+               });
                data.push(pt);
                data.sort((a, b) => a.time.localeCompare(b.time));
                await db.entities.InverterGraphSnapshot.update(snaps[0].id, { data });
