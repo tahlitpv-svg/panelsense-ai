@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     });
 
     const r2 = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
-      ps_key_list: [psKey], device_type: "1", point_id_list: ["p13003", "13003", "power", "pac"]
+      ps_key_list: [psKey], device_type: 1, point_id_list: [13003, 13009, 13028]
     });
 
     const r3 = await sgPost(base_url, '/openapi/getDevicePointDataList', conn.config, token, user_id, {
