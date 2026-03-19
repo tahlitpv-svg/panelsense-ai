@@ -134,11 +134,9 @@ Deno.serve(async (req) => {
           // /realtime/input is 403 (no permission) — skip
           const mpptStrings = [];
 
-          const totalDcPower = mpptStrings.reduce((s, p) => s + p.power_kw, 0);
-          const efficiency   = totalDcPower > 0 ? parseFloat(((acPower / totalDcPower) * 100).toFixed(1)) : 0;
           const devStatus    = inv.status === 1 ? 'online' : inv.status === 2 ? 'warning' : inv.status === 3 ? 'warning' : 'offline';
 
-          sitePower  += acPower / 1000;
+          sitePower  += acPower;
           siteEtoday += etoday;
           siteEtotal  = Math.max(siteEtotal, etotal);
           if (devStatus === 'online') siteStatus = 'online';
