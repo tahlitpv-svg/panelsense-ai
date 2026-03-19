@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
 
     let totalUpdated = 0;
     const errors = [];
-    const PAGE_SIZE = 5;
+    const PAGE_SIZE = 1;
 
     const conn = connections[curConnIndex];
     let hasMorePages = false;
