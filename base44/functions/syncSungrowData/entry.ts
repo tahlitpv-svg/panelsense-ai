@@ -42,6 +42,17 @@ function parseField(field) {
   return parseFloat(field) || 0;
 }
 
+// Sungrow realtime APIs may return point values as either primitives or objects.
+// Normalize everything into a number so downstream MPPT graph logic works.
+function parsePointValue(v) {
+  if (v === null || v === undefined) return 0;
+  if (typeof v === 'object') {
+    if ('value' in v) return parseFloat(String((v as any).value)) || 0;
+    if ('point_value' in v) return parseFloat(String((v as any).point_value)) || 0;
+  }
+  return parseFloat(String(v)) || 0;
+}
+
 const POINT_IDS = [
   13003, 13119, 13150,
   13009, 13010, 13011,
@@ -175,7 +186,7 @@ Deno.serve(async (req) => {
                     rd.forEach(deviceInfo => {
                       const points = deviceInfo.point_list || [];
                       points.forEach(p => {
-                        if (p.point_id !== undefined) pointMap[String(p.point_id)] = p.point_value;
+                        if (p.point_id !== undefined) pointMap[String(p.point_id)] = parsePointValue(p.point_value);
                       });
                     });
                   }
@@ -194,7 +205,7 @@ Deno.serve(async (req) => {
                     rd.forEach(deviceInfo => {
                       const points = deviceInfo.point_list || [];
                       points.forEach(p => {
-                        if (p.point_id !== undefined) pointMap[String(p.point_id)] = p.point_value;
+                        if (p.point_id !== undefined) pointMap[String(p.point_id)] = parsePointValue(p.point_value);
                       });
                     });
                   }
@@ -203,7 +214,10 @@ Deno.serve(async (req) => {
 
               console.log(`[syncSungrow] ${devSn}: ${Object.keys(pointMap).length} points`);
 
-              const gp = (id) => { const v = pointMap[String(id)]; return v !== undefined ? (parseFloat(v) || 0) : 0; };
+              const gp = (id) => {
+                const v = pointMap[String(id)];
+                return v !== undefined ? Number(v) : 0;
+              };
 
               const existing = await db.entities.Inverter.filter({ sungrow_device_sn: devSn });
               const existingInv = existing[0];

@@ -114,11 +114,12 @@ function calculatePortEnergyKwh(dayData = []) {
     const intervalHours = next ? Math.max((next.minutes - row.minutes) / 60, 1 / 12) : 1 / 6;
 
     Object.keys(row).forEach((key) => {
-      const voltageMatch = key.match(/^uPv(\d+)$/i);
+      // Support Solis inverterDay keys in both camelCase and snake_case forms.
+      const voltageMatch = key.match(/^uPv(\d+)$/i) || key.match(/^u_pv(\d+)$/i);
       if (!voltageMatch) return;
       const portNum = voltageMatch[1];
       const voltage = Number(row[key] || 0);
-      const current = Number(row[`iPv${portNum}`] || 0);
+      const current = Number(row[`iPv${portNum}`] ?? row[`i_pv${portNum}`] ?? 0);
       const powerKw = (voltage * current) / 1000;
       const portKey = `PV${portNum}`;
       energyByPort[portKey] = (energyByPort[portKey] || 0) + (powerKw * intervalHours);

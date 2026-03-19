@@ -464,7 +464,20 @@ _אם התקלה לא תטופל._
           // Email to site owner
           if (ft.notify_email && site.contact_email) {
             try {
-              const emailBody = `התראת תקלה - ${severityText}\n\nאתר: ${site.name}\nלקוח: ${site.contact_name || '---'}\nסוג תקלה: ${ft.name}\nפירוט: ${message}${ft.solution ? '\nפתרון מוצע: ' + ft.solution : ''}\nזמן זיהוי: ${timeStr}\n\nנא לטפל בתקלה בהקדם.\n\nPanel Sense AI - ניטור חכם למערכות סולאריות`;
+              const defaultEmailBody =
+                `התראת תקלה - ${severityText}\n\nאתר: ${site.name}\nלקוח: ${site.contact_name || '---'}\nסוג תקלה: ${ft.name}\nפירוט: ${message}${ft.solution ? '\nפתרון מוצע: ' + ft.solution : ''}\nזמן זיהוי: ${timeStr}\n\nנא לטפל בתקלה בהקדם.\n\nPanel Sense AI - ניטור חכם למערכות סולאריות`;
+
+              const emailTemplate = (ft.email_template || '').trim();
+              const emailBody = emailTemplate
+                ? emailTemplate
+                    .replace(/{site_name}/g, site.name)
+                    .replace(/{fault_type}/g, ft.name)
+                    .replace(/{timestamp}/g, timeStr)
+                    .replace(/{message}/g, message)
+                    .replace(/{solution}/g, ft.solution || '')
+                    .replace(/{severity}/g, severityText)
+                : defaultEmailBody;
+
               await db.integrations.Core.SendEmail({
                 to: site.contact_email,
                 subject: `${severityIcon} התראת תקלה: ${ft.name} - ${site.name}`,
@@ -788,7 +801,20 @@ ${JSON.stringify(faultTypeSummaries, null, 2)}
           await db.integrations.Core.SendEmail({
             to: site.contact_email,
             subject: `${severityIcon} התראת תקלה: ${matchedFt.name} - ${site.name}`,
-            body: `התראת תקלה - ${severityText}\n\nאתר: ${site.name}\nלקוח: ${site.contact_name || '---'}\nסוג תקלה: ${matchedFt.name}\nפירוט: ${message}${matchedFt.solution ? '\nפתרון מוצע: ' + matchedFt.solution : ''}\nזמן זיהוי: ${timeStr}\n\nPanel Sense AI`
+            body: (() => {
+              const defaultEmailBody =
+                `התראת תקלה - ${severityText}\n\nאתר: ${site.name}\nלקוח: ${site.contact_name || '---'}\nסוג תקלה: ${matchedFt.name}\nפירוט: ${message}${matchedFt.solution ? '\nפתרון מוצע: ' + matchedFt.solution : ''}\nזמן זיהוי: ${timeStr}\n\nPanel Sense AI`;
+              const emailTemplate = (matchedFt.email_template || '').trim();
+              return emailTemplate
+                ? emailTemplate
+                    .replace(/{site_name}/g, site.name)
+                    .replace(/{fault_type}/g, matchedFt.name)
+                    .replace(/{timestamp}/g, timeStr)
+                    .replace(/{message}/g, message)
+                    .replace(/{solution}/g, matchedFt.solution || '')
+                    .replace(/{severity}/g, severityText)
+                : defaultEmailBody;
+            })()
           });
           log.push(`[SOLIS_STATUS] Email sent to ${site.contact_email} for: ${site.name}`);
         } catch (e) {
@@ -906,7 +932,20 @@ _נא לטפל בדחיפות._
       // Also send reminder email
       if (ft.notify_email && alertSite.contact_email) {
         try {
-          const emailBody = `תזכורת לתיקון\n\nאתר: ${alertSite.name}\nלקוח: ${alertSite.contact_name || '---'}\nסוג תקלה: ${alert.fault_type_name}\nפירוט: ${alert.message}\nזמן זיהוי: ${createdStr}\nזמן פתוח: ${hoursOpen} שעות\n\nהתקלה עדיין לא טופלה - נא לטפל בדחיפות.\n\nPanel Sense AI - ניטור חכם למערכות סולאריות`;
+          const defaultEmailBody =
+            `תזכורת לתיקון\n\nאתר: ${alertSite.name}\nלקוח: ${alertSite.contact_name || '---'}\nסוג תקלה: ${alert.fault_type_name}\nפירוט: ${alert.message}\nזמן זיהוי: ${createdStr}\nזמן פתוח: ${hoursOpen} שעות\n\nהתקלה עדיין לא טופלה - נא לטפל בדחיפות.\n\nPanel Sense AI - ניטור חכם למערכות סולאריות`;
+
+          const emailTemplate = (ft.email_template || '').trim();
+          const emailBody = emailTemplate
+            ? emailTemplate
+                .replace(/{site_name}/g, alertSite.name)
+                .replace(/{fault_type}/g, alert.fault_type_name)
+                .replace(/{timestamp}/g, createdStr)
+                .replace(/{message}/g, alert.message)
+                .replace(/{solution}/g, ft.solution || '')
+                .replace(/{severity}/g, severityText)
+            : defaultEmailBody;
+
           await db.integrations.Core.SendEmail({
             to: alertSite.contact_email,
             subject: `🔔 תזכורת לתיקון: ${alert.fault_type_name} - ${alertSite.name} (${hoursOpen} שעות)`,
@@ -919,7 +958,8 @@ _נא לטפל בדחיפות._
       }
     }
 
-    return Response.json({ success: true, checked: activeFaultTypes.length, sites: sites.length, triggered, reminders: remindersSent, log });
+    // Keep the response small; the UI doesn't need internal logs.
+    return Response.json({ success: true, checked: activeFaultTypes.length, sites: sites.length, triggered, reminders: remindersSent });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

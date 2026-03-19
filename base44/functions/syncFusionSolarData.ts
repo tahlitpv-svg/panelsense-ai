@@ -161,6 +161,11 @@ Deno.serve(async (req) => {
         console.log(`[fusion] Station ${stationCode}: ${devices.length} devices, ${inverters.length} inverters`);
 
         if (inverters.length > 0) {
+          // Snapshots for inverter graphs (temperature/strings) are built from periodic sync runs.
+          const now = new Date();
+          const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(now);
+          const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now).slice(0, 5);
+
           // 7. Get real-time KPI for all inverters at once
           const devSnList = inverters.map((d: any) => d.devDn || d.sn || '').filter(Boolean).join(',');
           const devIds    = inverters.map((d: any) => d.id || d.devId || '').filter(Boolean).join(',');
@@ -233,11 +238,45 @@ Deno.serve(async (req) => {
               };
 
               const existing = await db.entities.Inverter.filter({ fusionsolar_dev_id: devId });
+              let invId = existing[0]?.id;
               if (existing.length > 0) {
                 await db.entities.Inverter.update(existing[0].id, invData);
               } else {
-                await db.entities.Inverter.create(invData);
+                const created = await db.entities.Inverter.create(invData);
+                invId = created?.id;
               }
+
+              // Inverter graph snapshot (1 point per sync run)
+              if (invId) {
+                const pt: any = {
+                  time: timeLabel,
+                  // HistoricalInverterChart expects `pac` for non-Sungrow vendors
+                  pac: acPower * 1000, // kW -> W
+                  // TemperatureChart accepts `temperature`
+                  temperature: temp,
+                };
+
+                // Provide string voltage/current keys in the same format as MPPTTable + HistoricalInverterChart expect.
+                for (let i = 1; i <= 8; i++) {
+                  pt[`pv${i}_u`] = pf(dataMap[`pv${i}_u`] || 0);
+                  pt[`pv${i}_i`] = pf(dataMap[`pv${i}_i`] || 0);
+                }
+
+                const snaps = await db.entities.InverterGraphSnapshot.filter({ inverter_id: invId, date_key: todayKey });
+                if (snaps.length > 0) {
+                  const data = (snaps[0].data || []).filter((p: any) => p.time !== timeLabel);
+                  data.push(pt);
+                  data.sort((a: any, b: any) => a.time.localeCompare(b.time));
+                  await db.entities.InverterGraphSnapshot.update(snaps[0].id, { data });
+                } else {
+                  await db.entities.InverterGraphSnapshot.create({
+                    inverter_id: invId,
+                    date_key: todayKey,
+                    data: [pt],
+                  });
+                }
+              }
+
               console.log(`[fusion] Inverter "${devName}": AC=${acPower}kW strings=${mpptStrings.length} temp=${temp}°C`);
 
             } catch (e: any) {

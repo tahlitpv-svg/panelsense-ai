@@ -40,7 +40,6 @@ Deno.serve(async (req) => {
     });
 
     const tokenData = await tokenResponse.json();
-    console.log('[sungrowOAuthCallback] token response:', JSON.stringify(tokenData).slice(0, 300));
 
     const accessToken  = tokenData.result_data?.access_token;
     const refreshToken = tokenData.result_data?.refresh_token;
@@ -49,7 +48,8 @@ Deno.serve(async (req) => {
 
     if (!accessToken) {
       return Response.json(
-        { error: tokenData.result_msg || tokenData.result_message || 'Token exchange failed', raw: tokenData },
+        // Avoid returning sensitive token payload back to the client.
+        { error: tokenData.result_msg || tokenData.result_message || 'Token exchange failed' },
         { status: 400 }
       );
     }
