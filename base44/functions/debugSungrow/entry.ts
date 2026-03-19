@@ -53,20 +53,14 @@ Deno.serve(async (req) => {
        ps_key_list: [psKey], device_type: "1", point_id_list: ["13003", "13009", "13028"]
     });
     
-    // Test 6: sn_list
-    const r6 = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
-       sn_list: [sn], device_type: "1", point_id_list: ["13003", "13009", "13028"]
-    });
-
-    // Test 7: omitted point_id_list
-    const r7 = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
-       sn_list: [sn], device_type: "1"
+    const bigList = Array.from({length: 50}, (_, i) => String(13000 + i));
+    const r8 = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
+       sn_list: [sn], device_type: "1", point_id_list: bigList
     });
     
     return Response.json({
        dev,
-       r6_sn_list: r6,
-       r7_empty_points: r7
+       r8_big: r8
     });
     
   } catch (e) {
