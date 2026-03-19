@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
           } else {
             await db.entities.Inverter.create(invData);
           }
-          console.log(`[elinter] Inverter ${sn}: AC=${acPower}W strings=${mpptStrings.length}`);
+          console.log(`[elinter] Inverter ${sn}: AC=${acPower.toFixed(2)}kW etoday=${etoday}kWh`);
 
         } catch (e) {
           console.log(`[elinter] Error for inverter ${inv.sn}: ${e.message}`);
