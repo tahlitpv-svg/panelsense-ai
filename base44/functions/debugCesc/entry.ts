@@ -160,11 +160,14 @@ Deno.serve(async (req) => {
     }
 
     const pid = "192279"; // רונן לנגליב סככה
-    const invList = await apiGet(token, `/v1/inverters?page=1&limit=2&plantId=${pid}`, `GET inverters`);
-    const results = [
-      { label: "Keys of inverter", body: Object.keys(invList.body?.data?.infos?.[0] || {}) },
-      { label: "Inverter details", body: invList.body?.data?.infos?.[0] }
-    ];
+    const invId = "672836";
+    const results = await Promise.all([
+      apiGet(token, `/v1/inverters/${invId}`, `GET inverter info`),
+      apiGet(token, `/v1/inverters/${invId}/data`, `GET inverter data`),
+      apiGet(token, `/v1/inverters/${invId}/realtime`, `GET inverter realtime`),
+      apiGet(token, `/v1/devices/${invId}`, `GET device info`),
+      apiGet(token, `/v1/plants/${pid}/realtime`, `GET plant realtime`)
+    ]);
 
     return Response.json({
       login_summary: {
