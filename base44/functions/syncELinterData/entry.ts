@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
           tokenRefreshCount++;
         }
         const invRes2 = invRes?.data?.infos ? invRes : await elGet(currentToken, '/v1/inverters', { plantId, page: '1', limit: '50' });
-        const invList = invRes?.data?.infos || invRes?.data?.list || [];
+        const invList = invRes2?.data?.infos || invRes2?.data?.list || invRes?.data?.infos || invRes?.data?.list || [];
         console.log(`[elinter] Plant ${plantId}: ${invList.length} inverters`);
 
         let sitePower  = 0;
