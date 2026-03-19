@@ -159,31 +159,14 @@ Deno.serve(async (req) => {
       return Response.json({ login: loginReport, error: 'All logins failed' });
     }
 
-    // Test /v1/plants with longer timeout
-    async function apiGetLong(tok, path, label) {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 20000);
-      try {
-        const { headers: signedHeaders } = buildGetHeaders(path);
-        const res = await fetch(`${BASE_URL}${path}`, {
-          headers: { ...signedHeaders, 'Authorization': `Bearer ${tok}` },
-          signal: controller.signal
-        });
-        clearTimeout(timeout);
-        const text = await res.text();
-        const errMsg = res.headers.get('x-ca-error-message') || null;
-        let json = null;
-        try { json = JSON.parse(text); } catch {}
-        return { label, path, status: res.status, errMsg, body: json || text.substring(0, 600) };
-      } catch(e) {
-        clearTimeout(timeout);
-        return { label, path, error: e.message };
-      }
-    }
-
-    const results = [
-      await apiGetLong(token, `/v1/plants?page=1&limit=100&lan=en`, `GET /v1/plants (20s timeout)`),
-    ];
+    const results = await Promise.all([
+      apiGet(token, `/v1/plant?page=1&limit=100`, `GET /v1/plant`),
+      apiGet(token, `/v1/plants/list?page=1&limit=100`, `GET /v1/plants/list`),
+      apiGet(token, `/v1/station?page=1&limit=100`, `GET /v1/station`),
+      apiGet(token, `/v1/stations?page=1&limit=100`, `GET /v1/stations`),
+      apiGet(token, `/v1/me/plants?page=1&limit=100`, `GET /v1/me/plants`),
+      apiGet(token, `/v1/plant/info?page=1&limit=100`, `GET /v1/plant/info`),
+    ]);
 
     return Response.json({
       login_summary: {
