@@ -160,17 +160,13 @@ Deno.serve(async (req) => {
     }
 
     const pid = "192279"; // רונן לנגליב סככה
-    const invId = "672836";
-    const sn = "81C2531256500027";
-    const results = await Promise.all([
-      apiGet(token, `/v1/device/real-time?sn=${sn}`, `GET device real-time sn`),
-      apiGet(token, `/v1/device/real-time?deviceId=${invId}`, `GET device real-time id`),
-      apiGet(token, `/v1/inverters/${sn}/realtime`, `GET inverters sn realtime`),
-      apiGet(token, `/v1/inverter/realtime?sn=${sn}`, `GET inverter realtime sn`),
-      apiGet(token, `/v1/device/realtime?sn=${sn}`, `GET device realtime sn`),
-      apiGet(token, `/v1/inverters/real-time?sn=${sn}`, `GET inverters real-time sn`),
-      apiGet(token, `/v1/inverter/real-time?id=${invId}`, `GET inverter real-time id`)
-    ]);
+    const invList = await apiGet(token, `/v1/inverters?page=1&limit=2&plantId=${pid}`, `GET inverters`);
+    const inv = invList.body?.data?.infos?.[0] || {};
+    const results = [
+      { label: "sunsynkEquip", status: 200, body: inv.sunsynkEquip },
+      { label: "tipVOList", status: 200, body: inv.tipVOList },
+      { label: "gatewayVO", status: 200, body: inv.gatewayVO },
+    ];
 
     return Response.json({
       login_summary: {
