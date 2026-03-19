@@ -147,9 +147,9 @@ Deno.serve(async (req) => {
             name:                inv.alias || sn,
             model:               inv.model || '',
             rated_power_kw:      0,
-            current_ac_power_kw: acPower / 1000,
-            current_dc_power_kw: totalDcPower,
-            efficiency_percent:  efficiency,
+            current_ac_power_kw: acPower,
+            current_dc_power_kw: acPower, // no input data available
+            efficiency_percent:  0,
             temperature_c:       null,
             status:              devStatus,
             daily_yield_kwh:     etoday,
