@@ -56,12 +56,16 @@ Deno.serve(async (req) => {
       ps_id: psId, device_sn: devSn, point_id_list: POINT_IDS.join(',')
     });
 
-    results.get_array = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
-      ps_key_list: [psKey], device_type: "1", point_id_list: POINT_IDS.map(String)
+    results.get_1 = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
+      ps_key_list: [psKey], device_type: 1, points: POINT_IDS
     });
 
-    results.get_devid = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
-      sn_list: [devSn], device_type: "1", point_id_list: POINT_IDS.map(String)
+    results.get_2 = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
+      sn_list: [devSn], device_type: "1", point_ids: POINT_IDS.map(String)
+    });
+
+    results.get_3 = await sgPost(base_url, '/openapi/getDeviceRealTimeData', conn.config, token, user_id, {
+      ps_key_list: [psKey], device_type: "1" // without specifying points, maybe it returns all?
     });
 
     return Response.json({ results });
