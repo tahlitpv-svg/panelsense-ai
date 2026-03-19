@@ -88,6 +88,8 @@ Deno.serve(async (req) => {
 
     let totalUpdated = 0;
     const errors = [];
+    let currentToken = token;
+    let tokenRefreshCount = 0;
 
     for (const site of sites) {
       const plantId = String(site.cesc_plant_id);
@@ -95,7 +97,14 @@ Deno.serve(async (req) => {
 
       try {
         // 3. Inverters list for this plant
-        const invRes  = await elGet(token, '/v1/inverters', { plantId, page: '1', limit: '50' });
+        const invRes  = await elGet(currentToken, '/v1/inverters', { plantId, page: '1', limit: '50' });
+        // If 403, try refreshing the token once
+        if (!invRes || (invRes?.code !== 0 && invRes?.code !== undefined) || (invRes === null)) {
+          console.log(`[elinter] Token may have expired, refreshing...`);
+          currentToken = await login();
+          tokenRefreshCount++;
+        }
+        const invRes2 = invRes?.data?.infos ? invRes : await elGet(currentToken, '/v1/inverters', { plantId, page: '1', limit: '50' });
         const invList = invRes?.data?.infos || invRes?.data?.list || [];
         console.log(`[elinter] Plant ${plantId}: ${invList.length} inverters`);
 
