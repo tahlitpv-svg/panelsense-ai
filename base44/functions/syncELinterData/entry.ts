@@ -117,25 +117,22 @@ Deno.serve(async (req) => {
           if (!sn) continue;
 
           const rtOut = await elGet(token, `/v1/inverter/${sn}/realtime/output`);
-          const rtIn  = await elGet(token, `/v1/inverter/${sn}/realtime/input`);
 
-          const acPower = parseFloat(rtOut?.data?.pInv ?? inv.pac ?? 0);
-          const etoday  = parseFloat(rtOut?.data?.etoday ?? inv.etoday ?? 0);
-          const etotal  = parseFloat(rtOut?.data?.etotal ?? inv.etotal ?? 0);
+          const acPowerW = parseFloat(rtOut?.data?.pInv ?? rtOut?.data?.pac ?? inv.pac ?? 0);
+          const acPower  = acPowerW / 1000; // convert W → kW
+          const etoday   = parseFloat(rtOut?.data?.etoday ?? inv.etoday ?? 0);
+          const etotal   = parseFloat(rtOut?.data?.etotal ?? inv.etotal ?? 0);
 
+          // vip = [{volt, current, power}, ...] for L1/L2/L3
+          const vip = rtOut?.data?.vip || [];
           const phase_voltages = {
-            l1: parseFloat(rtOut?.data?.vac1 || 0),
-            l2: parseFloat(rtOut?.data?.vac2 || 0),
-            l3: parseFloat(rtOut?.data?.vac3 || 0),
+            l1: parseFloat(vip[0]?.volt || 0),
+            l2: parseFloat(vip[1]?.volt || 0),
+            l3: parseFloat(vip[2]?.volt || 0),
           };
 
-          const pvIV = rtIn?.data?.pvIV || [];
-          const mpptStrings = pvIV.map(pv => ({
-            string_id: `PV${pv.pvNo}`,
-            voltage_v: parseFloat(pv.vpv || 0),
-            current_a: parseFloat(pv.ipv || 0),
-            power_kw:  parseFloat(pv.ppv || 0) / 1000
-          })).filter(s => s.voltage_v > 0 || s.current_a > 0);
+          // /realtime/input is 403 (no permission) — skip
+          const mpptStrings = [];
 
           const totalDcPower = mpptStrings.reduce((s, p) => s + p.power_kw, 0);
           const efficiency   = totalDcPower > 0 ? parseFloat(((acPower / totalDcPower) * 100).toFixed(1)) : 0;
