@@ -54,7 +54,7 @@ export default function FleetProductionChart({ sites, timeframe = 'hourly' }) {
     return raw.map(d => ({ time: d.time, value: d.value }));
   }, [timeframe, snapshot, monthlyData]);
 
-  const unit = timeframe === 'hourly' ? 'MW' : 'MWh';
+  const unit = timeframe === 'hourly' ? 'kW' : 'kWh';
 
   const timeToMinutes = (t) => {
     const [h, m] = (t || '').split(':').map(Number);
