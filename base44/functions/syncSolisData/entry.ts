@@ -5,7 +5,7 @@ const SOLIS_KEY_ID = Deno.env.get("SOLIS_API_KEY_ID");
 const SOLIS_KEY_SECRET = Deno.env.get("SOLIS_API_KEY_SECRET");
 const SOLIS_BASE_URL = (Deno.env.get("SOLIS_API_URL") || "https://www.soliscloud.com:13333").replace(/\/$/, '');
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 4;
 
 function getGMTDate() {
   return new Date().toUTCString().replace('UTC', 'GMT');
