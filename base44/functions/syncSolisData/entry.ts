@@ -29,7 +29,7 @@ async function solisPost(endpoint, body) {
   const bodyStr = JSON.stringify(body);
   const headers = buildHeaders(endpoint, bodyStr);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
+  const timeout = setTimeout(() => controller.abort(), 25000);
   try {
     const res = await fetch(`${SOLIS_BASE_URL}${endpoint}`, { method: 'POST', headers, body: bodyStr, signal: controller.signal });
     return await res.json();
@@ -257,7 +257,18 @@ Deno.serve(async (req) => {
         if (invId && detail) {
           try {
              const snaps = await db.entities.InverterGraphSnapshot.filter({ inverter_id: invId, date_key: dateKey });
-             const pt = { time: timeLabel, ...detail };
+             const pt = { time: timeLabel };
+             // Only extract relevant keys to save memory/storage
+             ['pac', 'pacPec', 'inverterTemperature', 'eToday', 'model'].forEach(k => {
+               if (detail[k] !== undefined) pt[k] = detail[k];
+             });
+             for (let i = 1; i <= 32; i++) {
+               if (detail[`uPv${i}`] !== undefined) pt[`uPv${i}`] = detail[`uPv${i}`];
+               if (detail[`iPv${i}`] !== undefined) pt[`iPv${i}`] = detail[`iPv${i}`];
+               if (detail[`u_pv${i}`] !== undefined) pt[`u_pv${i}`] = detail[`u_pv${i}`];
+               if (detail[`i_pv${i}`] !== undefined) pt[`i_pv${i}`] = detail[`i_pv${i}`];
+             }
+
              if (snaps.length > 0) {
                const data = (snaps[0].data || []).filter(p => p.time !== timeLabel);
                data.push(pt);
