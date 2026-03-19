@@ -2,7 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
 
 const USERNAME = Deno.env.get('FUSIONSOLAR_USERNAME') || '';
 const PASSWORD = Deno.env.get('FUSIONSOLAR_PASSWORD') || '';
-const API_BASE = 'https://uni004eu5.fusionsolar.huawei.com/thirdData';
+const API_BASE = 'https://eu5.fusionsolar.huawei.com/thirdData';
 
 // Device type IDs
 const DEV_INVERTER    = 1;   // String inverter
