@@ -24,12 +24,13 @@ Deno.serve(async (req) => {
       (snap.data || []).forEach(pt => {
         if (!pt.time) return;
         if (!hourlyMap[pt.time]) hourlyMap[pt.time] = 0;
-        hourlyMap[pt.time] += (pt.value || 0);
+        hourlyMap[pt.time] += (pt.value || 0); // values are in kW
       });
     });
 
+    // Convert kW to MW for fleet-level display
     const hourlyData = Object.entries(hourlyMap)
-      .map(([time, value]) => ({ time, value: parseFloat(value.toFixed(2)) }))
+      .map(([time, value]) => ({ time, value: parseFloat((value / 1000).toFixed(3)) }))
       .sort((a, b) => a.time.localeCompare(b.time));
 
     const existingHourly = await db.entities.FleetGraphSnapshot.filter({ timeframe: 'hourly', date_key: today });
@@ -52,14 +53,15 @@ Deno.serve(async (req) => {
       skip += 50;
     }
 
-    const totalDailyYield = allSites.reduce((sum, site) => sum + (parseFloat(site.daily_yield_kwh) || 0), 0);
+    const totalDailyYieldKwh = allSites.reduce((sum, site) => sum + (parseFloat(site.daily_yield_kwh) || 0), 0);
+    const totalDailyYieldMwh = parseFloat((totalDailyYieldKwh / 1000).toFixed(3)); // Convert kWh to MWh
     const dayOfMonth = String(now.getDate()).padStart(2, '0'); 
 
     const existingDayIndex = dailyData.findIndex(d => d.time === dayOfMonth);
     if (existingDayIndex >= 0) {
-      dailyData[existingDayIndex].value = parseFloat(totalDailyYield.toFixed(2));
+      dailyData[existingDayIndex].value = totalDailyYieldMwh;
     } else {
-      dailyData.push({ time: dayOfMonth, value: parseFloat(totalDailyYield.toFixed(2)) });
+      dailyData.push({ time: dayOfMonth, value: totalDailyYieldMwh });
     }
     dailyData.sort((a, b) => a.time.localeCompare(b.time));
 
