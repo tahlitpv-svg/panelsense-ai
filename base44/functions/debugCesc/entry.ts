@@ -159,13 +159,9 @@ Deno.serve(async (req) => {
       return Response.json({ login: loginReport, error: 'All logins failed' });
     }
 
-    const pid = "192279";
-    const gsn = "E47F24514069";
     const results = await Promise.all([
-      apiGet(token, `/v1/gateways/${gsn}`, `GET gateway info`),
-      apiGet(token, `/v1/gateways?page=1&limit=10&plantId=${pid}`, `GET gateways paginated`),
-      apiGet(token, `/v1/devices?page=1&limit=10&plantId=${pid}`, `GET devices paginated`),
-      apiGet(token, `/v1/plants/${pid}/devices`, `GET plant devices`)
+      apiGet(token, `/v1/plants?page=1&limit=100&lan=en`, `GET /v1/plants`),
+      apiGet(token, `/v1/plant/list?page=1&limit=100`, `GET /v1/plant/list`),
     ]);
 
     return Response.json({
