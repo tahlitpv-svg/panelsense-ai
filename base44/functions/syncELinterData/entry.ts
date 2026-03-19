@@ -65,14 +65,13 @@ async function login() {
 async function elGet(token, path, params = {}) {
   const allParams = { ...params, lan: 'en' };
   const qs        = new URLSearchParams(allParams).toString();
-  const fullPath  = `${path}?${qs}`;
-  const url       = `${API_BASE}${fullPath}`;
-  const hdrs      = makeHeaders('GET', fullPath, token);
-  console.log(`[elinter] GET ${fullPath} headers=${JSON.stringify({ 'X-Ca-Key': hdrs['X-Ca-Key'], 'X-Ca-Nonce': hdrs['X-Ca-Nonce'], 'Authorization': hdrs['Authorization']?.slice(0, 30) })}`);
-  const res       = await fetch(url, { method: 'GET', headers: hdrs });
+  const fullUrl   = `${API_BASE}${path}?${qs}`;
+  const hdrs      = makeHeaders('GET', path, allParams, token);
+  console.log(`[elinter] GET ${path}?${qs}`);
+  const res       = await fetch(fullUrl, { method: 'GET', headers: hdrs });
   const text      = await res.text();
   const parsed    = (() => { try { return JSON.parse(text); } catch { return null; } })();
-  console.log(`[elinter] → ${res.status} msg="${parsed?.msg || ''}" body=${text.slice(0, 400)}`);
+  console.log(`[elinter] → ${res.status} msg="${parsed?.msg || ''}" body=${text.slice(0, 300)}`);
   return parsed;
 }
 
