@@ -57,20 +57,35 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const db = base44.asServiceRole;
 
+    let body = {};
+    try { body = await req.json(); } catch (_) {}
+    const curConnIndex = body.connIndex || 0;
+    const curPage = body.pageNo || 1;
+
     const connections = await db.entities.ApiConnection.filter({ provider: 'sungrow' });
     if (!connections.length) return Response.json({ success: true, message: 'No Sungrow connections', synced: 0 });
 
+    if (curConnIndex >= connections.length) {
+      return Response.json({ success: true, finished: true });
+    }
+
     let totalUpdated = 0;
     const errors = [];
+    const PAGE_SIZE = 5;
 
-    for (const conn of connections) {
-      try {
-        const { token, user_id, base_url } = await sungrowLogin(conn.config);
+    const conn = connections[curConnIndex];
+    let hasMorePages = false;
 
-        // Station list
-        const listRes = await sgPost(base_url, '/openapi/getPowerStationList', conn.config, token, user_id, { curPage: 1, size: 200 });
-        const stations = listRes?.result_data?.pageList || listRes?.result_data?.list || [];
-        console.log(`[syncSungrow] ${stations.length} stations`);
+    try {
+      const { token, user_id, base_url } = await sungrowLogin(conn.config);
+
+      // Station list
+      const listRes = await sgPost(base_url, '/openapi/getPowerStationList', conn.config, token, user_id, { curPage, size: PAGE_SIZE });
+      const stations = listRes?.result_data?.pageList || listRes?.result_data?.list || [];
+      console.log(`[syncSungrow] Page ${curPage} of conn ${curConnIndex}: ${stations.length} stations`);
+      
+      const totalPages = listRes?.result_data?.page?.count || listRes?.result_data?.page?.totalPage || 1;
+      hasMorePages = curPage < totalPages && stations.length > 0;
 
         for (const station of stations) {
           const psId = String(station.ps_id || station.plant_id || station.id || '');
