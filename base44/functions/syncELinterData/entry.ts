@@ -56,10 +56,9 @@ async function login() {
 
 // ── GET with signature ────────────────────────────────────────────────────────
 async function elGet(token, path, params = {}) {
-  // Build QS without lan first, sign with full path, then add lan
-  const qsEntries = Object.entries(params);
-  const qs        = qsEntries.length > 0 ? new URLSearchParams(params).toString() : '';
-  const fullPath  = qs ? `${path}?${qs}` : path;
+  const allParams = { ...params, lan: 'en' };
+  const qs        = new URLSearchParams(allParams).toString();
+  const fullPath  = `${path}?${qs}`;
   const url       = `${API_BASE}${fullPath}`;
   const hdrs      = makeHeaders('GET', fullPath, token);
   console.log(`[elinter] GET ${fullPath} headers=${JSON.stringify({ 'X-Ca-Key': hdrs['X-Ca-Key'], 'X-Ca-Nonce': hdrs['X-Ca-Nonce'], 'Authorization': hdrs['Authorization']?.slice(0, 30) })}`);
