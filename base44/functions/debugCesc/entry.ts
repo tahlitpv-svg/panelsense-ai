@@ -159,14 +159,14 @@ Deno.serve(async (req) => {
       return Response.json({ login: loginReport, error: 'All logins failed' });
     }
 
-    const pid = "192279"; // רונן לנגליב סככה
-    const invList = await apiGet(token, `/v1/inverters?page=1&limit=2&plantId=${pid}`, `GET inverters`);
-    const inv = invList.body?.data?.infos?.[0] || {};
-    const results = [
-      { label: "sunsynkEquip", status: 200, body: inv.sunsynkEquip },
-      { label: "tipVOList", status: 200, body: inv.tipVOList },
-      { label: "gatewayVO", status: 200, body: inv.gatewayVO },
-    ];
+    const pid = "192279";
+    const gsn = "E47F24514069";
+    const results = await Promise.all([
+      apiGet(token, `/v1/gateways/${gsn}`, `GET gateway info`),
+      apiGet(token, `/v1/gateways?page=1&limit=10&plantId=${pid}`, `GET gateways paginated`),
+      apiGet(token, `/v1/devices?page=1&limit=10&plantId=${pid}`, `GET devices paginated`),
+      apiGet(token, `/v1/plants/${pid}/devices`, `GET plant devices`)
+    ]);
 
     return Response.json({
       login_summary: {
