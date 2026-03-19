@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
           if (!sn) continue;
 
           // Real-time output (AC power, phase voltages) — /input returns 403
-          const rtOut = await elGet(token, `/v1/inverter/${sn}/realtime/output`);
+          const rtOut = await elGet(currentToken, `/v1/inverter/${sn}/realtime/output`);
 
           const acPowerW = pf(rtOut?.data?.pInv ?? rtOut?.data?.pac ?? inv.pac ?? 0);
           const acPower  = acPowerW / 1000; // W → kW
