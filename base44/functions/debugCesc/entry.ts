@@ -161,8 +161,8 @@ Deno.serve(async (req) => {
 
     const pid = "192279"; // רונן לנגליב סככה
     const results = await Promise.all([
-      apiGet(token, `/v1/devices?plantId=${pid}`, `GET /v1/devices?plantId=xxx`),
-      apiGet(token, `/v1/inverters?plantId=${pid}`, `GET /v1/inverters?plantId=xxx`),
+      apiGet(token, `/v1/inverters?page=1&limit=20&plantId=${pid}`, `GET inverters paginated`),
+      apiGet(token, `/v1/inverters?page=1&limit=20`, `GET all inverters paginated`),
     ]);
 
     return Response.json({
