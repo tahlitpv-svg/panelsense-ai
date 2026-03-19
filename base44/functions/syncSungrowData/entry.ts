@@ -263,9 +263,27 @@ Deno.serve(async (req) => {
                    const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(now);
                    const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now).slice(0, 5);
                    const snaps = await db.entities.InverterGraphSnapshot.filter({ inverter_id: invId, date_key: todayKey });
-                   const pt = { time: timeLabel, ...pointMap };
+                   const pt = { time: timeLabel };
+                   ['13003', '13119', '13150', '13009', '13010', '13011'].forEach(k => { if (pointMap[k] !== undefined) pt[k] = pointMap[k]; });
+                   for (let i = 1; i <= 32; i++) {
+                     let vk = String(13028 + 2 * (i - 1));
+                     let ak = String(13029 + 2 * (i - 1));
+                     if (pointMap[vk] !== undefined) pt[vk] = pointMap[vk];
+                     if (pointMap[ak] !== undefined) pt[ak] = pointMap[ak];
+                   }
+
                    if (snaps.length > 0) {
-                     const data = (snaps[0].data || []).filter(p => p.time !== timeLabel);
+                     const data = (snaps[0].data || []).filter(p => p.time !== timeLabel).map(oldPt => {
+                       const newPt = { time: oldPt.time };
+                       ['13003', '13119', '13150', '13009', '13010', '13011'].forEach(k => { if (oldPt[k] !== undefined) newPt[k] = oldPt[k]; });
+                       for (let i = 1; i <= 32; i++) {
+                         let vk = String(13028 + 2 * (i - 1));
+                         let ak = String(13029 + 2 * (i - 1));
+                         if (oldPt[vk] !== undefined) newPt[vk] = oldPt[vk];
+                         if (oldPt[ak] !== undefined) newPt[ak] = oldPt[ak];
+                       }
+                       return newPt;
+                     });
                      data.push(pt);
                      data.sort((a, b) => a.time.localeCompare(b.time));
                      await db.entities.InverterGraphSnapshot.update(snaps[0].id, { data });
