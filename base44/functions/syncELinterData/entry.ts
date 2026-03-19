@@ -56,13 +56,17 @@ async function login() {
 
 // ── GET with signature ────────────────────────────────────────────────────────
 async function elGet(token, path, params = {}) {
-  const qs       = new URLSearchParams({ ...params, lan: 'en' }).toString();
-  const fullPath = `${path}?${qs}`;
-  const url      = `${API_BASE}${fullPath}`;
-  const res      = await fetch(url, { method: 'GET', headers: makeHeaders('GET', fullPath, token) });
-  const text     = await res.text();
-  const parsed   = (() => { try { return JSON.parse(text); } catch { return null; } })();
-  console.log(`[elinter] GET ${path} → ${res.status} msg="${parsed?.msg || ''}" body=${text.slice(0, 400)}`);
+  // Build QS without lan first, sign with full path, then add lan
+  const qsEntries = Object.entries(params);
+  const qs        = qsEntries.length > 0 ? new URLSearchParams(params).toString() : '';
+  const fullPath  = qs ? `${path}?${qs}` : path;
+  const url       = `${API_BASE}${fullPath}`;
+  const hdrs      = makeHeaders('GET', fullPath, token);
+  console.log(`[elinter] GET ${fullPath} headers=${JSON.stringify({ 'X-Ca-Key': hdrs['X-Ca-Key'], 'X-Ca-Nonce': hdrs['X-Ca-Nonce'], 'Authorization': hdrs['Authorization']?.slice(0, 30) })}`);
+  const res       = await fetch(url, { method: 'GET', headers: hdrs });
+  const text      = await res.text();
+  const parsed    = (() => { try { return JSON.parse(text); } catch { return null; } })();
+  console.log(`[elinter] → ${res.status} msg="${parsed?.msg || ''}" body=${text.slice(0, 400)}`);
   return parsed;
 }
 
