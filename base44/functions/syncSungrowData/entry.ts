@@ -324,9 +324,22 @@ Deno.serve(async (req) => {
         errors.push({ connection_id: conn.id, error: e.message });
         await db.entities.ApiConnection.update(conn.id, { status: 'error', error_message: e.message }).catch(() => {});
       }
+      
+    if (hasMorePages) {
+      base44.asServiceRole.functions.invoke('syncSungrowData', { connIndex: curConnIndex, pageNo: curPage + 1 }).catch(() => {});
+    } else if (curConnIndex + 1 < connections.length) {
+      base44.asServiceRole.functions.invoke('syncSungrowData', { connIndex: curConnIndex + 1, pageNo: 1 }).catch(() => {});
     }
 
-    return Response.json({ success: true, connections_synced: connections.length, sites_updated: totalUpdated, errors, synced_at: new Date().toISOString() });
+    return Response.json({ 
+      success: true, 
+      connIndex: curConnIndex,
+      pageNo: curPage,
+      hasMorePages,
+      sites_updated: totalUpdated, 
+      errors, 
+      synced_at: new Date().toISOString() 
+    });
 
   } catch (error) {
     console.error('[syncSungrow] Fatal:', error.message);
