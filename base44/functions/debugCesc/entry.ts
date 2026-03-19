@@ -159,11 +159,12 @@ Deno.serve(async (req) => {
       return Response.json({ login: loginReport, error: 'All logins failed' });
     }
 
-    const invId = "672836";
-    const results = await Promise.all([
-      apiGet(token, `/v1/devices/${invId}/real-time`, `GET real-time devices`),
-      apiGet(token, `/v1/inverters/${invId}/real-time`, `GET real-time inverters`),
-    ]);
+    const pid = "192279"; // רונן לנגליב סככה
+    const invList = await apiGet(token, `/v1/inverters?page=1&limit=2&plantId=${pid}`, `GET inverters`);
+    const results = [
+      { label: "Keys of inverter", body: Object.keys(invList.body?.data?.infos?.[0] || {}) },
+      { label: "Inverter details", body: invList.body?.data?.infos?.[0] }
+    ];
 
     return Response.json({
       login_summary: {
