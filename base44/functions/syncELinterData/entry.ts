@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
 import { createHmac, createHash } from 'node:crypto';
 
 // ── Credentials ───────────────────────────────────────────────────────────────
@@ -10,7 +10,7 @@ const LOGIN_URL  = 'http://openapi.inteless.com/oauth/token';
 const API_BASE   = 'https://openapi.inteless.com';
 
 // ── Signature ─────────────────────────────────────────────────────────────────
-function sign(method: string, path: string, nonce: string, md5: string): string {
+function sign(method, path, nonce, md5) {
   const text = [
     method.toUpperCase(),
     'application/json',
@@ -24,10 +24,10 @@ function sign(method: string, path: string, nonce: string, md5: string): string 
   return createHmac('sha256', APP_SECRET).update(text).digest('base64');
 }
 
-function makeHeaders(method: string, path: string, token?: string, body = ''): Record<string, string> {
+function makeHeaders(method, path, token, body = '') {
   const nonce = crypto.randomUUID();
   const md5   = body ? createHash('md5').update(body).digest('base64') : '';
-  const h: Record<string, string> = {
+  const h = {
     'Content-Type':           'application/json',
     'Accept':                 'application/json',
     'Content-MD5':            md5,
@@ -41,7 +41,7 @@ function makeHeaders(method: string, path: string, token?: string, body = ''): R
 }
 
 // ── Login ─────────────────────────────────────────────────────────────────────
-async function login(): Promise<string> {
+async function login() {
   const body = JSON.stringify({ username: USERNAME, password: PASSWORD, grant_type: 'password', client_id: 'openapi' });
   const res  = await fetch(LOGIN_URL, { method: 'POST', headers: makeHeaders('POST', '/oauth/token', undefined, body), body });
   const text = await res.text();
@@ -55,18 +55,17 @@ async function login(): Promise<string> {
 }
 
 // ── GET with signature ────────────────────────────────────────────────────────
-async function elGet(token: string, path: string, params: Record<string, string> = {}) {
+async function elGet(token, path, params = {}) {
   const qs       = new URLSearchParams({ lan: 'en', ...params }).toString();
   const fullPath = `${path}?${qs}`;
   const url      = `${API_BASE}${fullPath}`;
   const res      = await fetch(url, { method: 'GET', headers: makeHeaders('GET', fullPath, token) });
   const text     = await res.text();
-  console.log(`[elinter] GET ${path} status=${res.status} body=${text.slice(0, 200)}`);
+  console.log(`[elinter] GET ${path} → ${res.status} errMsg="${JSON.parse(text||'{}')?.msg || ''}" body=${text.slice(0, 300)}`);
   try { return JSON.parse(text); } catch { return null; }
 }
 
-// ── Helper ────────────────────────────────────────────────────────────────────
-function pf(v: any): number { return parseFloat(v) || 0; }
+function pf(v) { return parseFloat(v) || 0; }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
@@ -77,148 +76,121 @@ Deno.serve(async (req) => {
     // 1. Login
     const token = await login();
 
-    // 2. Get all sites that have elinter_plant_id
+    // 2. Get all sites that have cesc_plant_id
     const allSites = await db.entities.Site.list();
-    const sites    = allSites.filter((s: any) => s.elinter_plant_id);
-    console.log(`[elinter] ${sites.length} sites with elinter_plant_id`);
+    const sites    = allSites.filter(s => s.cesc_plant_id);
+    console.log(`[elinter] ${sites.length} sites with cesc_plant_id`);
 
     if (sites.length === 0) {
-      // No sites linked yet — try to get plant list and log it for setup
-      console.log('[elinter] No sites linked. Trying /v1/plants to discover plant IDs...');
-      const plantsRes = await elGet(token, '/v1/plants', { page: '1', limit: '100' });
-      console.log('[elinter] /v1/plants response:', JSON.stringify(plantsRes).slice(0, 500));
-      return Response.json({ success: false, message: 'No sites with elinter_plant_id. Check logs for plant list.', plants_debug: plantsRes });
+      return Response.json({ success: false, message: 'No sites with cesc_plant_id found.' });
     }
 
     let totalUpdated = 0;
-    const errors: any[] = [];
+    const errors = [];
 
     for (const site of sites) {
-      const plantId = String(site.elinter_plant_id);
-      console.log(`[elinter] Processing site "${site.name}" plantId=${plantId}`);
+      const plantId = String(site.cesc_plant_id);
+      console.log(`[elinter] Processing plant id=${plantId} site="${site.name}"`);
 
       try {
-        // 3. Plant detail (power, yield)
-        const detailRes = await elGet(token, '/v1/plant/detail', { plantId });
-        const detail    = detailRes?.data || detailRes?.result || {};
+        // 3. Inverters list for this plant
+        const invRes  = await elGet(token, '/v1/inverters', { plantId, page: '1', limit: '50' });
+        const invList = invRes?.data?.infos || invRes?.data?.list || [];
+        console.log(`[elinter] Plant ${plantId}: ${invList.length} inverters`);
 
-        const currentPower = pf(detail.pac || detail.power || detail.currentPower || 0);
-        const dailyYield   = pf(detail.etoday || detail.dailyEnergy || detail.todayEnergy || 0);
-        const monthlyYield = pf(detail.emonth || detail.monthEnergy || 0);
-        const totalYield   = pf(detail.etotal || detail.totalEnergy || 0);
-        const status       = detail.status === 1 || detail.status === 'normal' ? 'online'
-                           : detail.status === 2 || detail.status === 'fault'  ? 'warning'
-                           : detail.status === 0 ? 'offline' : 'online';
+        let sitePower  = 0;
+        let siteEtoday = 0;
+        let siteEtotal = 0;
 
+        for (const inv of invList) {
+          const sn = String(inv.sn || inv.serialNumber || '');
+          if (!sn) continue;
+
+          // Real-time output (AC power, phase voltages) — /input returns 403
+          const rtOut = await elGet(token, `/v1/inverter/${sn}/realtime/output`);
+
+          const acPowerW = pf(rtOut?.data?.pInv ?? rtOut?.data?.pac ?? inv.pac ?? 0);
+          const acPower  = acPowerW / 1000; // W → kW
+          const etoday   = pf(rtOut?.data?.etoday ?? inv.etoday ?? 0);
+          const etotal   = pf(rtOut?.data?.etotal ?? inv.etotal ?? 0);
+
+          // vip = [{volt, current, power}, ...] for L1/L2/L3
+          const vip = rtOut?.data?.vip || [];
+          const phase_voltages = {
+            l1: pf(vip[0]?.volt),
+            l2: pf(vip[1]?.volt),
+            l3: pf(vip[2]?.volt),
+          };
+
+          const devStatus = inv.status === 1 ? 'online' : inv.status === 2 ? 'warning' : inv.status === 3 ? 'warning' : 'offline';
+
+          sitePower  += acPower;
+          siteEtoday += etoday;
+          siteEtotal  = Math.max(siteEtotal, etotal);
+
+          const invData = {
+            site_id:             site.id,
+            name:                inv.alias || sn,
+            model:               inv.model || '',
+            rated_power_kw:      0,
+            current_ac_power_kw: acPower,
+            current_dc_power_kw: acPower, // no /input access
+            efficiency_percent:  0,
+            temperature_c:       null,
+            status:              devStatus,
+            daily_yield_kwh:     etoday,
+            mppt_strings:        [],
+            phase_voltages,
+            cesc_inverter_sn:    sn,
+          };
+
+          const existing = await db.entities.Inverter.filter({ cesc_inverter_sn: sn });
+          if (existing.length > 0) {
+            await db.entities.Inverter.update(existing[0].id, invData);
+          } else {
+            await db.entities.Inverter.create(invData);
+          }
+          console.log(`[elinter] Inverter ${sn}: AC=${acPower.toFixed(2)}kW etoday=${etoday}kWh`);
+        }
+
+        // 4. Update site
         await db.entities.Site.update(site.id, {
-          current_power_kw:   currentPower / 1000,
-          daily_yield_kwh:    dailyYield,
-          monthly_yield_kwh:  monthlyYield,
-          lifetime_yield_kwh: totalYield,
-          status,
+          current_power_kw:   sitePower,
+          daily_yield_kwh:    siteEtoday,
+          lifetime_yield_kwh: siteEtotal,
+          status:             sitePower > 0 ? 'online' : 'offline',
           last_heartbeat:     new Date().toISOString()
         });
         totalUpdated++;
-        console.log(`[elinter] Site "${site.name}": ${currentPower}W / ${dailyYield}kWh`);
+        console.log(`[elinter] Site "${site.name}": power=${sitePower.toFixed(2)}kW daily=${siteEtoday}kWh`);
 
-        // 4. Daily power snapshot
+        // 5. Daily power snapshot
         try {
           const now       = new Date();
           const todayKey  = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(now);
           const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false }).format(now).slice(0, 5);
           const snapId    = `el_${plantId}`;
-          const powerKw   = parseFloat((currentPower / 1000).toFixed(3));
+          const powerKw   = parseFloat(sitePower.toFixed(3));
           const snaps     = await db.entities.SiteGraphSnapshot.filter({ station_id: snapId, date_key: todayKey });
 
           if (snaps.length > 0) {
-            if (powerKw > 0 || snaps[0].data?.length > 0) {
-              const pts = (snaps[0].data || []).filter((p: any) => p.time !== timeLabel);
-              pts.push({ time: timeLabel, value: powerKw });
-              pts.sort((a: any, b: any) => a.time.localeCompare(b.time));
-              await db.entities.SiteGraphSnapshot.update(snaps[0].id, { daily_yield_kwh: dailyYield, data: pts });
+            const pts = (snaps[0].data || []).filter(p => p.time !== timeLabel);
+            if (powerKw > 0 || pts.length > 0) {
+              if (powerKw > 0) pts.push({ time: timeLabel, value: powerKw });
+              pts.sort((a, b) => a.time.localeCompare(b.time));
+              await db.entities.SiteGraphSnapshot.update(snaps[0].id, { daily_yield_kwh: siteEtoday, data: pts });
             }
-          } else {
+          } else if (powerKw > 0) {
             await db.entities.SiteGraphSnapshot.create({
               station_id:      snapId,
               date_key:        todayKey,
-              daily_yield_kwh: dailyYield,
-              data:            powerKw > 0 ? [{ time: timeLabel, value: powerKw }] : []
+              daily_yield_kwh: siteEtoday,
+              data:            [{ time: timeLabel, value: powerKw }]
             });
           }
-        } catch (e: any) { console.log(`[elinter] Snapshot error: ${e.message}`); }
+        } catch (e) { console.log(`[elinter] Snapshot error: ${e.message}`); }
 
-        // 5. Inverters for this plant
-        const invRes  = await elGet(token, '/v1/inverters', { plantId, page: '1', limit: '50' });
-        const invList = invRes?.data?.list || invRes?.data || invRes?.result || [];
-        console.log(`[elinter] Plant ${plantId}: ${invList.length} inverters`);
-
-        for (const inv of invList) {
-          try {
-            const sn = String(inv.sn || inv.serialNumber || inv.devSn || '');
-            if (!sn) continue;
-
-            // Real-time output (AC power, voltages)
-            const rtOutRes = await elGet(token, '/v1/inverter/realtime/output', { sn });
-            const rtOut    = rtOutRes?.data || {};
-
-            // Real-time input (DC strings/MPPT)
-            const rtInRes  = await elGet(token, '/v1/inverter/realtime/input', { sn });
-            const rtIn     = rtInRes?.data || {};
-
-            const acPower  = pf(rtOut.pInv || rtOut.pac || inv.pac || 0);
-            const etoday   = pf(rtOut.etoday || inv.etoday || 0);
-            const temp     = rtOut.temp !== undefined ? pf(rtOut.temp) : null;
-
-            // MPPT strings
-            const pvIV        = rtIn.pvIV || [];
-            const mpptStrings = pvIV
-              .map((pv: any) => ({
-                string_id: `PV${pv.pvNo}`,
-                voltage_v: pf(pv.vpv),
-                current_a: pf(pv.ipv),
-                power_kw:  pf(pv.ppv) / 1000
-              }))
-              .filter((s: any) => s.voltage_v > 0 || s.current_a > 0);
-
-            const totalDcPower = mpptStrings.reduce((s: number, p: any) => s + p.power_kw, 0);
-            const efficiency   = totalDcPower > 0 ? parseFloat(((acPower / totalDcPower) * 100).toFixed(1)) : 0;
-            const devStatus    = inv.status === 1 ? 'online' : inv.status === 2 ? 'warning' : 'offline';
-
-            const invData = {
-              site_id:             site.id,
-              name:                inv.alias || inv.name || sn,
-              model:               inv.model || inv.devModel || '',
-              rated_power_kw:      pf(inv.ratedPower || 0) / 1000,
-              current_ac_power_kw: acPower / 1000,
-              current_dc_power_kw: totalDcPower,
-              efficiency_percent:  efficiency,
-              temperature_c:       temp,
-              status:              devStatus,
-              daily_yield_kwh:     etoday,
-              mppt_strings:        mpptStrings,
-              phase_voltages: {
-                l1: pf(rtOut.vac1),
-                l2: pf(rtOut.vac2),
-                l3: pf(rtOut.vac3)
-              },
-              elinter_sn: sn,
-            };
-
-            const existing = await db.entities.Inverter.filter({ elinter_sn: sn });
-            if (existing.length > 0) {
-              await db.entities.Inverter.update(existing[0].id, invData);
-            } else {
-              await db.entities.Inverter.create(invData);
-            }
-            console.log(`[elinter] Inverter ${sn}: AC=${acPower}W DC=${totalDcPower.toFixed(2)}kW strings=${mpptStrings.length} temp=${temp}°C`);
-
-          } catch (e: any) {
-            console.log(`[elinter] Inverter error sn=${inv.sn}: ${e.message}`);
-            errors.push({ site: site.name, sn: inv.sn, error: e.message });
-          }
-        }
-
-      } catch (e: any) {
+      } catch (e) {
         console.error(`[elinter] Site error "${site.name}": ${e.message}`);
         errors.push({ site: site.name, error: e.message });
       }
@@ -232,7 +204,7 @@ Deno.serve(async (req) => {
       synced_at:     new Date().toISOString()
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('[elinter] Fatal:', error.message);
     return Response.json({ error: error.message }, { status: 500 });
   }
