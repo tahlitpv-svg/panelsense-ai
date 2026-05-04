@@ -52,72 +52,44 @@ Deno.serve(async (req) => {
     const stationName = detail?.data?.stationName || 'Unknown';
     const capacity = detail?.data?.capacity || 0;
 
-    // The Solis stationDayEnergyList API returns all stations for ONE specific day.
-    // We need to iterate day-by-day, filter by our stationId, and collect energy data.
-    // Use stationMonth endpoint first to get monthly totals more efficiently.
-    
-    const allDays = [];
-    const startDate = new Date('2025-03-28'); // station creation date
+    // Use stationYear API - returns monthly summary directly for the station
     const now = new Date();
-    const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const currentYear = now.getFullYear();
+    const startYear = 2025; // station creation year
     
-    // Iterate day by day
-    const current = new Date(startDate);
-    while (current <= endDate) {
-      const timeStr = current.toISOString().split('T')[0]; // YYYY-MM-DD
-      await delay(600); // rate limit
-      
-      const res = await solisPost('/v1/api/stationDayEnergyList', {
+    const monthlyData = [];
+    
+    for (let year = startYear; year <= currentYear; year++) {
+      await delay(600);
+      const res = await solisPost('/v1/api/stationYear', {
         id: stationId,
         money: "ILS",
-        time: timeStr,
-        pageNo: 1,
-        pageSize: 100
+        year: String(year),
+        nmiFlag: 0
       });
       
-      const records = res?.data?.records || [];
-      const myRecord = records.find(r => r.id === stationId);
-      
-      if (myRecord) {
-        // energy field value is in kWh (energyPec is display multiplier for energyStr unit)
-        const energyKwh = myRecord.energy || 0;
+      const records = Array.isArray(res?.data) ? res.data : [];
+      for (const r of records) {
+        const energyKwh = r.energy || 0;
+        if (energyKwh === 0) continue;
         
-        allDays.push({
-          date: myRecord.dateStr || timeStr,
-          energyKwh,
-          money: myRecord.money || 0,
-          gridSellEnergy: myRecord.gridSellEnergy || 0,
-          homeLoadEnergy: myRecord.homeLoadEnergy || 0,
-          gridPurchasedEnergy: myRecord.gridPurchasedEnergy || 0,
+        monthlyData.push({
+          month: r.dateStr, // "YYYY-MM"
+          totalKwh: energyKwh,
+          totalMoney: r.money || 0,
+          totalGridSell: r.gridSellEnergy || 0,
+          totalHomeLoad: r.homeLoadEnergy || 0,
+          totalGridPurchased: r.gridPurchasedEnergy || 0,
+          days: 0, // not available from yearly summary
         });
       }
-      
-      current.setDate(current.getDate() + 1);
     }
-
-    // Sort by date
-    allDays.sort((a, b) => a.date.localeCompare(b.date));
-
-    // Aggregate by month
-    const monthlyMap = {};
-    for (const day of allDays) {
-      const monthKey = day.date.substring(0, 7); // YYYY-MM
-      if (!monthlyMap[monthKey]) {
-        monthlyMap[monthKey] = { month: monthKey, totalKwh: 0, totalMoney: 0, totalGridSell: 0, totalHomeLoad: 0, totalGridPurchased: 0, days: 0 };
-      }
-      monthlyMap[monthKey].totalKwh += day.energyKwh;
-      monthlyMap[monthKey].totalMoney += day.money;
-      monthlyMap[monthKey].totalGridSell += day.gridSellEnergy;
-      monthlyMap[monthKey].totalHomeLoad += day.homeLoadEnergy;
-      monthlyMap[monthKey].totalGridPurchased += day.gridPurchasedEnergy;
-      monthlyMap[monthKey].days++;
-    }
-
-    const monthlyData = Object.values(monthlyMap).sort((a, b) => a.month.localeCompare(b.month));
+    
+    monthlyData.sort((a, b) => a.month.localeCompare(b.month));
 
     // Build CSV with BOM for Hebrew Excel support
     const BOM = '\uFEFF';
-    const headers_csv = ['חודש', 'ייצור (kWh)', 'הכנסה (₪)', 'מכירה לרשת (kWh)', 'צריכה עצמית (kWh)', 'קנייה מרשת (kWh)', 'ימי ייצור'];
+    const headers_csv = ['חודש', 'ייצור (kWh)', 'הכנסה (₪)', 'מכירה לרשת (kWh)', 'צריכה עצמית (kWh)', 'קנייה מרשת (kWh)'];
     let csv = BOM + headers_csv.join(',') + '\n';
 
     let grandTotalKwh = 0;
@@ -132,12 +104,12 @@ Deno.serve(async (req) => {
     for (const m of monthlyData) {
       const [year, mon] = m.month.split('-');
       const monthLabel = `${monthNames[mon]} ${year}`;
-      csv += `${monthLabel},${m.totalKwh.toFixed(1)},${m.totalMoney.toFixed(2)},${m.totalGridSell.toFixed(1)},${m.totalHomeLoad.toFixed(1)},${m.totalGridPurchased.toFixed(1)},${m.days}\n`;
+      csv += `${monthLabel},${m.totalKwh.toFixed(1)},${m.totalMoney.toFixed(2)},${m.totalGridSell.toFixed(1)},${m.totalHomeLoad.toFixed(1)},${m.totalGridPurchased.toFixed(1)}\n`;
       grandTotalKwh += m.totalKwh;
       grandTotalMoney += m.totalMoney;
     }
 
-    csv += `\nסה"כ,${grandTotalKwh.toFixed(1)},${grandTotalMoney.toFixed(2)},,,,\n`;
+    csv += `\nסה"כ,${grandTotalKwh.toFixed(1)},${grandTotalMoney.toFixed(2)},,,\n`;
     csv += `\nפרטי המערכת\n`;
     csv += `שם תחנה,${stationName}\n`;
     csv += `הספק מותקן (kWp),${capacity}\n`;

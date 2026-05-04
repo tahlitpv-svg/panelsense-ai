@@ -54,11 +54,9 @@ Deno.serve(async (req) => {
     // Try multiple endpoints to find which one returns monthly data
     const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
-    // Try monthly energy list endpoint and station month energy
+    // stationYear returns daily data for the entire year for this specific station
     const endpoints = [
-      { name: 'monthList', ep: '/v1/api/stationMonthEnergyList', body: { id: stationId, money: "ILS", time: "2025-04-01", pageNo: 1, pageSize: 100 } },
-      { name: 'stationMonth', ep: '/v1/api/stationMonth', body: { id: stationId, money: "ILS", month: "2025-04", nmiFlag: 0 } },
-      { name: 'stationYear', ep: '/v1/api/stationYear', body: { id: stationId, money: "ILS", year: "2025", nmiFlag: 0 } },
+      { name: 'year2025', ep: '/v1/api/stationYear', body: { id: stationId, money: "ILS", year: "2025", nmiFlag: 0 } },
     ];
 
     for (const { name, ep, body } of endpoints) {
@@ -71,20 +69,27 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Show tkuma records from page 1 and page 2
-    const page1Records = (results.page1?.data?.records || []);
-    const page2Records = (results.page2?.data?.records || []);
+    // stationYear returns an array directly in data (not records)
+    const yearData = results.year2025?.data;
+    const isArray = Array.isArray(yearData);
     
-    const tkumaP1 = page1Records.filter(r => r.id === stationId).map(r => ({ date: r.dateStr, energy: r.energy, energyStr: r.energyStr, energyPec: r.energyPec }));
-    const tkumaP2 = page2Records.filter(r => r.id === stationId).map(r => ({ date: r.dateStr, energy: r.energy, energyStr: r.energyStr, energyPec: r.energyPec }));
-    
-    // Show unique dates across all records
-    const allDates1 = [...new Set(page1Records.map(r => r.dateStr))];
-    const allDates2 = [...new Set(page2Records.map(r => r.dateStr))];
+    // Summarize: group by month
+    const monthSummary = {};
+    const dataArr = isArray ? yearData : (yearData?.records || []);
+    for (const r of dataArr) {
+      const monthKey = (r.dateStr || '').substring(0, 7);
+      if (!monthKey) continue;
+      if (!monthSummary[monthKey]) monthSummary[monthKey] = { totalEnergy: 0, days: 0, sampleEnergyStr: r.energyStr, sampleEnergyPec: r.energyPec };
+      monthSummary[monthKey].totalEnergy += (r.energy || 0);
+      monthSummary[monthKey].days++;
+    }
     
     return Response.json({ 
-      page1: { total: results.page1?.data?.total, recordCount: page1Records.length, uniqueDates: allDates1, tkuma: tkumaP1 },
-      page2: { total: results.page2?.data?.total, recordCount: page2Records.length, uniqueDates: allDates2, tkuma: tkumaP2 },
+      isArray,
+      totalDays: dataArr.length,
+      monthSummary,
+      sampleFirst: dataArr[0] ? { date: dataArr[0].dateStr, energy: dataArr[0].energy, energyStr: dataArr[0].energyStr, energyPec: dataArr[0].energyPec } : null,
+      sampleLast: dataArr[dataArr.length-1] ? { date: dataArr[dataArr.length-1].dateStr, energy: dataArr[dataArr.length-1].energy, energyStr: dataArr[dataArr.length-1].energyStr, energyPec: dataArr[dataArr.length-1].energyPec } : null,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
