@@ -52,48 +52,47 @@ Deno.serve(async (req) => {
     const stationName = detail?.data?.stationName || 'Unknown';
     const capacity = detail?.data?.capacity || 0;
 
-    // Fetch all daily records - iterate through months from installation to now
-    // Station was created 2025-03-28, so start from 2025-03
+    // The Solis stationDayEnergyList API returns all stations for ONE specific day.
+    // We need to iterate day-by-day, filter by our stationId, and collect energy data.
+    // Use stationMonth endpoint first to get monthly totals more efficiently.
+    
     const allDays = [];
-    const startYear = 2025;
-    const startMonth = 3;
+    const startDate = new Date('2025-03-28'); // station creation date
     const now = new Date();
-    const endYear = now.getFullYear();
-    const endMonth = now.getMonth() + 1;
-
-    for (let y = startYear; y <= endYear; y++) {
-      const mStart = (y === startYear) ? startMonth : 1;
-      const mEnd = (y === endYear) ? endMonth : 12;
-      for (let m = mStart; m <= mEnd; m++) {
-        const timeStr = `${y}-${String(m).padStart(2, '0')}-01`;
-        await delay(1200); // rate limit
-        const res = await solisPost('/v1/api/stationDayEnergyList', {
-          id: stationId,
-          money: "ILS",
-          time: timeStr,
-          pageNo: 1,
-          pageSize: 100
+    const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    // Iterate day by day
+    const current = new Date(startDate);
+    while (current <= endDate) {
+      const timeStr = current.toISOString().split('T')[0]; // YYYY-MM-DD
+      await delay(600); // rate limit
+      
+      const res = await solisPost('/v1/api/stationDayEnergyList', {
+        id: stationId,
+        money: "ILS",
+        time: timeStr,
+        pageNo: 1,
+        pageSize: 100
+      });
+      
+      const records = res?.data?.records || [];
+      const myRecord = records.find(r => r.id === stationId);
+      
+      if (myRecord) {
+        // energy field value is in kWh (energyPec is display multiplier for energyStr unit)
+        const energyKwh = myRecord.energy || 0;
+        
+        allDays.push({
+          date: myRecord.dateStr || timeStr,
+          energyKwh,
+          money: myRecord.money || 0,
+          gridSellEnergy: myRecord.gridSellEnergy || 0,
+          homeLoadEnergy: myRecord.homeLoadEnergy || 0,
+          gridPurchasedEnergy: myRecord.gridPurchasedEnergy || 0,
         });
-        const records = res?.data?.records || [];
-        for (const r of records) {
-          // Filter only records matching our station
-          if (r.id !== stationId) continue;
-          
-          // energy field is the display value; energyPec is the multiplier
-          // energy * energyPec gives kWh when energyStr is "MWh" etc.
-          // Actually: energy is already in kWh, energyStr/energyPec are for display only
-          const energyKwh = r.energy || 0;
-          
-          allDays.push({
-            date: r.dateStr,
-            energyKwh,
-            money: r.money || 0,
-            gridSellEnergy: r.gridSellEnergy || 0,
-            homeLoadEnergy: r.homeLoadEnergy || 0,
-            gridPurchasedEnergy: r.gridPurchasedEnergy || 0,
-          });
-        }
       }
+      
+      current.setDate(current.getDate() + 1);
     }
 
     // Sort by date

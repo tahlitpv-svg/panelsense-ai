@@ -54,9 +54,11 @@ Deno.serve(async (req) => {
     // Try multiple endpoints to find which one returns monthly data
     const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
-    // Fetch daily energy with sno (station serial number) instead of id
+    // Try monthly energy list endpoint and station month energy
     const endpoints = [
-      { name: 'dayList_apr', ep: '/v1/api/stationDayEnergyList', body: { id: stationId, money: "ILS", time: "2025-04-01", pageNo: 1, pageSize: 100 } },
+      { name: 'monthList', ep: '/v1/api/stationMonthEnergyList', body: { id: stationId, money: "ILS", time: "2025-04-01", pageNo: 1, pageSize: 100 } },
+      { name: 'stationMonth', ep: '/v1/api/stationMonth', body: { id: stationId, money: "ILS", month: "2025-04", nmiFlag: 0 } },
+      { name: 'stationYear', ep: '/v1/api/stationYear', body: { id: stationId, money: "ILS", year: "2025", nmiFlag: 0 } },
     ];
 
     for (const { name, ep, body } of endpoints) {
@@ -69,7 +71,21 @@ Deno.serve(async (req) => {
       }
     }
 
-    return Response.json(results);
+    // Show tkuma records from page 1 and page 2
+    const page1Records = (results.page1?.data?.records || []);
+    const page2Records = (results.page2?.data?.records || []);
+    
+    const tkumaP1 = page1Records.filter(r => r.id === stationId).map(r => ({ date: r.dateStr, energy: r.energy, energyStr: r.energyStr, energyPec: r.energyPec }));
+    const tkumaP2 = page2Records.filter(r => r.id === stationId).map(r => ({ date: r.dateStr, energy: r.energy, energyStr: r.energyStr, energyPec: r.energyPec }));
+    
+    // Show unique dates across all records
+    const allDates1 = [...new Set(page1Records.map(r => r.dateStr))];
+    const allDates2 = [...new Set(page2Records.map(r => r.dateStr))];
+    
+    return Response.json({ 
+      page1: { total: results.page1?.data?.total, recordCount: page1Records.length, uniqueDates: allDates1, tkuma: tkumaP1 },
+      page2: { total: results.page2?.data?.total, recordCount: page2Records.length, uniqueDates: allDates2, tkuma: tkumaP2 },
+    });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
